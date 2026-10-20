@@ -18,13 +18,13 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "drizzle-orm": "^0.39.3",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
     "@types/node": "^22.13.4",
-    "drizzle-kit": "^0.30.4",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.7.3"
   }
 }
