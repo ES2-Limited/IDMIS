@@ -48,6 +48,22 @@ jobs:
   validate:
     name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: idmis
+          POSTGRES_PASSWORD: idmis_password
+          POSTGRES_DB: idmis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://idmis:idmis_password@localhost:5432/idmis
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

@@ -16,10 +16,12 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "db:hash-password": "tsx scripts/hash-password.ts"
   },
   "dependencies": {
     "@idmis/contracts": "workspace:*",
+    "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.5"
   },

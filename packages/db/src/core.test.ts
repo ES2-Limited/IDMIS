@@ -12,10 +12,10 @@ describe('core schema and database integrity (fresh database per test run)', () 
   const TEST_DB_NAME = `idmis_test_${Date.now()}`;
   const baseAdminUrl =
     process.env.DATABASE_ADMIN_URL ||
-    process.env.DATABASE_URL?.replace(/\/[^/]+$/, '/postgres') ||
+    process.env.DATABASE_URL ||
     'postgresql://idmis:idmis@localhost:5432/postgres';
 
-  const testDbUrl = baseAdminUrl.replace(/\/[^/]+$/, `/${TEST_DB_NAME}`);
+  const testDbUrl = baseAdminUrl.replace(/\/[^/]+(?:\?.*)?$/, `/${TEST_DB_NAME}`);
 
   let adminClient: postgres.Sql;
   let testClient: postgres.Sql;
@@ -30,7 +30,7 @@ describe('core schema and database integrity (fresh database per test run)', () 
   beforeAll(async () => {
     // 1. Create a fresh, isolated database (no extensions pre-created)
     adminClient = postgres(baseAdminUrl, { max: 1 });
-    await adminClient.unsafe(`CREATE DATABASE "${TEST_DB_NAME}" OWNER idmis;`);
+    await adminClient.unsafe(`CREATE DATABASE "${TEST_DB_NAME}";`);
 
     // 2. Connect to the fresh database
     testClient = postgres(testDbUrl);
@@ -55,13 +55,30 @@ describe('core schema and database integrity (fresh database per test run)', () 
   });
 
   afterAll(async () => {
-    // Teardown: close test connection and drop temporary database
-    if (testClient) {
-      await testClient.end();
-    }
-    if (adminClient) {
-      await adminClient.unsafe(`DROP DATABASE IF EXISTS "${TEST_DB_NAME}";`);
-      await adminClient.end();
+    // Teardown: ensure temporary database is dropped even if tests fail
+    try {
+      if (testClient) {
+        await testClient.end({ timeout: 5 }).catch(() => {});
+      }
+    } finally {
+      if (adminClient) {
+        try {
+          await adminClient
+            .unsafe(
+              `
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '${TEST_DB_NAME}' AND pid <> pg_backend_pid();
+          `,
+            )
+            .catch(() => {});
+          await adminClient.unsafe(`DROP DATABASE IF EXISTS "${TEST_DB_NAME}" WITH (FORCE);`);
+        } catch (err) {
+          console.error(`Failed to drop test database ${TEST_DB_NAME}:`, err);
+        } finally {
+          await adminClient.end({ timeout: 5 }).catch(() => {});
+        }
+      }
     }
   });
 
