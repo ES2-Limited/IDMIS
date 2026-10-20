@@ -1,0 +1,53 @@
+name: Bug Report
+description: Report a defect, error, regression, or unexpected behavior in IDMIS 2.0.
+title: 'fix(<scope>): <short description>'
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide clear details to reproduce the bug in IDMIS 2.0.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      options:
+        - core
+        - slis
+        - me
+        - blis
+        - web
+        - api
+        - worker
+        - contracts
+        - db
+        - ui
+        - sync
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened, and what was expected instead?
+      placeholder: Describe the defect clearly.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Navigate to '...'
+        2. Submit form with payload '...'
+        3. See error response '...'
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Payload
+      description: Paste any server error (RFC 9457), browser console error, or stack trace.
+      render: json

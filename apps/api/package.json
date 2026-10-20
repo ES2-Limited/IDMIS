@@ -7,7 +7,8 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^12.2.0",

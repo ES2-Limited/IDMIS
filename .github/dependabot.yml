@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'patch'
+          - 'minor'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'patch'
+          - 'minor'
