@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "bullmq": "^5.41.0"
+    "bullmq": "^6.3.16"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
