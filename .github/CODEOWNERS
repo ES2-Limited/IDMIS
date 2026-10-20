@@ -1,0 +1,41 @@
+# Codeowners for TRIMING IDMIS 2.0
+# Review rules based on domain architecture and ownership boundaries
+
+# Dev A: Backend platform, core/blis modules, worker, database, core contracts
+packages/db/                       @DEV_A
+packages/contracts/core/           @DEV_A
+apps/api/src/platform/             @DEV_A
+apps/api/src/sync/                 @DEV_A
+apps/api/src/imports/              @DEV_A
+apps/worker/                       @DEV_A
+apps/api/src/modules/core/         @DEV_A
+apps/api/src/modules/blis/         @DEV_A
+apps/web/src/modules/blis/         @DEV_A
+
+# Dev B: Frontend core, slis/me modules, ui, client sync
+packages/ui/                       @DEV_B
+packages/sync/                     @DEV_B
+apps/web/src/app/                  @DEV_B
+apps/web/src/shell/                @DEV_B
+apps/web/src/field/                @DEV_B
+apps/web/src/offline/              @DEV_B
+apps/web/src/sw/                   @DEV_B
+apps/web/src/imports/              @DEV_B
+apps/web/src/i18n/                 @DEV_B
+apps/api/src/modules/slis/         @DEV_B
+apps/web/src/modules/slis/         @DEV_B
+apps/api/src/modules/me/           @DEV_B
+apps/web/src/modules/me/           @DEV_B
+
+# Shared Contracts: Changes require review from both developers
+packages/contracts/                @DEV_A @DEV_B
+
+# Lead / Reviewer: Governance, CI, agent rules, config
+.github/                           @SAIF
+.agents/                           @SAIF
+AGENTS.md                          @SAIF
+apps/api/AGENTS.md                 @SAIF
+apps/web/AGENTS.md                 @SAIF
+packages/db/AGENTS.md              @SAIF
+packages/contracts/AGENTS.md       @SAIF
+packages/config/                   @SAIF

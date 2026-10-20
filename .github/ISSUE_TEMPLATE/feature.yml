@@ -1,0 +1,58 @@
+name: Feature Request
+description: Propose a new feature, endpoint, or enhancement for IDMIS 2.0.
+title: 'feat(<scope>): <short description>'
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a feature for TRIMING IDMIS 2.0.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Target Module
+      description: Select the primary domain module affected.
+      options:
+        - core
+        - slis
+        - me
+        - blis
+        - web
+        - api
+        - worker
+        - contracts
+        - db
+        - ui
+        - sync
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What user or operational problem does this solve?
+      placeholder: As an irrigation officer, I need to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution & Feature Path
+      description: Describe how this feature should be implemented starting from contracts.
+      placeholder: |
+        1. contracts: Add FarmerSchema
+        2. db: Add farmers table
+        3. api: Scoped repository & controller
+        4. web: Form component
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Guardrails Confirmation
+      options:
+        - label: I will adhere to contract-first development in `packages/contracts`.
+          required: true
+        - label: I will enforce repository tenant scoping (scheme + state IDs).
+          required: true
