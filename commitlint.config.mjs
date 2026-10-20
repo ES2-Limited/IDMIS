@@ -18,6 +18,8 @@ export default {
         'ui',
         'sync',
         'infra',
+        'deps',
+        'deps-dev',
       ],
     ],
     'scope-empty': [2, 'never'],

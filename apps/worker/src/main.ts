@@ -1,17 +1,18 @@
 import { Queue } from 'bullmq';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const parsedUrl = new URL(redisUrl);
 
 // Placeholder queue connection read from REDIS_URL
 const placeholderQueue = new Queue('placeholder', {
   connection: {
-    host: parsedUrl.hostname || 'localhost',
-    port: Number(parsedUrl.port) || 6379,
-    username: parsedUrl.username || undefined,
-    password: parsedUrl.password || undefined,
+    url: redisUrl,
     lazyConnect: true,
   },
+});
+
+placeholderQueue.on('error', (err) => {
+  // Log and ignore unhandled connection error events when redis is offline
+  console.warn('Queue connection error:', err.message);
 });
 
 console.log('worker started');

@@ -25,6 +25,7 @@ TRIMING IDMIS 2.0 is a modular monolith system.
 8. **Design system integrity**: UI uses components and tokens from `packages/ui` only; no one-off styled components in `apps/web`.
 9. **Zero rogue dependencies**: No new dependency without asking the human first.
 10. **Test co-location**: Tests ship with the change: unit tests for schemas and business rules, an API integration test for every endpoint.
+11. **Developer identity**: Commits use the developer's own git identity. Never add Co-authored-by, Generated-with, or any AI/agent attribution to commit messages or PR descriptions. Never run git config.
 
 ---
 
