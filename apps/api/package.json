@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
-    "@types/node": "^22.13.4",
+    "@types/node": "^26.6.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
