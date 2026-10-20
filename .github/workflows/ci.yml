@@ -11,6 +11,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commit-hygiene:
+    name: Commit Hygiene & Identity Check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js (via .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Check PR commits hygiene
+        env:
+          ALLOWED_AUTHOR_EMAILS: ${{ vars.ALLOWED_AUTHOR_EMAILS }}
+        run: node scripts/check-pr-commits.mjs origin/${{ github.base_ref }} ${{ github.event.pull_request.head.sha }}
+
   gitleaks:
     name: Secret Scanning
     runs-on: ubuntu-latest
