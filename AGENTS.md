@@ -81,3 +81,16 @@ Follow this exact sequence when implementing features:
 - Detailed architecture and coding rules live in `.agents/rules/`.
 - Architecture Decision Records live in `docs/adr/`.
 - Team ownership boundaries live in `docs/ownership.md`.
+
+---
+
+## Codeowners & Ownership Split
+
+Responsibilities strictly follow a backend/frontend split:
+
+- **Backend (`@DEV_A`)**: `apps/api/**`, `apps/worker/**`, `packages/db/**`, `packages/api-client/**`.
+- **Frontend (`@DEV_B`)**: `apps/web/**`, `packages/ui/**`, `packages/sync/**`, `tests/e2e/**`.
+- **Contracts (`@DEV_A` & `@DEV_B`)**: `packages/contracts/**` (joint sign-off required).
+- **Governance (`@SAIF`)**: `.github/**`, `.agents/**`, `AGENTS.md`, `**/AGENTS.md`, `packages/config/**`, `docs/plan/**`.
+
+Every PR modifying files outside the author's primary domain requires cross-review from the respective owner (see `docs/ownership.md` and `.github/CODEOWNERS`).
