@@ -25,15 +25,17 @@ export function setRefreshTokenCookie(
   maxAgeSeconds = REFRESH_TOKEN_MAX_AGE_SECONDS,
 ): void {
   const isProd = process.env.NODE_ENV === 'production';
+  const cookiePath = process.env.COOKIE_PATH || '/auth';
   const cookie = `${REFRESH_TOKEN_COOKIE_NAME}=${encodeURIComponent(
     token,
-  )}; Path=/auth; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${maxAgeSeconds}`;
+  )}; Path=${cookiePath}; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${maxAgeSeconds}`;
   reply.header('Set-Cookie', cookie);
 }
 
 export function clearRefreshTokenCookie(reply: FastifyReply): void {
+  const cookiePath = process.env.COOKIE_PATH || '/auth';
   reply.header(
     'Set-Cookie',
-    `${REFRESH_TOKEN_COOKIE_NAME}=; Path=/auth; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+    `${REFRESH_TOKEN_COOKIE_NAME}=; Path=${cookiePath}; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
   );
 }

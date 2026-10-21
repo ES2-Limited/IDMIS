@@ -12,6 +12,7 @@ export class RedisService implements OnModuleDestroy {
     if (redisUrl && process.env.NODE_ENV !== 'test') {
       try {
         this.redisClient = new Redis(redisUrl, {
+          family: 0,
           maxRetriesPerRequest: 1,
           enableOfflineQueue: false,
           retryStrategy: () => null,

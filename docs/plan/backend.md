@@ -60,22 +60,24 @@ Every feature crosses the API, so the two of you meet at the contract first, the
 
 The agent rules say "no new dependency without asking". These are already approved for the backend; anything else needs Saif's OK first.
 
-| Need                   | Library                                                                      |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| Password hashing       | `argon2`                                                                     |
-| Tokens                 | `@nestjs/jwt` (or `jose`)                                                    |
-| TOTP                   | `otplib`                                                                     |
-| Permissions            | `@casl/ability`                                                              |
-| Validation and OpenAPI | `zod`, `@asteasolutions/zod-to-openapi` (or `nestjs-zod`)                    |
-| Queues                 | `bullmq`, `ioredis`                                                          |
-| Excel                  | `exceljs`                                                                    |
-| Files                  | `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`                        |
-| Shapefiles             | `shapefile` (read), `@turf/area` only if PostGIS cannot do it                |
-| PDF                    | `playwright-core` (worker only)                                              |
-| Rate limiting          | `@nestjs/throttler`                                                          |
-| Testing                | `vitest`, `@testcontainers/postgresql`, `@testcontainers/redis`, `supertest` |
-| Logging and errors     | `pino`, `nestjs-pino`, `@sentry/node`                                        |
-| Load tests             | `k6` (installed separately, not an npm package)                              |
+| Need                   | Library                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| Password hashing       | `argon2`                                                                                     |
+| Tokens                 | `@nestjs/jwt` (or `jose`)                                                                    |
+| TOTP                   | `otplib`                                                                                     |
+| Permissions            | `@casl/ability`                                                                              |
+| Validation and OpenAPI | `zod`, `@asteasolutions/zod-to-openapi` (or `nestjs-zod`)                                    |
+| Queues                 | `bullmq`, `ioredis`                                                                          |
+| Excel                  | `exceljs`                                                                                    |
+| Files                  | `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`                                        |
+| Shapefiles             | `shapefile` (read), `@turf/area` only if PostGIS cannot do it                                |
+| PDF                    | `playwright-core` (worker only)                                                              |
+| Rate limiting          | `@nestjs/throttler`                                                                          |
+| Testing                | `vitest`, `@testcontainers/postgresql`, `@testcontainers/redis`, `supertest`                 |
+| Logging and errors     | `pino`, `nestjs-pino`, `@sentry/node`                                                        |
+| Load tests             | `k6` (installed separately, not an npm package)                                              |
+| Bundling               | `tsup` (bundles monorepo packages into standalone JS for production runtime without tsx)     |
+| TypeScript metadata    | `@swc/core` (emits emitDecoratorMetadata required by NestJS dependency injection under tsup) |
 
 ## 1. Phase 1 — Foundations (weeks 1–3)
 

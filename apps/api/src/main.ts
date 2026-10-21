@@ -16,6 +16,7 @@ async function bootstrap() {
   const fastifyAdapter = new FastifyAdapter({
     logger: getFastifyLoggerConfig(),
     genReqId: genRequestId,
+    trustProxy: true,
   });
 
   registerRequestIdHook(fastifyAdapter.getInstance());
