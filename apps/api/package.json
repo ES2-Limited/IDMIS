@@ -11,12 +11,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@idmis/contracts": "workspace:*",
+    "@idmis/db": "workspace:*",
     "@nestjs/common": "^12.2.0",
     "@nestjs/core": "^12.2.0",
     "@nestjs/platform-fastify": "^12.2.0",
     "fastify": "^5.2.1",
+    "ioredis": "^5.6.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
