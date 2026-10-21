@@ -4,7 +4,17 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import * as schema from './schema';
-import { appUser, role, assignment, state, organisation, wua, wuaOfficer } from './schema';
+import {
+  appUser,
+  role,
+  assignment,
+  state,
+  lga,
+  ward,
+  organisation,
+  wua,
+  wuaOfficer,
+} from './schema';
 import { SYSTEM_USER_ID } from './constants';
 import { eq } from 'drizzle-orm';
 
@@ -338,5 +348,55 @@ describe('core schema and database integrity (fresh database per test run)', () 
       updatedBy: SYSTEM_USER_ID,
     });
     expect(reused).toBeDefined();
+  });
+
+  it('proves the fill_state_id_from_ward trigger fills state_id when core.wua is inserted with only ward_id', async () => {
+    const STATE_ID = '018f3a5e-9999-7000-8000-000000000050';
+    const LGA_ID = '018f3a5e-9999-7000-8000-000000000051';
+    const WARD_ID = '018f3a5e-9999-7000-8000-000000000052';
+    const TRIGGER_WUA_ID = '018f3a5e-9999-7000-8000-000000000053';
+
+    // 1. Setup state -> LGA -> ward hierarchy
+    await testDb.insert(state).values({
+      id: STATE_ID,
+      code: 'TRG_ST',
+      name: 'Trigger Test State',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    await testDb.insert(lga).values({
+      id: LGA_ID,
+      stateId: STATE_ID,
+      code: 'TRG_LGA',
+      name: 'Trigger Test LGA',
+    });
+
+    await testDb.insert(ward).values({
+      id: WARD_ID,
+      lgaId: LGA_ID,
+      code: 'TRG_WARD',
+      name: 'Trigger Test Ward',
+    });
+
+    // 2. Insert wua with only wardId set (stateId is omitted / not passed)
+    await testDb.insert(wua).values({
+      id: TRIGGER_WUA_ID,
+      level: 'unit',
+      organisationId: TEST_ORG_ID,
+      wardId: WARD_ID,
+      name: 'Trigger Test WUA',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    // 3. Query back and verify state_id was filled automatically from the ward by the trigger
+    const insertedWua = await testDb.query.wua.findFirst({
+      where: eq(wua.id, TRIGGER_WUA_ID),
+    });
+
+    expect(insertedWua).toBeDefined();
+    expect(insertedWua?.wardId).toBe(WARD_ID);
+    expect(insertedWua?.stateId).toBe(STATE_ID);
   });
 });

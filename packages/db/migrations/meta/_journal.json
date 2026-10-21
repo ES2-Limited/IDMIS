@@ -29,6 +29,13 @@
       "when": 1792561670638,
       "tag": "0003_aromatic_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792601065997,
+      "tag": "0004_silky_sugar_man",
+      "breakpoints": true
     }
   ]
 }
