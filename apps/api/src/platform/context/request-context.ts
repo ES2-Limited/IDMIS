@@ -13,6 +13,9 @@ export const RequestUserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   fullName: z.string(),
+  roles: z.array(z.string()).default([]),
+  isSystemAdmin: z.boolean().default(false),
+  mustChangePassword: z.boolean().default(false),
   scope: RequestScopeSchema,
   permissions: z.array(z.string()),
 });

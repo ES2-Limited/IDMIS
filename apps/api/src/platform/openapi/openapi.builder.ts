@@ -10,6 +10,19 @@ import {
   WuaResponseSchema,
   RoleResponseSchema,
   AssignmentResponseSchema,
+  SignInInputSchema,
+  SignInResponseSchema,
+  TotpSetupInputSchema,
+  TotpSetupResponseSchema,
+  TotpVerifyInputSchema,
+  RefreshTokenInputSchema,
+  RefreshTokenResponseSchema,
+  SignOutResponseSchema,
+  ChangePasswordInputSchema,
+  ChangePasswordResponseSchema,
+  AdminResetPasswordInputSchema,
+  AdminResetPasswordResponseSchema,
+  AuthMeResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -23,6 +36,7 @@ export interface OpenApiDoc {
   paths: Record<string, Record<string, unknown>>;
   components: {
     schemas: Record<string, unknown>;
+    securitySchemes?: Record<string, unknown>;
   };
 }
 
@@ -36,6 +50,21 @@ export function buildOpenApiDocument(): OpenApiDoc {
     WuaResponse: z.toJSONSchema(WuaResponseSchema),
     RoleResponse: z.toJSONSchema(RoleResponseSchema),
     AssignmentResponse: z.toJSONSchema(AssignmentResponseSchema),
+
+    // Auth Schemas
+    SignInInput: z.toJSONSchema(SignInInputSchema),
+    SignInResponse: z.toJSONSchema(SignInResponseSchema),
+    TotpSetupInput: z.toJSONSchema(TotpSetupInputSchema),
+    TotpSetupResponse: z.toJSONSchema(TotpSetupResponseSchema),
+    TotpVerifyInput: z.toJSONSchema(TotpVerifyInputSchema),
+    RefreshTokenInput: z.toJSONSchema(RefreshTokenInputSchema),
+    RefreshTokenResponse: z.toJSONSchema(RefreshTokenResponseSchema),
+    SignOutResponse: z.toJSONSchema(SignOutResponseSchema),
+    ChangePasswordInput: z.toJSONSchema(ChangePasswordInputSchema),
+    ChangePasswordResponse: z.toJSONSchema(ChangePasswordResponseSchema),
+    AdminResetPasswordInput: z.toJSONSchema(AdminResetPasswordInputSchema),
+    AdminResetPasswordResponse: z.toJSONSchema(AdminResetPasswordResponseSchema),
+    AuthMeResponse: z.toJSONSchema(AuthMeResponseSchema),
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -56,6 +85,210 @@ export function buildOpenApiDocument(): OpenApiDoc {
                     status: { type: 'string', example: 'ok' },
                   },
                 },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/sign-in': {
+      post: {
+        summary: 'User sign in',
+        tags: ['Authentication'],
+        description:
+          'Authenticate user with email and password, establishing session or prompting next factor',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SignInInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Authentication result or next-step prompt',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SignInResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'Invalid credentials or inactive account',
+            content: {
+              'application/problem+json': {
+                schema: { $ref: '#/components/schemas/ProblemDetails' },
+              },
+            },
+          },
+          '429': {
+            description: 'Account locked due to 5 failed attempts',
+            content: {
+              'application/problem+json': {
+                schema: { $ref: '#/components/schemas/ProblemDetails' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/totp/setup': {
+      post: {
+        summary: 'Setup TOTP authenticator',
+        tags: ['Authentication'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TotpSetupInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'TOTP secret, otpauth URI and 10 recovery codes',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/TotpSetupResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/totp/verify': {
+      post: {
+        summary: 'Verify TOTP code or recovery code',
+        tags: ['Authentication'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TotpVerifyInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Authentication result or password change prompt',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SignInResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/refresh': {
+      post: {
+        summary: 'Rotate refresh token and get new access token',
+        tags: ['Authentication'],
+        responses: {
+          '200': {
+            description: 'Rotated session and new access token',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/RefreshTokenResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'Invalid, expired, or reused refresh token',
+            content: {
+              'application/problem+json': {
+                schema: { $ref: '#/components/schemas/ProblemDetails' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/sign-out': {
+      post: {
+        summary: 'Sign out and revoke session',
+        tags: ['Authentication'],
+        responses: {
+          '200': {
+            description: 'Session revoked successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SignOutResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/me': {
+      get: {
+        summary: 'Get current user profile, roles, and scope',
+        tags: ['Authentication'],
+        security: [{ BearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Current user profile',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthMeResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'Unauthorized',
+            content: {
+              'application/problem+json': {
+                schema: { $ref: '#/components/schemas/ProblemDetails' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/change-password': {
+      post: {
+        summary: 'Change password',
+        tags: ['Authentication'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ChangePasswordInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Password changed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ChangePasswordResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/auth/reset-password': {
+      post: {
+        summary: 'Admin reset password for user',
+        tags: ['Authentication'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AdminResetPasswordInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Temporary password generated',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AdminResetPasswordResponse' },
               },
             },
           },
@@ -152,6 +385,13 @@ export function buildOpenApiDocument(): OpenApiDoc {
     paths,
     components: {
       schemas,
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
     },
   };
 }

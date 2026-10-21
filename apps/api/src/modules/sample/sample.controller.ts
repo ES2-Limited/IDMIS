@@ -7,7 +7,9 @@ import {
 import { ZodValidationPipe } from '../../platform/pipes';
 import { IdempotencyInterceptor } from '../../platform/idempotency';
 import { ConflictProblemException } from '../../platform/filters';
+import { Public } from '../../platform/auth';
 
+@Public()
 @Controller('sample')
 export class SampleController {
   @Post('echo')

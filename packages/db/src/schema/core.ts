@@ -8,6 +8,7 @@ import {
   jsonb,
   timestamp,
   date,
+  inet,
   primaryKey,
   check,
   index,
@@ -53,6 +54,7 @@ export const appUser = coreSchema.table('app_user', {
   phone: text('phone'),
   passwordHash: text('password_hash').notNull(),
   totpSecretEnc: bytea('totp_secret_enc'),
+  totpConfirmedAt: timestamp('totp_confirmed_at', { withTimezone: true, mode: 'string' }),
   isActive: boolean('is_active').notNull().default(true),
   mustChangePassword: boolean('must_change_password').notNull().default(false),
   failedSignIns: integer('failed_sign_ins').notNull().default(0),
@@ -288,3 +290,77 @@ export const setting = coreSchema.table('setting', {
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedBy: uuid('updated_by').references((): AnyPgColumn => appUser.id),
 });
+
+// --- Devices ---
+export const device = coreSchema.table(
+  'device',
+  {
+    id: uuid('id').primaryKey(),
+    installationId: uuid('installation_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    label: text('label'),
+    platform: text('platform'),
+    registeredAt: timestamp('registered_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    offlineGrantUntil: timestamp('offline_grant_until', { withTimezone: true, mode: 'string' }),
+    lastPullSeq: bigint('last_pull_seq', { mode: 'number' }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'string' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    index('device_user_id_idx').on(table.userId),
+    uniqueIndex('device_installation_user_unique').on(table.installationId, table.userId),
+  ],
+);
+
+// --- Sessions & Refresh Tokens ---
+export const session = coreSchema.table(
+  'session',
+  {
+    id: uuid('id').primaryKey(), // sid
+    familyId: uuid('family_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    deviceId: uuid('device_id').references(() => device.id),
+    refreshTokenHash: text('refresh_token_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'string' }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
+    replacedBySessionId: uuid('replaced_by_session_id').references((): AnyPgColumn => session.id),
+    userAgent: text('user_agent'),
+    ip: inet('ip'),
+  },
+  (table) => [
+    index('session_user_id_idx').on(table.userId),
+    index('session_family_id_idx').on(table.familyId),
+    index('session_device_id_idx').on(table.deviceId),
+    uniqueIndex('session_refresh_token_hash_unique').on(table.refreshTokenHash),
+    index('session_expires_at_idx').on(table.expiresAt),
+  ],
+);
+
+// --- TOTP Recovery Codes ---
+export const totpRecoveryCode = coreSchema.table(
+  'totp_recovery_code',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    codeHash: text('code_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    usedAt: timestamp('used_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [index('totp_recovery_code_user_id_idx').on(table.userId)],
+);
