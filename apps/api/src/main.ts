@@ -23,6 +23,12 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, fastifyAdapter);
   app.useGlobalFilters(new ProblemDetailsFilter());
 
+  // CORS: strictly origin = APP_URL with credentials: true, never '*'
+  app.enableCors({
+    origin: env.APP_URL,
+    credentials: true,
+  });
+
   await app.listen(env.PORT, '0.0.0.0');
 }
 
