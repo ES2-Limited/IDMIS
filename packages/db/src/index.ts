@@ -7,4 +7,5 @@ const connectionString =
 export const client = postgres(connectionString);
 export const db = drizzle(client, { schema });
 
+export * from './constants';
 export * from './schema/index';

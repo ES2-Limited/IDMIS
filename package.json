@@ -16,6 +16,8 @@
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @idmis/db db:generate",
     "db:migrate": "pnpm --filter @idmis/db db:migrate",
+    "db:seed": "pnpm --filter @idmis/db db:seed",
+    "db:hash-password": "pnpm --filter @idmis/db db:hash-password",
     "services:up": "docker compose -f infra/compose.dev.yml up -d",
     "services:down": "docker compose -f infra/compose.dev.yml down",
     "prepare": "husky"

@@ -20,6 +20,8 @@ A modular monorepo scaffolding for the TRIMING IDMIS 2.0 system.
 
    ```bash
    cp .env.example .env
+   # Generate Argon2id hash for ADMIN_PASSWORD_HASH:
+   pnpm db:hash-password
    ```
 
 3. **Start local services (Docker)**:
@@ -75,8 +77,10 @@ A modular monorepo scaffolding for the TRIMING IDMIS 2.0 system.
 
 - **Database scripts**:
   ```bash
-  pnpm db:generate
-  pnpm db:migrate
+  pnpm db:generate       # Generate Drizzle migrations
+  pnpm db:migrate        # Apply migrations
+  pnpm db:hash-password  # Prompt for a password and generate Argon2id hash for ADMIN_PASSWORD_HASH
+  pnpm db:seed           # Seed states, roles, lookups, settings, and System Administrator
   ```
 
 ## Folder Structure
