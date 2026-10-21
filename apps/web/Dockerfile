@@ -1,11 +1,11 @@
 # Stage 1: Build Web App
-FROM node:22-alpine AS builder
+FROM node:22 AS builder
 
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@12.14.0 --activate
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/ui/package.json ./packages/ui/
@@ -30,4 +30,3 @@ COPY apps/web/Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
-
