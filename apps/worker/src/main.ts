@@ -6,6 +6,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const placeholderQueue = new Queue('placeholder', {
   connection: {
     url: redisUrl,
+    family: 0,
     lazyConnect: true,
   },
 });

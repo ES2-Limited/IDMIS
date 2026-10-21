@@ -272,31 +272,29 @@ export async function seed() {
   // 2. First System Administrator from env vars only (no fallback in code)
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-  if (!adminEmail) {
-    throw new Error('ADMIN_EMAIL environment variable is required to run seed');
-  }
-  if (!adminPasswordHash) {
-    throw new Error('ADMIN_PASSWORD_HASH environment variable is required to run seed');
-  }
-  const adminUsername = process.env.ADMIN_USERNAME || 'sysadmin';
-  const adminFullName = process.env.ADMIN_FULL_NAME || 'System Administrator';
+  if (!adminEmail || !adminPasswordHash) {
+    console.log('Skipping System Administrator seed: ADMIN_EMAIL or ADMIN_PASSWORD_HASH not set');
+  } else {
+    const adminUsername = process.env.ADMIN_USERNAME || 'sysadmin';
+    const adminFullName = process.env.ADMIN_FULL_NAME || 'System Administrator';
 
-  console.log(`Seeding System Administrator: ${adminEmail} (${adminUsername})`);
-  await db
-    .insert(appUser)
-    .values({
-      id: ADMIN_ID,
-      email: adminEmail,
-      username: adminUsername,
-      fullName: adminFullName,
-      passwordHash: adminPasswordHash,
-      isActive: true,
-      mustChangePassword: true,
-      failedSignIns: 0,
-      createdBy: SYSTEM_USER_ID,
-      updatedBy: SYSTEM_USER_ID,
-    })
-    .onConflictDoNothing({ target: appUser.id });
+    console.log(`Seeding System Administrator: ${adminEmail} (${adminUsername})`);
+    await db
+      .insert(appUser)
+      .values({
+        id: ADMIN_ID,
+        email: adminEmail,
+        username: adminUsername,
+        fullName: adminFullName,
+        passwordHash: adminPasswordHash,
+        isActive: true,
+        mustChangePassword: true,
+        failedSignIns: 0,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      })
+      .onConflictDoNothing({ target: appUser.id });
+  }
 
   // 3. Nigeria 36 States + FCT (37 rows)
   console.log(`Seeding ${NIGERIA_STATES.length} States + FCT...`);
@@ -344,20 +342,22 @@ export async function seed() {
   }
 
   // 5. Initial Assignment: Assign System Admin user to system_admin role with national scope
-  console.log('Seeding National Scope Assignment for System Administrator...');
-  await db
-    .insert(assignment)
-    .values({
-      id: ASSIGNMENT_ADMIN_ID,
-      userId: ADMIN_ID,
-      roleId: ROLE_SYSTEM_ADMIN_ID,
-      module: 'core',
-      scopeType: 'national',
-      canCaptureOffline: true,
-      createdBy: SYSTEM_USER_ID,
-      updatedBy: SYSTEM_USER_ID,
-    })
-    .onConflictDoNothing({ target: assignment.id });
+  if (adminEmail && adminPasswordHash) {
+    console.log('Seeding National Scope Assignment for System Administrator...');
+    await db
+      .insert(assignment)
+      .values({
+        id: ASSIGNMENT_ADMIN_ID,
+        userId: ADMIN_ID,
+        roleId: ROLE_SYSTEM_ADMIN_ID,
+        module: 'core',
+        scopeType: 'national',
+        canCaptureOffline: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      })
+      .onConflictDoNothing({ target: assignment.id });
+  }
 
   // 6. Base Lookups
   console.log('Seeding Base Lookups...');
