@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  '@swc/core': true
   argon2: true
   esbuild: true
   msgpackr-extract: true

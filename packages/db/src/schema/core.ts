@@ -146,6 +146,7 @@ export const wua = coreSchema.table(
       .notNull()
       .references(() => organisation.id),
     wardId: uuid('ward_id').references(() => ward.id),
+    stateId: uuid('state_id').references(() => state.id),
     regNo: text('reg_no'),
     name: text('name').notNull(),
     address: text('address'),
@@ -159,6 +160,7 @@ export const wua = coreSchema.table(
     index('wua_organisation_id_idx').on(table.organisationId),
     index('wua_parent_id_idx').on(table.parentId),
     index('wua_ward_id_idx').on(table.wardId),
+    index('wua_state_id_idx').on(table.stateId),
     uniqueIndex('wua_org_reg_no_active_unique')
       .on(table.organisationId, table.regNo)
       .where(sql`"deleted_at" IS NULL`),

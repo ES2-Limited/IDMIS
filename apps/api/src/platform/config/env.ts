@@ -8,6 +8,7 @@ export const ApiEnvSchema = z.object({
   JWT_SECRET: z.string().min(16).default('development-jwt-secret-min-16-chars'),
   APP_URL: z.string().url().default('http://localhost:5173'),
   API_URL: z.string().url().default('http://localhost:3000'),
+  COOKIE_PATH: z.string().default('/auth'),
 
   // MinIO / S3 object storage
   S3_ENDPOINT: z.string().optional(),
