@@ -1,8 +1,16 @@
+[variables]
+NPM_CONFIG_PREFIX = "/root/.npm-global"
+PATH = "/root/.npm-global/bin:$PATH"
+
 [phases.setup]
 nixPkgs = ["nodejs_22", "openssl"]
 
 [phases.install]
+paths = ["/root/.npm-global/bin"]
 cmds = [
-  "npm install -g pnpm@12.14.0 && ln -sf \"$(npm config get prefix)/bin/pnpm\" /usr/local/bin/pnpm && ln -sf \"$(npm config get prefix)/bin/pnpx\" /usr/local/bin/pnpx",
+  "npm install -g --prefix /root/.npm-global pnpm@12.14.0",
   "pnpm install --frozen-lockfile"
 ]
+
+[phases.build]
+paths = ["/root/.npm-global/bin"]
