@@ -1,3 +1,4 @@
+import * as argon2 from 'argon2';
 import { client, db } from './index';
 import {
   appUser,
@@ -278,6 +279,11 @@ export async function seed() {
     const adminUsername = process.env.ADMIN_USERNAME || 'sysadmin';
     const adminFullName = process.env.ADMIN_FULL_NAME || 'System Administrator';
 
+    let effectivePasswordHash = adminPasswordHash;
+    if (!effectivePasswordHash.startsWith('$argon2id$')) {
+      effectivePasswordHash = await argon2.hash(effectivePasswordHash, { type: argon2.argon2id });
+    }
+
     console.log(`Seeding System Administrator: ${adminEmail} (${adminUsername})`);
     await db
       .insert(appUser)
@@ -286,14 +292,21 @@ export async function seed() {
         email: adminEmail,
         username: adminUsername,
         fullName: adminFullName,
-        passwordHash: adminPasswordHash,
+        passwordHash: effectivePasswordHash,
         isActive: true,
         mustChangePassword: true,
         failedSignIns: 0,
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       })
-      .onConflictDoNothing({ target: appUser.id });
+      .onConflictDoUpdate({
+        target: appUser.id,
+        set: {
+          email: adminEmail,
+          passwordHash: effectivePasswordHash,
+          updatedAt: new Date(),
+        },
+      });
   }
 
   // 3. Nigeria 36 States + FCT (37 rows)
