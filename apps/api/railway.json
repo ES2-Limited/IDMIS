@@ -10,6 +10,11 @@
     "preDeployCommand": "node packages/db/dist/migrate.js && node packages/db/dist/seed.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE"
+    "restartPolicyType": "ON_FAILURE",
+    "multiRegionConfig": {
+      "europe-west4-drams3a": {
+        "numReplicas": 1
+      }
+    }
   }
 }

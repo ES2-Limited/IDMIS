@@ -13,6 +13,11 @@
   },
   "deploy": {
     "startCommand": "node apps/worker/dist/main.js",
-    "restartPolicyType": "ON_FAILURE"
+    "restartPolicyType": "ON_FAILURE",
+    "multiRegionConfig": {
+      "europe-west4-drams3a": {
+        "numReplicas": 1
+      }
+    }
   }
 }
