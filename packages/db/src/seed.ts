@@ -1,4 +1,5 @@
 import * as argon2 from 'argon2';
+import { sql } from 'drizzle-orm';
 import { client, db } from './index';
 import {
   appUser,
@@ -304,7 +305,7 @@ export async function seed() {
         set: {
           email: adminEmail,
           passwordHash: effectivePasswordHash,
-          updatedAt: new Date(),
+          updatedAt: sql`NOW()`,
         },
       });
   }
