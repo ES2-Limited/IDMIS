@@ -3,6 +3,6 @@ nixPkgs = ["nodejs_22", "openssl"]
 
 [phases.install]
 cmds = [
-  "npm install -g pnpm@12.14.0",
+  "npm install -g pnpm@12.14.0 && ln -sf \"$(npm config get prefix)/bin/pnpm\" /usr/local/bin/pnpm && ln -sf \"$(npm config get prefix)/bin/pnpx\" /usr/local/bin/pnpx",
   "pnpm install --frozen-lockfile"
 ]
