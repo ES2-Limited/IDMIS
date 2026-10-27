@@ -5,7 +5,7 @@ import { AuthMeResponseSchema } from './me';
  * Refresh and sign-out endpoints take no tokens in the body.
  * The refresh token is transmitted solely via a secure httpOnly cookie.
  */
-export const RefreshTokenInputSchema = z.object({}).strict();
+export const RefreshTokenInputSchema = z.object({}).strict().optional().default({});
 
 export type RefreshTokenInput = z.infer<typeof RefreshTokenInputSchema>;
 

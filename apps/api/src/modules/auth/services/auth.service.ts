@@ -152,6 +152,10 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    if (user.totpConfirmedAt !== null) {
+      throw new BadRequestException('TOTP has already been configured and verified');
+    }
+
     // Generate secret
     const secret = this.totpService.generateSecret();
     await this.authRepository.saveTotpSecret(user.id, secret);
@@ -183,14 +187,21 @@ export class AuthService {
     userAgent?: string,
     ip?: string,
   ): Promise<AuthSuccessWithCookie> {
-    const { sub } = await this.tokenService.verifyAndConsumeTempToken(input.tempToken, [
+    const verified = await this.tokenService.verifyTempToken(input.tempToken, [
       'totp_verify',
       'totp_setup',
     ]);
 
-    const user = await this.authRepository.findUserById(sub);
+    const user = await this.authRepository.findUserById(verified.sub);
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    // Lockout check (source of truth: app_user.locked_until in DB, short-term cache in Redis)
+    const isLockedInDb = user.lockedUntil && new Date(user.lockedUntil) > new Date();
+    const isLockedInCache = await this.redisService.isLockedOut(user.email);
+    if (isLockedInDb || isLockedInCache) {
+      throw new UnauthorizedException('Account is locked. Please try again later.');
     }
 
     if (input.totpCode) {
@@ -200,6 +211,13 @@ export class AuthService {
       const secret = Buffer.from(user.totpSecretEnc).toString('utf-8');
       const isValid = await this.totpService.verifyToken(input.totpCode, secret);
       if (!isValid) {
+        const lock = await this.authRepository.recordFailedSignIn(user.id);
+        await this.redisService.recordFailedAttempt(user.email);
+        if (lock.locked) {
+          throw new UnauthorizedException(
+            'Account has been locked due to too many failed attempts. Please try again later.',
+          );
+        }
         throw new UnauthorizedException('Invalid TOTP code');
       }
     } else if (input.recoveryCode) {
@@ -212,12 +230,26 @@ export class AuthService {
         }
       }
       if (!matchedId) {
+        const lock = await this.authRepository.recordFailedSignIn(user.id);
+        await this.redisService.recordFailedAttempt(user.email);
+        if (lock.locked) {
+          throw new UnauthorizedException(
+            'Account has been locked due to too many failed attempts. Please try again later.',
+          );
+        }
         throw new UnauthorizedException('Invalid or previously used recovery code');
       }
       await this.authRepository.markRecoveryCodeUsed(matchedId);
     } else {
       throw new BadRequestException('Must provide either totpCode or recoveryCode');
     }
+
+    // Reset failed sign-ins and lockout on success
+    await this.authRepository.resetFailedSignIns(user.id);
+    await this.redisService.clearLockout(user.email);
+
+    // Burn temporary token upon verification success
+    await this.tokenService.burnTempTokenJti(verified.jti);
 
     // Confirm TOTP on user
     await this.authRepository.confirmTotp(user.id);

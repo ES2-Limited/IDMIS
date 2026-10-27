@@ -5,6 +5,7 @@ import {
   Body,
   Req,
   Res,
+  HttpCode,
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -61,6 +62,7 @@ export class AuthController {
 
   @Public()
   @Post('sign-in')
+  @HttpCode(200)
   async signIn(
     @Body(new ZodValidationPipe(SignInInputSchema)) body: SignInInput,
     @Req() req: FastifyRequest,
@@ -80,6 +82,7 @@ export class AuthController {
 
   @Public()
   @Post('totp/setup')
+  @HttpCode(200)
   async setupTotp(
     @Body(new ZodValidationPipe(TotpSetupInputSchema)) body: TotpSetupInput,
   ): Promise<TotpSetupResponse> {
@@ -88,6 +91,7 @@ export class AuthController {
 
   @Public()
   @Post('totp/verify')
+  @HttpCode(200)
   async verifyTotp(
     @Body(new ZodValidationPipe(TotpVerifyInputSchema)) body: TotpVerifyInput,
     @Req() req: FastifyRequest,
@@ -107,6 +111,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @HttpCode(200)
   async refresh(
     @Body(new ZodValidationPipe(RefreshTokenInputSchema)) _body: RefreshTokenInput,
     @Req() req: FastifyRequest,
@@ -130,6 +135,7 @@ export class AuthController {
 
   @Public()
   @Post('sign-out')
+  @HttpCode(200)
   async signOut(
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
@@ -151,6 +157,7 @@ export class AuthController {
 
   @Public()
   @Post('change-password')
+  @HttpCode(200)
   async changePassword(
     @Body(new ZodValidationPipe(ChangePasswordInputSchema)) body: ChangePasswordInput,
     @Req() req: FastifyRequest,
@@ -187,6 +194,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @HttpCode(200)
   async adminResetPassword(
     @Body(new ZodValidationPipe(AdminResetPasswordInputSchema)) body: AdminResetPasswordInput,
     @CurrentUser() callerAdmin: RequestUser,

@@ -25,6 +25,7 @@ import {
 } from '@idmis/db';
 import * as schema from '@idmis/db';
 import { parseCookies } from './cookie.helper';
+import { TokenService } from './token.service';
 
 /**
  * SECURITY SPECIFICATION VERIFICATION:
@@ -206,7 +207,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.status).toBe('authenticated');
       expect(body.accessToken).toBeDefined();
@@ -245,7 +246,7 @@ describe('Authentication (BE-1.3)', () => {
         payload: {},
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.accessToken).toBeDefined();
       expect(body.user.email).toBe(REGULAR_EMAIL);
@@ -277,6 +278,26 @@ describe('Authentication (BE-1.3)', () => {
       expect(newSessions[0].familyId).toBe(familyId);
       expect(newSessions[0].replacedBySessionId).toBeNull();
       expect(newSessions[0].revokedAt).toBeNull();
+    });
+
+    it('accepts bodyless POST /auth/refresh with credentials cookie', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        headers: {
+          cookie: newCookie,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.accessToken).toBeDefined();
+      expect(body.user.email).toBe(REGULAR_EMAIL);
+
+      // Update newCookie for subsequent tests
+      const setCookie = response.headers['set-cookie'];
+      const cookies = parseCookies(Array.isArray(setCookie) ? setCookie.join('; ') : setCookie);
+      newCookie = `refreshToken=${cookies.refreshToken}`;
     });
 
     it('reuse of an old refresh token revokes the entire session family', async () => {
@@ -437,7 +458,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.status).toBe('totp_setup_required');
       expect(body.tempToken).toBeDefined();
@@ -453,7 +474,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.secret).toBeDefined();
       expect(body.otpauthUrl).toContain('otpauth://totp/TRIMING%20IDMIS:admin%40idmis.gov.ng');
@@ -505,7 +526,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       // Because mustChangePassword is true for initial admin, status is password_change_required!
       expect(body.status).toBe('password_change_required');
@@ -542,7 +563,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body).status).toBe('password_change_required');
 
       // Verify in DB that code is marked used
@@ -576,6 +597,212 @@ describe('Authentication (BE-1.3)', () => {
 
       expect(reuseResponse.statusCode).toBe(401);
       expect(JSON.parse(reuseResponse.body).title).toBe('Unauthorized');
+    });
+
+    it('disallows calling setup after TOTP has already been verified', async () => {
+      // ADMIN_USER_ID has already confirmed TOTP above.
+      // Mint a temporary token with purpose totp_setup for ADMIN_USER_ID to simulate bypass attempt
+      const tokenService = app.get(TokenService);
+      const forgedSetupToken = await tokenService.createTempToken(ADMIN_USER_ID, 'totp_setup');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/setup',
+        payload: {
+          tempToken: forgedSetupToken,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.detail).toContain('TOTP has already been configured and verified');
+    });
+
+    it('proves calling setup twice before verify overwrites the secret without leaving two valid secrets, and burns tempToken on success', async () => {
+      const TWICE_USER_ID = crypto.randomUUID();
+      const TWICE_EMAIL = `setup-twice-${Date.now()}@idmis.gov.ng`;
+      const TWICE_PASSWORD = 'SetupTwicePass123!';
+      const twiceHash = await argon2.hash(TWICE_PASSWORD, { type: argon2.argon2id });
+
+      await testDb.insert(appUser).values({
+        id: TWICE_USER_ID,
+        email: TWICE_EMAIL,
+        username: `setup_twice_${Date.now()}`,
+        fullName: 'Setup Twice User',
+        passwordHash: twiceHash,
+        isActive: true,
+        mustChangePassword: false,
+        totpConfirmedAt: null,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      await testDb.insert(assignment).values({
+        id: crypto.randomUUID(),
+        userId: TWICE_USER_ID,
+        roleId: ROLE_SYSTEM_ADMIN_ID,
+        module: 'core',
+        scopeType: 'national',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      // 1. Initial sign-in yields setup tempToken
+      const signinRes = await app.inject({
+        method: 'POST',
+        url: '/auth/sign-in',
+        payload: { email: TWICE_EMAIL, password: TWICE_PASSWORD },
+      });
+      const tempToken = JSON.parse(signinRes.body).tempToken;
+
+      // 2. First call to setup -> secret 1
+      const setupRes1 = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/setup',
+        payload: { tempToken },
+      });
+      expect(setupRes1.statusCode).toBe(200);
+      const secret1 = JSON.parse(setupRes1.body).secret;
+
+      // 3. Second call to setup -> secret 2
+      const setupRes2 = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/setup',
+        payload: { tempToken },
+      });
+      expect(setupRes2.statusCode).toBe(200);
+      const secret2 = JSON.parse(setupRes2.body).secret;
+
+      expect(secret1).not.toBe(secret2);
+
+      // 4. Generate code with secret 1 -> verify must fail!
+      const totp1 = new TOTP({ secret: secret1, crypto: totpCrypto, base32: totpBase32 });
+      const code1 = await totp1.generate();
+
+      const verifyRes1 = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/verify',
+        payload: { tempToken, totpCode: code1 },
+      });
+      expect(verifyRes1.statusCode).toBe(401);
+      expect(JSON.parse(verifyRes1.body).detail).toBe('Invalid TOTP code');
+
+      // 5. Generate code with secret 2 -> verify must succeed!
+      const totp2 = new TOTP({ secret: secret2, crypto: totpCrypto, base32: totpBase32 });
+      const code2 = await totp2.generate();
+
+      const verifyRes2 = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/verify',
+        payload: { tempToken, totpCode: code2 },
+      });
+      expect(verifyRes2.statusCode).toBe(200);
+
+      // 6. Proves tempToken is burned on verify success: calling verify again with same tempToken fails!
+      const replayRes = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/verify',
+        payload: { tempToken, totpCode: code2 },
+      });
+      expect(replayRes.statusCode).toBe(401);
+      expect(JSON.parse(replayRes.body).detail).toBe('Temporary token has already been used');
+    });
+
+    it('enforces lockout rules on verify: fails after 5 bad codes and locks account for 15 minutes', async () => {
+      const LOCKOUT_USER_ID = crypto.randomUUID();
+      const LOCKOUT_EMAIL = `totp-lockout-${Date.now()}@idmis.gov.ng`;
+      const LOCKOUT_PASSWORD = 'LockoutTotpPass123!';
+      const lockoutHash = await argon2.hash(LOCKOUT_PASSWORD, { type: argon2.argon2id });
+
+      await testDb.insert(appUser).values({
+        id: LOCKOUT_USER_ID,
+        email: LOCKOUT_EMAIL,
+        username: `totp_lockout_${Date.now()}`,
+        fullName: 'TOTP Lockout User',
+        passwordHash: lockoutHash,
+        isActive: true,
+        mustChangePassword: false,
+        totpConfirmedAt: null,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      await testDb.insert(assignment).values({
+        id: crypto.randomUUID(),
+        userId: LOCKOUT_USER_ID,
+        roleId: ROLE_SYSTEM_ADMIN_ID,
+        module: 'core',
+        scopeType: 'national',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      const signinRes = await app.inject({
+        method: 'POST',
+        url: '/auth/sign-in',
+        payload: { email: LOCKOUT_EMAIL, password: LOCKOUT_PASSWORD },
+      });
+      const tempToken = JSON.parse(signinRes.body).tempToken;
+
+      const setupRes = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/setup',
+        payload: { tempToken },
+      });
+      expect(setupRes.statusCode).toBe(200);
+      const secret = JSON.parse(setupRes.body).secret;
+
+      // 4 failed attempts with invalid code
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        const badRes = await app.inject({
+          method: 'POST',
+          url: '/auth/totp/verify',
+          payload: { tempToken, totpCode: '000000' },
+        });
+        expect(badRes.statusCode).toBe(401);
+        expect(JSON.parse(badRes.body).detail).toBe('Invalid TOTP code');
+
+        const dbUser = await testDb.select().from(appUser).where(eq(appUser.id, LOCKOUT_USER_ID));
+        expect(dbUser[0].failedSignIns).toBe(attempt);
+        expect(dbUser[0].lockedUntil).toBeNull();
+      }
+
+      // 5th failed attempt locks the account!
+      const fifthRes = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/verify',
+        payload: { tempToken, totpCode: '000000' },
+      });
+      expect(fifthRes.statusCode).toBe(401);
+      expect(JSON.parse(fifthRes.body).detail).toContain(
+        'Account has been locked due to too many failed attempts',
+      );
+
+      const lockedUser = await testDb.select().from(appUser).where(eq(appUser.id, LOCKOUT_USER_ID));
+      expect(lockedUser[0].failedSignIns).toBe(5);
+      expect(lockedUser[0].lockedUntil).not.toBeNull();
+      const lockedUntilDate = new Date(lockedUser[0].lockedUntil!);
+      expect(lockedUntilDate.getTime()).toBeGreaterThan(Date.now() + 10 * 60 * 1000);
+
+      // 6th attempt (even with valid TOTP code) is rejected because account is locked!
+      const totp = new TOTP({ secret, crypto: totpCrypto, base32: totpBase32 });
+      const validCode = await totp.generate();
+
+      const sixthRes = await app.inject({
+        method: 'POST',
+        url: '/auth/totp/verify',
+        payload: { tempToken, totpCode: validCode },
+      });
+      expect(sixthRes.statusCode).toBe(401);
+      expect(JSON.parse(sixthRes.body).detail).toContain('Account is locked');
+
+      // Regular sign-in also rejected due to account lockout
+      const signinLocked = await app.inject({
+        method: 'POST',
+        url: '/auth/sign-in',
+        payload: { email: LOCKOUT_EMAIL, password: LOCKOUT_PASSWORD },
+      });
+      expect(signinLocked.statusCode).toBe(401);
     });
   });
 
@@ -637,7 +864,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(successRes.statusCode).toBe(201);
+      expect(successRes.statusCode).toBe(200);
       expect(JSON.parse(successRes.body).success).toBe(true);
 
       // Verify in DB that must_change_password is now false
@@ -810,7 +1037,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(changeRes.statusCode).toBe(201);
+      expect(changeRes.statusCode).toBe(200);
 
       // Verify in DB: session 1 remains ACTIVE, session 2 is REVOKED
       const dbSession1 = await testDb.select().from(session).where(eq(session.id, sid1));
@@ -886,7 +1113,7 @@ describe('Authentication (BE-1.3)', () => {
         },
       });
 
-      expect(resetRes.statusCode).toBe(201);
+      expect(resetRes.statusCode).toBe(200);
       const resetBody = JSON.parse(resetRes.body);
       expect(resetBody.temporaryPassword).toBeDefined();
       expect(resetBody.mustChangePassword).toBe(true);
