@@ -1,4 +1,3 @@
-import * as argon2 from 'argon2';
 import { sql } from 'drizzle-orm';
 import { client, db } from './index';
 import {
@@ -280,9 +279,10 @@ export async function seed() {
     const adminUsername = process.env.ADMIN_USERNAME || 'sysadmin';
     const adminFullName = process.env.ADMIN_FULL_NAME || 'System Administrator';
 
-    let effectivePasswordHash = adminPasswordHash;
-    if (!effectivePasswordHash.startsWith('$argon2id$')) {
-      effectivePasswordHash = await argon2.hash(effectivePasswordHash, { type: argon2.argon2id });
+    if (!adminPasswordHash.startsWith('$argon2id$')) {
+      throw new Error(
+        'Invalid ADMIN_PASSWORD_HASH: Must be a valid Argon2id hash starting with "$argon2id$". Plaintext passwords are not permitted.',
+      );
     }
 
     console.log(`Seeding System Administrator: ${adminEmail} (${adminUsername})`);
@@ -293,7 +293,7 @@ export async function seed() {
         email: adminEmail,
         username: adminUsername,
         fullName: adminFullName,
-        passwordHash: effectivePasswordHash,
+        passwordHash: adminPasswordHash,
         isActive: true,
         mustChangePassword: true,
         failedSignIns: 0,
@@ -304,7 +304,7 @@ export async function seed() {
         target: appUser.id,
         set: {
           email: adminEmail,
-          passwordHash: effectivePasswordHash,
+          passwordHash: adminPasswordHash,
           updatedAt: sql`NOW()`,
         },
       });
