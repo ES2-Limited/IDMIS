@@ -19,7 +19,8 @@
     "db:seed": "tsx src/seed.ts",
     "db:hash-password": "tsx scripts/hash-password.ts",
     "migrate": "node dist/migrate.js",
-    "seed": "node dist/seed.js"
+    "seed": "node dist/seed.js",
+    "release": "node dist/release.js"
   },
   "dependencies": {
     "@idmis/contracts": "workspace:*",

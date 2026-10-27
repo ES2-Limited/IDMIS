@@ -48,7 +48,7 @@ COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --chown=node:node --from=builder /app/packages/db/node_modules ./packages/db/node_modules
 
-# Copy built application and database artifacts (for app runtime + pre-deploy migrate/seed)
+# Copy built application and database artifacts (for app runtime + pre-deploy release: migrate/seed)
 COPY --chown=node:node --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --chown=node:node --from=builder /app/packages/db/dist ./packages/db/dist
 COPY --chown=node:node packages/db/migrations ./packages/db/migrations
