@@ -430,7 +430,8 @@ const isDirectRun =
   process.argv[1] &&
   (import.meta.url === `file://${process.argv[1]}` ||
     fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) ||
-    process.argv[1].endsWith('seed.ts'));
+    process.argv[1].endsWith('seed.ts') ||
+    process.argv[1].endsWith('seed.js'));
 
 if (isDirectRun) {
   seed()
