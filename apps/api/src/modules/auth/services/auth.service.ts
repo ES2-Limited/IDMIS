@@ -146,7 +146,7 @@ export class AuthService {
   // --- TOTP Setup ---
 
   async setupTotp(tempToken: string): Promise<TotpSetupResponse> {
-    const { sub } = await this.tokenService.verifyAndConsumeTempToken(tempToken, 'totp_setup');
+    const { sub } = await this.tokenService.verifyTempToken(tempToken, 'totp_setup');
     const user = await this.authRepository.findUserById(sub);
     if (!user) {
       throw new UnauthorizedException('User not found');
