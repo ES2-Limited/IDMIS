@@ -17,6 +17,10 @@ updates:
       - dependency-name: '@types/node'
         update-types:
           - 'version-update:semver-major'
+      # until typescript-eslint supports TS 7
+      - dependency-name: 'typescript'
+        update-types:
+          - 'version-update:semver-major'
     commit-message:
       prefix: 'chore'
       include: 'scope'
