@@ -157,7 +157,7 @@ jobs:
         if: steps.filter.outputs.run == 'true'
         run: |
           docker run -d --name test-web -p 8080:80 -e PORT=80 idmis-web
-          if ! curl -sf --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/ | grep -q 'id="root"'; then
+          if ! curl -sf --retry 10 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/ | grep -q 'id="root"'; then
             echo "Web smoke test failed: SPA not served."
             docker logs test-web
             exit 1
@@ -209,7 +209,7 @@ jobs:
             -e S3_ACCESS_KEY_ID="ci" \
             -e S3_SECRET_ACCESS_KEY="ci" \
             idmis-api
-          if ! API_RESPONSE=$(curl -sf --retry 15 --retry-delay 1 --retry-connrefused http://127.0.0.1:3000/health); then
+          if ! API_RESPONSE=$(curl -sf --retry 15 --retry-delay 1 --retry-all-errors http://127.0.0.1:3000/health); then
             echo "API smoke test failed: /health unreachable."
             docker logs test-api
             exit 1
