@@ -7,7 +7,7 @@
   },
   "deploy": {
     "startCommand": "node apps/api/dist/main.js",
-    "preDeployCommand": "node packages/db/dist/migrate.js && node packages/db/dist/seed.js",
+    "preDeployCommand": ["node packages/db/dist/release.js"],
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
