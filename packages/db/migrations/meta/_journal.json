@@ -43,6 +43,13 @@
       "when": 1793177613889,
       "tag": "0005_damp_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793191497241,
+      "tag": "0006_chunky_night_nurse",
+      "breakpoints": true
     }
   ]
 }

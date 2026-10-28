@@ -24,7 +24,7 @@ vi.mock('ioredis', () => ({
 }));
 
 // Import release after mocks
-import { release } from './release';
+import { release, applyDatabaseGrants } from './release';
 
 describe('Database Release (release.ts)', () => {
   const originalEnv = process.env;
@@ -81,5 +81,38 @@ describe('Database Release (release.ts)', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       expect.stringContaining('[release] REDIS_URL absent; skipping auth:rbac:epoch increment'),
     );
+  });
+
+  describe('applyDatabaseGrants', () => {
+    it('executes idempotent role creation and applies grants across schemas', async () => {
+      const executedSql: string[] = [];
+      const mockSql = Object.assign(
+        vi.fn().mockImplementation(async () => {
+          // If checking for schema or table existence, return exists
+          return [{ exists: 1 }];
+        }),
+        {
+          unsafe: vi.fn().mockImplementation(async (query: string) => {
+            executedSql.push(query);
+            return [];
+          }),
+        },
+      );
+
+      process.env.APP_DB_PASSWORD = 'super_secret_app_pw';
+
+      await applyDatabaseGrants(mockSql as unknown as Parameters<typeof applyDatabaseGrants>[0], [
+        'core',
+        'slis',
+      ]);
+
+      expect(mockSql.unsafe).toHaveBeenCalled();
+      const allSql = executedSql.join('\n');
+      expect(allSql).toContain('CREATE ROLE idmis_app LOGIN');
+      expect(allSql).toContain("ALTER ROLE idmis_app WITH PASSWORD 'super_secret_app_pw'");
+      expect(allSql).toContain('GRANT USAGE ON SCHEMA "core" TO idmis_app');
+      expect(allSql).toContain('REVOKE ALL ON "core"."audit_log" FROM idmis_app');
+      expect(allSql).toContain('GRANT SELECT, INSERT ON "core"."audit_log" TO idmis_app');
+    });
   });
 });

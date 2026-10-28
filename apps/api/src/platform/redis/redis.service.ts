@@ -27,6 +27,10 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  getClient(): Redis | null {
+    return this.redisClient;
+  }
+
   async get(key: string): Promise<string | null> {
     if (this.redisClient && this.redisClient.status === 'ready') {
       try {

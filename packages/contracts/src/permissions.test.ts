@@ -22,6 +22,7 @@ describe('permissions', () => {
     expect(permissionKinds[permissions.CORE_SETTING_MANAGE]).toBe('global');
     expect(permissionKinds[permissions.CORE_ROLE_MANAGE]).toBe('global');
     expect(permissionKinds[permissions.CORE_AUDIT_READ]).toBe('global');
+    expect(permissionKinds[permissions.CORE_OUTBOX_MANAGE]).toBe('global');
   });
 
   it('marks core operational data permissions as scoped', () => {

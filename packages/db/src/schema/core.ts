@@ -371,3 +371,77 @@ export const totpRecoveryCode = coreSchema.table(
   },
   (table) => [index('totp_recovery_code_user_id_idx').on(table.userId)],
 );
+
+// --- Audit Log ---
+export const auditLog = coreSchema.table(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    actorType: text('actor_type').notNull(), // 'user' | 'system' | 'worker'
+    actorUserId: uuid('actor_user_id').references(() => appUser.id),
+    requestId: text('request_id'),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id'),
+    stateId: uuid('state_id').references(() => state.id),
+    changes: jsonb('changes').$type<{ before?: unknown; after?: unknown }>(),
+    ip: inet('ip'),
+    userAgent: text('user_agent'),
+  },
+  (table) => [
+    index('audit_log_entity_idx').on(table.entityType, table.entityId, table.occurredAt),
+    index('audit_log_actor_idx').on(table.actorType, table.actorUserId, table.occurredAt),
+    index('audit_log_occurred_at_idx').on(table.occurredAt),
+    index('audit_log_state_idx').on(table.stateId, table.occurredAt),
+  ],
+);
+
+// --- Outbox Events ---
+export const outboxEvent = coreSchema.table(
+  'outbox_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: text('event_type').notNull(),
+    eventVersion: integer('event_version').notNull().default(1),
+    aggregateType: text('aggregate_type').notNull(),
+    aggregateId: text('aggregate_id').notNull(),
+    payload: jsonb('payload').notNull().$type<Record<string, unknown>>(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    availableAt: timestamp('available_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true, mode: 'string' }),
+    deadAt: timestamp('dead_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    index('outbox_pending_idx')
+      .on(table.availableAt, table.occurredAt)
+      .where(sql`"delivered_at" IS NULL AND "dead_at" IS NULL`),
+    index('outbox_event_type_idx').on(table.eventType, table.occurredAt),
+    index('outbox_dead_idx')
+      .on(table.deadAt)
+      .where(sql`"dead_at" IS NOT NULL`),
+  ],
+);
+
+// --- Outbox Consumption (Idempotent Handler Deduplication) ---
+export const outboxConsumption = coreSchema.table(
+  'outbox_consumption',
+  {
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => outboxEvent.id, { onDelete: 'cascade' }),
+    handlerName: text('handler_name').notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.handlerName] })],
+);

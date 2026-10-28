@@ -1,28 +1,24 @@
 import { Logger } from '@nestjs/common';
 import { db as defaultDb } from '@idmis/db';
+import type { AuditAction, ActorType } from '@idmis/contracts';
 
 const logger = new Logger('TransactionHelper');
 
-export type AuditAction =
-  | 'create'
-  | 'update'
-  | 'delete'
-  | 'approve'
-  | 'return'
-  | 'import'
-  | 'revert'
-  | 'sign_in'
-  | 'sign_in_failed'
-  | 'assign';
+export type { AuditAction, ActorType };
 
 export interface AuditRecordOptions {
+  actorType?: ActorType;
   actorId?: string;
+  actorUserId?: string;
+  requestId?: string;
   action: AuditAction;
   entity: string;
   entityId?: string;
+  stateId?: string;
   before?: unknown;
   after?: unknown;
   ip?: string;
+  userAgent?: string;
   deviceId?: string;
 }
 
@@ -35,7 +31,7 @@ let activeAuditWriter: AuditWriterHook | null = null;
 
 /**
  * Registers an audit writer hook.
- * Task BE-1.5 will register the persistent `core.audit_log` database writer here.
+ * Task BE-1.5 registers the persistent `core.audit_log` database writer here.
  */
 export function registerAuditWriter(writer: AuditWriterHook): void {
   activeAuditWriter = writer;
@@ -56,22 +52,28 @@ export function resetAuditWriter(): void {
 export async function runInTransaction<T>(
   callback: (tx: TransactionClient) => Promise<T>,
   options?: {
-    db?: DbClient;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    db?: any;
     audit?: AuditRecordOptions;
   },
 ): Promise<T> {
   const database = options?.db ?? defaultDb;
 
-  return database.transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return database.transaction(async (tx: any) => {
     const result = await callback(tx);
 
     if (options?.audit) {
       if (activeAuditWriter) {
         await activeAuditWriter(tx, options.audit);
       } else {
-        // Do not silently skip: log an explicit warning so audit requests are never ignored
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(
+            `[AuditWriterError] Active audit writer is required in production for [${options.audit.action}] on ${options.audit.entity}`,
+          );
+        }
         logger.warn(
-          `Audit record requested for [${options.audit.action}] on ${options.audit.entity} (${options.audit.entityId ?? 'no id'}), but no audit writer is registered yet. Task BE-1.5 will bind the core.audit_log writer.`,
+          `Audit record requested for [${options.audit.action}] on ${options.audit.entity} (${options.audit.entityId ?? 'no id'}), but no audit writer is registered yet.`,
         );
       }
     }
