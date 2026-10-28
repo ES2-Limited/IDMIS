@@ -106,6 +106,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
+    permissions.CORE_OUTBOX_MANAGE,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope

@@ -36,6 +36,9 @@ export const permissions = {
   // Core: Imports & Audit
   CORE_IMPORT_RUN: 'core.import.run',
   CORE_AUDIT_READ: 'core.audit.read',
+
+  // Core: Outbox
+  CORE_OUTBOX_MANAGE: 'core.outbox.manage',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -65,4 +68,5 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.CORE_FILE_READ]: 'scoped',
   [permissions.CORE_IMPORT_RUN]: 'scoped',
   [permissions.CORE_AUDIT_READ]: 'global',
+  [permissions.CORE_OUTBOX_MANAGE]: 'global',
 };
