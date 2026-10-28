@@ -96,44 +96,154 @@ jobs:
       - name: Build
         run: pnpm build
 
-  docker-web:
-    name: Docker Web Build & Smoke Test
+  docker:
+    name: Docker Build & Smoke Tests (Web, API, Worker)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: idmis
+          POSTGRES_PASSWORD: idmis
+          POSTGRES_DB: idmis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U idmis -d idmis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI_DATABASE_URL: postgresql://idmis:idmis@127.0.0.1:5432/idmis
+      CI_REDIS_URL: redis://127.0.0.1:6379
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Check changed paths
+      - name: Check for relevant changes
         id: filter
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin ${{ github.base_ref }} --depth=1
-            CHANGED=$(git diff --name-only origin/${{ github.base_ref }} ${{ github.event.pull_request.head.sha }} -- 'apps/web/**' 'packages/**' 'apps/web/Dockerfile' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' 'turbo.json')
-            if [ -z "$CHANGED" ]; then
-              echo "No relevant changes for docker-web."
-              echo "run=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "run=true" >> $GITHUB_OUTPUT
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...${{ github.event.pull_request.head.sha }}" -- \
+            'apps/**' 'packages/**' 'package.json' 'pnpm-lock.yaml' 'pnpm-workspace.yaml' \
+            'turbo.json' '.dockerignore' '.github/workflows/ci.yml')
+          if [ -z "$CHANGED" ]; then
+            echo "No relevant changes for docker builds."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Build web container
+      - name: Build web image
         if: steps.filter.outputs.run == 'true'
         run: docker build -t idmis-web -f apps/web/Dockerfile .
 
-      - name: Run container and verify SPA response
+      - name: Smoke test web (SPA served by Caddy)
         if: steps.filter.outputs.run == 'true'
         run: |
           docker run -d --name test-web -p 8080:80 -e PORT=80 idmis-web
-          sleep 2
-          RESPONSE=$(curl -s http://127.0.0.1:8080/)
-          echo "$RESPONSE"
-          if echo "$RESPONSE" | grep -q 'id="root"'; then
-            echo "Smoke test passed: SPA HTML returned."
-          else
-            echo "Smoke test failed: Expected SPA HTML."
+          if ! curl -sf --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/ | grep -q 'id="root"'; then
+            echo "Web smoke test failed: SPA not served."
+            docker logs test-web
             exit 1
           fi
-          docker stop test-web && docker rm test-web
+          echo "Web smoke test passed."
+
+      - name: Build api image
+        if: steps.filter.outputs.run == 'true'
+        run: docker build -t idmis-api -f apps/api/Dockerfile .
+
+      - name: Run database release (migrations + seed) via api image
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="$CI_DATABASE_URL" \
+            -e REDIS_URL="$CI_REDIS_URL" \
+            idmis-api node packages/db/dist/release.js
+
+      - name: Verify release seeded the database
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          STATE_COUNT=$(psql "$CI_DATABASE_URL" -tAc "SELECT count(*) FROM core.state;")
+          if [ "$STATE_COUNT" != "37" ]; then
+            echo "Expected 37 states, got: $STATE_COUNT"
+            exit 1
+          fi
+          SYSTEM_USER=$(psql "$CI_DATABASE_URL" -tAc "SELECT id FROM core.app_user WHERE id = '00000000-0000-7000-8000-000000000001';")
+          if [ "$SYSTEM_USER" != "00000000-0000-7000-8000-000000000001" ]; then
+            echo "System user not found in core.app_user"
+            exit 1
+          fi
+          echo "Release verification passed: 37 states and system user seeded."
+
+      - name: Smoke test api (/health)
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          docker run -d --name test-api --network host \
+            -e DATABASE_URL="$CI_DATABASE_URL" \
+            -e REDIS_URL="$CI_REDIS_URL" \
+            -e PORT=3000 \
+            -e APP_URL="http://localhost:8080" \
+            -e API_URL="http://localhost:8080/api" \
+            -e COOKIE_PATH="/api/auth" \
+            -e JWT_SECRET="ci-only-jwt-secret-not-used-anywhere-else" \
+            -e S3_ENDPOINT="http://127.0.0.1:9000" \
+            -e S3_REGION="auto" \
+            -e S3_BUCKET="ci" \
+            -e S3_ACCESS_KEY_ID="ci" \
+            -e S3_SECRET_ACCESS_KEY="ci" \
+            idmis-api
+          if ! API_RESPONSE=$(curl -sf --retry 15 --retry-delay 1 --retry-connrefused http://127.0.0.1:3000/health); then
+            echo "API smoke test failed: /health unreachable."
+            docker logs test-api
+            exit 1
+          fi
+          echo "API health response: $API_RESPONSE"
+          if ! echo "$API_RESPONSE" | grep -q '"status":"ok"'; then
+            echo "API smoke test failed: expected status ok."
+            docker logs test-api
+            exit 1
+          fi
+          echo "API smoke test passed."
+
+      - name: Build worker image
+        if: steps.filter.outputs.run == 'true'
+        run: docker build -t idmis-worker -f apps/worker/Dockerfile .
+
+      - name: Smoke test worker (startup log)
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          docker run -d --name test-worker --network host \
+            -e DATABASE_URL="$CI_DATABASE_URL" \
+            -e REDIS_URL="$CI_REDIS_URL" \
+            idmis-worker
+          for i in $(seq 1 15); do
+            if docker logs test-worker 2>&1 | grep -q "worker started"; then
+              echo "Worker smoke test passed."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Worker smoke test failed: 'worker started' not seen within 15s."
+          docker logs test-worker
+          exit 1
+
+      - name: Clean up containers
+        if: always()
+        run: docker rm -f test-web test-api test-worker 2>/dev/null || true
