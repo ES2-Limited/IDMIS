@@ -15,8 +15,10 @@ import {
   assignment,
   session,
   totpRecoveryCode,
+  rolePermission,
   SYSTEM_USER_ID,
   ROLE_SYSTEM_ADMIN_ID,
+  SYSTEM_ROLE_PERMISSIONS,
   eq,
   postgres,
   drizzle,
@@ -96,6 +98,13 @@ describe('Authentication (BE-1.3)', () => {
       name: 'System Administrator',
       isSystem: true,
     });
+
+    for (const perm of SYSTEM_ROLE_PERMISSIONS.system_admin) {
+      await testDb.insert(rolePermission).values({
+        roleId: ROLE_SYSTEM_ADMIN_ID,
+        permission: perm,
+      });
+    }
 
     // 5. Seed System Administrator appUser (totpConfirmedAt: null, mustChangePassword: true)
     const adminPasswordHash = await argon2.hash(ADMIN_PASSWORD, { type: argon2.argon2id });

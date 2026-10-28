@@ -15,6 +15,8 @@ import crypto from 'node:crypto';
 import { IdempotencyKeySchema } from '@idmis/contracts';
 import { IdempotencyService } from './idempotency.service';
 import { CachedResponse } from './cached-response';
+import { NO_IDEMPOTENCY_KEY } from '../auth/no-idempotency.decorator';
+import { Reflector } from '@nestjs/core';
 
 function computeBodyHash(body: unknown): string {
   if (body === undefined || body === null) return '';
@@ -26,6 +28,7 @@ function computeBodyHash(body: unknown): string {
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
     @Inject(IdempotencyService) private readonly idempotencyService: IdempotencyService,
+    private readonly reflector?: Reflector,
   ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
@@ -43,6 +46,21 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // Skip idempotency for /health
     if (url === '/health' || url.startsWith('/health/')) {
       return next.handle();
+    }
+
+    // Skip idempotency for /auth/reset-password to prevent caching temporary passwords in Redis
+    if (url === '/auth/reset-password' || url.startsWith('/auth/reset-password/')) {
+      return next.handle();
+    }
+
+    if (this.reflector) {
+      const isNoIdempotency = this.reflector.getAllAndOverride<boolean>(NO_IDEMPOTENCY_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (isNoIdempotency) {
+        return next.handle();
+      }
     }
 
     const rawKey = req.headers['idempotency-key'];

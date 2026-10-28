@@ -116,6 +116,9 @@ export const organisation = coreSchema.table(
   },
   (table) => [
     index('organisation_parent_id_idx').on(table.parentId),
+    index('organisation_parent_type_idx')
+      .on(table.parentId, table.type)
+      .where(sql`"deleted_at" IS NULL`),
     uniqueIndex('organisation_code_active_unique')
       .on(table.code)
       .where(sql`"deleted_at" IS NULL`),
@@ -229,7 +232,9 @@ export const assignment = coreSchema.table(
     validToOn: date('valid_to_on', { mode: 'string' }),
   },
   (table) => [
-    index('assignment_user_id_idx').on(table.userId),
+    index('assignment_active_user_idx')
+      .on(table.userId)
+      .where(sql`"deleted_at" IS NULL`),
     index('assignment_role_id_idx').on(table.roleId),
     index('assignment_scope_state_id_idx').on(table.scopeStateId),
     index('assignment_scope_org_id_idx').on(table.scopeOrgId),

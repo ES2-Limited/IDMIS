@@ -6,6 +6,7 @@ describe('RequestContext schemas', () => {
     const scope = {
       isNational: false,
       stateIds: ['018f3a5e-0000-7000-8000-000000000001'],
+      rbdaIds: ['018f3a5e-0000-7000-8000-000000000004'],
       schemeIds: ['018f3a5e-0000-7000-8000-000000000002'],
       sectorIds: ['018f3a5e-0000-7000-8000-000000000003'],
     };
@@ -13,6 +14,7 @@ describe('RequestContext schemas', () => {
     const parsed = RequestScopeSchema.parse(scope);
     expect(parsed.isNational).toBe(false);
     expect(parsed.stateIds).toHaveLength(1);
+    expect(parsed.rbdaIds).toHaveLength(1);
     expect(parsed.schemeIds).toHaveLength(1);
     expect(parsed.sectorIds).toHaveLength(1);
   });
@@ -25,6 +27,7 @@ describe('RequestContext schemas', () => {
       scope: {
         isNational: false,
         stateIds: ['018f3a5e-0000-7000-8000-000000000010'],
+        rbdaIds: [],
         schemeIds: ['018f3a5e-0000-7000-8000-000000000020'],
         sectorIds: [],
       },
