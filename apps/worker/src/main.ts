@@ -41,7 +41,7 @@ async function runDispatcherLoop() {
   }
 }
 
-console.log('Worker started. Starting outbox event dispatcher loop...');
+console.log('worker started. Starting outbox event dispatcher loop...');
 void runDispatcherLoop();
 
 const shutdown = async () => {
