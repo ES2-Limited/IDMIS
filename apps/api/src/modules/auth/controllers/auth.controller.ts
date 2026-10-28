@@ -30,10 +30,20 @@ import {
   type AdminResetPasswordResponse,
   type AuthMeResponse,
   type SignOutResponse,
+  type UserAbilitiesResponse,
+  permissions,
 } from '@idmis/contracts';
 import { AuthService } from '../services/auth.service';
 import { TokenService } from '../token.service';
-import { Public, CurrentUser } from '../../../platform/auth';
+import {
+  Public,
+  Authenticated,
+  Can,
+  NoIdempotency,
+  CurrentUser,
+  CurrentAuthz,
+  type UserAuthz,
+} from '../../../platform/auth';
 import { ZodValidationPipe } from '../../../platform/pipes';
 import {
   parseCookies,
@@ -80,7 +90,7 @@ export class AuthController {
     return result.response as SignInResponse;
   }
 
-  @Public()
+  @Authenticated()
   @Post('totp/setup')
   @HttpCode(200)
   async setupTotp(
@@ -89,7 +99,7 @@ export class AuthController {
     return this.authService.setupTotp(body.tempToken);
   }
 
-  @Public()
+  @Authenticated()
   @Post('totp/verify')
   @HttpCode(200)
   async verifyTotp(
@@ -133,7 +143,7 @@ export class AuthController {
     return result.response as RefreshTokenResponse;
   }
 
-  @Public()
+  @Authenticated()
   @Post('sign-out')
   @HttpCode(200)
   async signOut(
@@ -150,12 +160,23 @@ export class AuthController {
     return this.authService.signOut(rawCookieToken);
   }
 
+  @Authenticated()
   @Get('me')
   async getMe(@CurrentUser() user: RequestUser): Promise<AuthMeResponse> {
     return this.authService.getMe(user.id);
   }
 
-  @Public()
+  @Authenticated()
+  @Get('me/abilities')
+  async getMyAbilities(@CurrentAuthz() authz: UserAuthz): Promise<UserAbilitiesResponse> {
+    return {
+      permissions: authz.permissions,
+      scopes: authz.permissionScopes,
+      rules: authz.rules,
+    };
+  }
+
+  @Authenticated()
   @Post('change-password')
   @HttpCode(200)
   async changePassword(
@@ -193,12 +214,15 @@ export class AuthController {
     return result;
   }
 
+  @Can(permissions.CORE_RESET_PASSWORD)
+  @NoIdempotency()
   @Post('reset-password')
   @HttpCode(200)
   async adminResetPassword(
     @Body(new ZodValidationPipe(AdminResetPasswordInputSchema)) body: AdminResetPasswordInput,
     @CurrentUser() callerAdmin: RequestUser,
+    @CurrentAuthz() callerAuthz: UserAuthz,
   ): Promise<AdminResetPasswordResponse> {
-    return this.authService.adminResetPassword(body.userId, callerAdmin);
+    return this.authService.adminResetPassword(body.userId, callerAdmin, callerAuthz);
   }
 }

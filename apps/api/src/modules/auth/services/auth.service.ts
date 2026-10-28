@@ -8,22 +8,25 @@ import {
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { appUser, SYSTEM_USER_ID } from '@idmis/db';
-import type {
-  SignInInput,
-  SignInResponse,
-  TotpVerifyInput,
-  TotpSetupResponse,
-  ChangePasswordInput,
-  ChangePasswordResponse,
-  AdminResetPasswordResponse,
-  AuthMeResponse,
-  RefreshTokenResponse,
-  SignOutResponse,
+import {
+  permissions,
+  type SignInInput,
+  type SignInResponse,
+  type TotpVerifyInput,
+  type TotpSetupResponse,
+  type ChangePasswordInput,
+  type ChangePasswordResponse,
+  type AdminResetPasswordResponse,
+  type AuthMeResponse,
+  type RefreshTokenResponse,
+  type SignOutResponse,
 } from '@idmis/contracts';
 import { AuthRepository } from '../repositories/auth.repository';
 import { TokenService } from '../token.service';
 import { TotpService } from '../totp.service';
 import { RedisService } from '../../../platform/redis/redis.service';
+import { AuthzService } from '../../../platform/auth/authz.service';
+import type { UserAuthz } from '../../../platform/auth/authz.interface';
 import { isCommonPassword } from '../password-policy';
 import type { RequestUser } from '../../../platform/context';
 
@@ -41,6 +44,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly totpService: TotpService,
     private readonly redisService: RedisService,
+    private readonly authzService: AuthzService,
   ) {}
 
   // --- Sign In ---
@@ -388,21 +392,56 @@ export class AuthService {
   async adminResetPassword(
     targetUserId: string,
     callerAdmin: RequestUser,
+    callerAuthz?: UserAuthz,
   ): Promise<AdminResetPasswordResponse> {
     if (targetUserId === SYSTEM_USER_ID) {
       throw new BadRequestException('Cannot reset password for system user');
     }
 
-    // TODO(BE-1.4): Replace role check with @Can(permissions.CORE_USER_UPDATE) once RBAC permission guard is wired.
-    if (!callerAdmin.isSystemAdmin) {
+    const authz = callerAuthz ?? (await this.authzService.getUserAuthz(callerAdmin.id));
+    if (!authz.can(permissions.CORE_RESET_PASSWORD)) {
       throw new ForbiddenException(
-        'Insufficient permissions: Only active System Administrators can reset user passwords',
+        'Insufficient permissions: You do not have permission to reset user passwords',
       );
     }
 
+    const callerScope = authz.scopeFor(permissions.CORE_RESET_PASSWORD);
+
     const targetUser = await this.authRepository.findUserById(targetUserId);
-    if (!targetUser) {
+    if (!targetUser || !targetUser.isActive || targetUser.deletedAt !== null) {
       throw new NotFoundException('User not found');
+    }
+
+    if (!callerScope.isNational) {
+      const targetPermissions = await this.authRepository.getUserPermissions(targetUserId);
+      const ADMIN_PROTECTED_PERMISSIONS: string[] = [
+        permissions.CORE_USER_READ,
+        permissions.CORE_USER_CREATE,
+        permissions.CORE_USER_UPDATE,
+        permissions.CORE_USER_DEACTIVATE,
+        permissions.CORE_RESET_PASSWORD,
+        permissions.CORE_ASSIGNMENT_MANAGE,
+        permissions.CORE_ROLE_MANAGE,
+      ];
+
+      const targetHasAdminPerms = targetPermissions.some((p) =>
+        ADMIN_PROTECTED_PERMISSIONS.includes(p),
+      );
+
+      // Non-national caller cannot reset anyone holding administrative permissions
+      if (targetHasAdminPerms) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Check target user's assigned scope: must be strictly within caller's states
+      const targetScope = await this.authRepository.getUserScope(targetUserId);
+      if (
+        targetScope.isNational ||
+        targetScope.stateIds.length === 0 ||
+        !targetScope.stateIds.every((sId) => callerScope.stateIds.includes(sId))
+      ) {
+        throw new NotFoundException('User not found');
+      }
     }
 
     // High-entropy single-use temporary password
@@ -412,6 +451,8 @@ export class AuthService {
     await this.authRepository.updatePassword(targetUser.id, hash, true);
     // Admin reset revokes all of the user's sessions
     await this.authRepository.revokeAllUserSessions(targetUser.id);
+    // Invalidate target user in authz cache
+    await this.authzService.invalidateUser(targetUser.id);
 
     return {
       userId: targetUser.id,

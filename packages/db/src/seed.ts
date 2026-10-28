@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 import { client, db } from './index';
 import {
   appUser,
@@ -10,8 +10,8 @@ import {
   lookupValue,
   setting,
 } from './schema';
-import { permissions } from '@idmis/contracts';
-import { SYSTEM_USER_ID } from './constants';
+import { SYSTEM_USER_ID, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './constants';
+export { SYSTEM_ROLES };
 
 const ADMIN_ID = '018f3a5e-0000-7000-8000-000000000001';
 const ROLE_SYSTEM_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000010';
@@ -55,72 +55,6 @@ export const NIGERIA_STATES = [
   { code: 'TA', name: 'Taraba' },
   { code: 'YO', name: 'Yobe' },
   { code: 'ZA', name: 'Zamfara' },
-] as const;
-
-export const SYSTEM_ROLES = [
-  {
-    id: ROLE_SYSTEM_ADMIN_ID,
-    key: 'system_admin',
-    name: 'System Administrator',
-    description: 'Full administrative access across all modules and national scope',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000011',
-    key: 'programme_manager',
-    name: 'Programme Manager',
-    description: 'National and RBDA-level programme management and oversight',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000012',
-    key: 'module_admin',
-    name: 'Module Administrator',
-    description: 'Administrative control within an assigned functional module',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000013',
-    key: 'scheme_data_officer',
-    name: 'Scheme Data Officer',
-    description: 'Scheme-level data capture, validation, and review',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000014',
-    key: 'field_officer',
-    name: 'Field Officer',
-    description: 'Field-level mobile data capture with offline support',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000015',
-    key: 'me_officer',
-    name: 'M&E Officer',
-    description: 'Monitoring & Evaluation data entry, survey collection, and analysis',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000016',
-    key: 'basin_officer',
-    name: 'Basin Officer',
-    description: 'River Basin information management and dam safety records',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000017',
-    key: 'procurement_officer',
-    name: 'Procurement Officer',
-    description: 'Procurement tracking and contract management',
-    isSystem: true,
-  },
-  {
-    id: '018f3a5e-0000-7000-8000-000000000018',
-    key: 'viewer',
-    name: 'Viewer',
-    description: 'Read-only access to scoped dashboards and reports',
-    isSystem: true,
-  },
 ] as const;
 
 export const BASE_LOOKUPS = [
@@ -327,7 +261,7 @@ export async function seed() {
       .onConflictDoNothing({ target: state.code });
   }
 
-  // 4. System Roles & Permissions
+  // 4. System Roles & Permissions Reconciliation
   console.log(`Seeding ${SYSTEM_ROLES.length} System Roles...`);
   for (const r of SYSTEM_ROLES) {
     await db
@@ -342,18 +276,52 @@ export async function seed() {
       .onConflictDoNothing({ target: role.key });
   }
 
-  // Assign all core permissions to system_admin role
-  console.log('Seeding System Administrator permissions...');
-  const allPermissions = Object.values(permissions);
-  for (const perm of allPermissions) {
-    await db
-      .insert(rolePermission)
-      .values({
-        roleId: ROLE_SYSTEM_ADMIN_ID,
-        permission: perm,
-      })
-      .onConflictDoNothing();
+  console.log('Reconciling system role permissions...');
+  let rolePermsInserted = 0;
+  let rolePermsDeleted = 0;
+
+  for (const r of SYSTEM_ROLES) {
+    if (!r.isSystem) continue;
+
+    const desiredPerms = SYSTEM_ROLE_PERMISSIONS[r.key] ?? [];
+    const desiredSet = new Set(desiredPerms);
+
+    const existingRows = await db
+      .select({ permission: rolePermission.permission })
+      .from(rolePermission)
+      .where(eq(rolePermission.roleId, r.id));
+
+    const existingSet = new Set(existingRows.map((row) => row.permission));
+
+    // Missing to insert
+    const toInsert = desiredPerms.filter((p) => !existingSet.has(p));
+    for (const perm of toInsert) {
+      await db
+        .insert(rolePermission)
+        .values({
+          roleId: r.id,
+          permission: perm,
+        })
+        .onConflictDoNothing();
+      rolePermsInserted++;
+    }
+
+    // Extra to delete
+    const toDelete = existingRows
+      .filter((row) => !desiredSet.has(row.permission))
+      .map((row) => row.permission);
+
+    if (toDelete.length > 0) {
+      await db
+        .delete(rolePermission)
+        .where(and(eq(rolePermission.roleId, r.id), inArray(rolePermission.permission, toDelete)));
+      rolePermsDeleted += toDelete.length;
+    }
   }
+
+  console.log(
+    `Role permissions reconciled: ${rolePermsInserted} inserted, ${rolePermsDeleted} deleted`,
+  );
 
   // 5. Initial Assignment: Assign System Admin user to system_admin role with national scope
   if (adminEmail && adminPasswordHash) {
@@ -420,6 +388,7 @@ export async function seed() {
     .onConflictDoNothing({ target: setting.key });
 
   console.log('--- Core Seed Completed Successfully ---');
+  return { rolePermsInserted, rolePermsDeleted };
 }
 
 import { fileURLToPath } from 'node:url';

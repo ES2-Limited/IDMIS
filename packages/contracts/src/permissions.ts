@@ -4,6 +4,7 @@ export const permissions = {
   CORE_USER_CREATE: 'core.user.create',
   CORE_USER_UPDATE: 'core.user.update',
   CORE_USER_DEACTIVATE: 'core.user.deactivate',
+  CORE_RESET_PASSWORD: 'core.reset_password',
 
   // Core: Roles & Assignments
   CORE_ROLE_READ: 'core.role.read',
@@ -38,3 +39,30 @@ export const permissions = {
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
+
+export type PermissionKind = 'scoped' | 'global';
+
+export const permissionKinds: Record<Permission, PermissionKind> = {
+  [permissions.CORE_USER_READ]: 'scoped',
+  [permissions.CORE_USER_CREATE]: 'scoped',
+  [permissions.CORE_USER_UPDATE]: 'scoped',
+  [permissions.CORE_USER_DEACTIVATE]: 'scoped',
+  [permissions.CORE_RESET_PASSWORD]: 'scoped',
+  [permissions.CORE_ROLE_READ]: 'scoped',
+  [permissions.CORE_ROLE_MANAGE]: 'global',
+  [permissions.CORE_ASSIGNMENT_READ]: 'scoped',
+  [permissions.CORE_ASSIGNMENT_MANAGE]: 'scoped',
+  [permissions.CORE_ORGANISATION_READ]: 'scoped',
+  [permissions.CORE_ORGANISATION_MANAGE]: 'scoped',
+  [permissions.CORE_GEOGRAPHY_READ]: 'scoped',
+  [permissions.CORE_WUA_READ]: 'scoped',
+  [permissions.CORE_WUA_MANAGE]: 'scoped',
+  [permissions.CORE_LOOKUP_READ]: 'scoped',
+  [permissions.CORE_LOOKUP_MANAGE]: 'global',
+  [permissions.CORE_SETTING_READ]: 'global',
+  [permissions.CORE_SETTING_MANAGE]: 'global',
+  [permissions.CORE_FILE_UPLOAD]: 'scoped',
+  [permissions.CORE_FILE_READ]: 'scoped',
+  [permissions.CORE_IMPORT_RUN]: 'scoped',
+  [permissions.CORE_AUDIT_READ]: 'global',
+};

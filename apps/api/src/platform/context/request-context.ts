@@ -1,20 +1,14 @@
 import { z } from 'zod';
+import { RequestScopeSchema, type RequestScope } from '@idmis/contracts';
 
-export const RequestScopeSchema = z.object({
-  isNational: z.boolean(),
-  stateIds: z.array(z.string().uuid()),
-  schemeIds: z.array(z.string().uuid()),
-  sectorIds: z.array(z.string().uuid()),
-});
-
-export type RequestScope = z.infer<typeof RequestScopeSchema>;
+export { RequestScopeSchema, type RequestScope };
 
 export const RequestUserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   fullName: z.string(),
   roles: z.array(z.string()).default([]),
-  isSystemAdmin: z.boolean().default(false),
+  isSystemAdmin: z.boolean().default(false), // UI-informational only! Never used for access decisions.
   mustChangePassword: z.boolean().default(false),
   scope: RequestScopeSchema,
   permissions: z.array(z.string()),

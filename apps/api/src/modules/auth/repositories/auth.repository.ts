@@ -145,6 +145,7 @@ export class AuthRepository {
 
     let isNational = false;
     const stateIds = new Set<string>();
+    const rbdaIds = new Set<string>();
     const schemeIds = new Set<string>();
     const sectorIds = new Set<string>();
 
@@ -158,14 +159,14 @@ export class AuthRepository {
       } else if (row.scopeType === 'sector' && row.scopeOrgId) {
         sectorIds.add(row.scopeOrgId);
       } else if (row.scopeType === 'rbda' && row.scopeOrgId) {
-        // RBDA assignments expand to schemes
-        schemeIds.add(row.scopeOrgId);
+        rbdaIds.add(row.scopeOrgId);
       }
     }
 
     return {
       isNational,
       stateIds: Array.from(stateIds),
+      rbdaIds: Array.from(rbdaIds),
       schemeIds: Array.from(schemeIds),
       sectorIds: Array.from(sectorIds),
     };
