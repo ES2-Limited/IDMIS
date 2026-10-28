@@ -35,6 +35,7 @@ import { permissions, permissionKinds } from '@idmis/contracts';
 import { TokenService } from './token.service';
 import { AuthzService } from '../../platform/auth/authz.service';
 import { applyScope, assertInScope, deriveLocationServerSide } from '../../platform/auth';
+import { RouteMarkerValidator } from '../../platform/auth/route-marker.validator';
 import { IS_PUBLIC_KEY } from '../../platform/auth/public.decorator';
 import { IS_AUTHENTICATED_KEY } from '../../platform/auth/authenticated.decorator';
 import { CAN_PERMISSION_KEY } from '../../platform/auth/can.decorator';
@@ -498,6 +499,59 @@ describe('Permissions & Scope Specification (BE-1.4)', () => {
 
       expect(totalRoutesChecked).toBeGreaterThan(5);
     });
+
+    it('fails application bootstrap with RouteMarkerError when a controller route has no marker', () => {
+      class UnmarkedController {
+        unmarkedMethod() {
+          return 'missing marker';
+        }
+      }
+      const mockDiscovery = {
+        getControllers: () => [
+          {
+            instance: new UnmarkedController(),
+            metatype: UnmarkedController,
+          },
+        ],
+      } as unknown as DiscoveryService;
+
+      const validator = new RouteMarkerValidator(mockDiscovery, new Reflector());
+      expect(() => validator.onApplicationBootstrap()).toThrowError(
+        /\[RouteMarkerError\] Endpoint UnmarkedController\.unmarkedMethod must declare EXACTLY ONE of @Public\(\), @Authenticated\(\), or @Can\(\)\. Found 0 markers\./,
+      );
+    });
+
+    it('fails application bootstrap with RouteMarkerError when a controller route has multiple markers', () => {
+      class MultiMarkedController {
+        multiMarkedMethod() {
+          return 'multiple markers';
+        }
+      }
+      Reflect.defineMetadata(
+        IS_PUBLIC_KEY,
+        true,
+        MultiMarkedController.prototype.multiMarkedMethod,
+      );
+      Reflect.defineMetadata(
+        IS_AUTHENTICATED_KEY,
+        true,
+        MultiMarkedController.prototype.multiMarkedMethod,
+      );
+
+      const mockDiscovery = {
+        getControllers: () => [
+          {
+            instance: new MultiMarkedController(),
+            metatype: MultiMarkedController,
+          },
+        ],
+      } as unknown as DiscoveryService;
+
+      const validator = new RouteMarkerValidator(mockDiscovery, new Reflector());
+      expect(() => validator.onApplicationBootstrap()).toThrowError(
+        /\[RouteMarkerError\] Endpoint MultiMarkedController\.multiMarkedMethod must declare EXACTLY ONE of @Public\(\), @Authenticated\(\), or @Can\(\)\. Found 2 markers\./,
+      );
+    });
   });
 
   describe('2. Scope is Per-Permission (Kano Field Officer + Kaduna Viewer)', () => {
@@ -721,6 +775,43 @@ describe('Permissions & Scope Specification (BE-1.4)', () => {
       // Fresh temporary password generated each time, never cached
       expect(pass1).not.toBe(pass2);
     });
+
+    it('proves temporary password never appears in any logger or console output during admin reset', async () => {
+      const token = await createAccessTokenFor(USER_SYSADMIN_ID);
+      const loggedChunks: string[] = [];
+      const origStdout = process.stdout.write.bind(process.stdout);
+      const origStderr = process.stderr.write.bind(process.stderr);
+
+      process.stdout.write = (chunk: unknown) => {
+        loggedChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
+        return true;
+      };
+      process.stderr.write = (chunk: unknown) => {
+        loggedChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
+        return true;
+      };
+
+      let res: { statusCode: number; body: string };
+      try {
+        res = await app.inject({
+          method: 'POST',
+          url: '/auth/reset-password',
+          headers: { authorization: `Bearer ${token}` },
+          payload: { userId: USER_KANO_FIELD_ID },
+        });
+      } finally {
+        process.stdout.write = origStdout;
+        process.stderr.write = origStderr;
+      }
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      const tempPassword = body.temporaryPassword;
+      expect(tempPassword).toBeDefined();
+
+      const combinedLogs = loggedChunks.join('\n');
+      expect(combinedLogs).not.toContain(tempPassword);
+    });
   });
 
   describe('7. GET /auth/me/abilities endpoint', () => {
@@ -768,6 +859,42 @@ describe('Permissions & Scope Specification (BE-1.4)', () => {
 
       const cachedValAfter = await redisService.get(cacheKey2);
       expect(cachedValAfter).not.toBeNull();
+    });
+
+    it('evicts cached authz when a user assignment changes and recomputes updated scope', async () => {
+      // 1. Initial scope for Scheme Officer is KRIS scheme only (Kano)
+      const authzBefore = await authzService.getUserAuthz(USER_SCHEME_OFFICER_ID);
+      const scopeBefore = authzBefore.scopeFor(permissions.CORE_WUA_READ);
+      expect(scopeBefore.schemeIds).toContain(ORG_SCHEME_KRIS_ID);
+      expect(scopeBefore.schemeIds).not.toContain(ORG_SCHEME_KADUNA_ID);
+
+      // Verify cached in Redis
+      const epoch = await authzService.getRbacEpoch();
+      const cacheKey = `auth:user:${USER_SCHEME_OFFICER_ID}:epoch:${epoch}`;
+      expect(await redisService.get(cacheKey)).not.toBeNull();
+
+      // 2. Add an assignment for Scheme Officer to ORG_SCHEME_KADUNA_ID
+      await testDb.insert(assignment).values({
+        id: crypto.randomUUID(),
+        userId: USER_SCHEME_OFFICER_ID,
+        roleId: ROLE_SCHEME_DATA_OFFICER_ID,
+        module: 'core',
+        scopeType: 'scheme',
+        scopeOrgId: ORG_SCHEME_KADUNA_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      // 3. Invalidate user's authz cache
+      await authzService.invalidateUser(USER_SCHEME_OFFICER_ID);
+      expect(await redisService.get(cacheKey)).toBeNull();
+
+      // 4. Re-fetch: newly computed authz reflects updated assignment
+      const authzAfter = await authzService.getUserAuthz(USER_SCHEME_OFFICER_ID);
+      const scopeAfter = authzAfter.scopeFor(permissions.CORE_WUA_READ);
+      expect(scopeAfter.schemeIds).toContain(ORG_SCHEME_KRIS_ID);
+      expect(scopeAfter.schemeIds).toContain(ORG_SCHEME_KADUNA_ID);
+      expect(await redisService.get(cacheKey)).not.toBeNull();
     });
   });
 });
