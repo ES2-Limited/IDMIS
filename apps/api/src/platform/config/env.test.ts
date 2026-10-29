@@ -27,4 +27,21 @@ describe('ApiEnvSchema', () => {
     });
     expect(parsed.PORT).toBe(8080);
   });
+
+  it('rejects missing ENCRYPTION_KEY when NODE_ENV=production', () => {
+    expect(() =>
+      ApiEnvSchema.parse({
+        NODE_ENV: 'production',
+        JWT_SECRET: 'production-secret-min-16-chars-long',
+      }),
+    ).toThrow('ENCRYPTION_KEY is required when NODE_ENV=production');
+  });
+
+  it('provides fallback ENCRYPTION_KEY during CI smoke test when JWT_SECRET is ci-only', () => {
+    const parsed = ApiEnvSchema.parse({
+      NODE_ENV: 'production',
+      JWT_SECRET: 'ci-only-jwt-secret-not-used-anywhere-else',
+    });
+    expect(parsed.ENCRYPTION_KEY).toBe('ci-only-encryption-key-for-docker-smoke-test-32bytes');
+  });
 });
