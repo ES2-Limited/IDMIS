@@ -22,6 +22,7 @@ describe('Storage & Antivirus Service Specification (BE-1.7)', () => {
       S3_BUCKET: 'test-bucket',
       S3_ACCESS_KEY_ID: 'minioadmin',
       S3_SECRET_ACCESS_KEY: 'minioadmin',
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
     });
     antivirusService = new AntivirusService(storageService);
   });

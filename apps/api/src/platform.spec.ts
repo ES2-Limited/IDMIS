@@ -364,27 +364,37 @@ describe('API Platform Plumbing (BE-1.2)', () => {
   describe('Production Guard', () => {
     it('does not register sample endpoints in production mode', async () => {
       const prevEnv = process.env.NODE_ENV;
+      const prevEnc = process.env.ENCRYPTION_KEY;
       process.env.NODE_ENV = 'production';
-      const { AppModule: ProdAppModule } = await import('./app.module?prod=' + Date.now());
+      process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+      try {
+        const { AppModule: ProdAppModule } = await import('./app.module?prod=' + Date.now());
 
-      const prodApp = await NestFactory.create<NestFastifyApplication>(
-        ProdAppModule,
-        new FastifyAdapter(),
-        { logger: false },
-      );
-      prodApp.useGlobalFilters(new ProblemDetailsFilter());
-      await prodApp.init();
-      await prodApp.getHttpAdapter().getInstance().ready();
+        const prodApp = await NestFactory.create<NestFastifyApplication>(
+          ProdAppModule,
+          new FastifyAdapter(),
+          { logger: false },
+        );
+        prodApp.useGlobalFilters(new ProblemDetailsFilter());
+        await prodApp.init();
+        await prodApp.getHttpAdapter().getInstance().ready();
 
-      const response = await prodApp.inject({
-        method: 'POST',
-        url: '/sample/echo',
-        payload: { message: 'test prod', count: 1 },
-      });
+        const response = await prodApp.inject({
+          method: 'POST',
+          url: '/sample/echo',
+          payload: { message: 'test prod', count: 1 },
+        });
 
-      expect(response.statusCode).toBe(404);
-      await prodApp.close();
-      process.env.NODE_ENV = prevEnv;
+        expect(response.statusCode).toBe(404);
+        await prodApp.close();
+      } finally {
+        process.env.NODE_ENV = prevEnv;
+        if (prevEnc !== undefined) {
+          process.env.ENCRYPTION_KEY = prevEnc;
+        } else {
+          delete process.env.ENCRYPTION_KEY;
+        }
+      }
     });
   });
 });
