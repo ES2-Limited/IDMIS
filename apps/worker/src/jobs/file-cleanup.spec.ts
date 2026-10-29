@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cleanupExpiredFilesJob } from './file-cleanup.job';
+import { cleanupExpiredFilesJob, type FileCleanupOptions } from './file-cleanup.job';
 import { file } from '@idmis/db';
 
 describe('File Cleanup Job Specification (BE-1.7)', () => {
@@ -31,8 +31,8 @@ describe('File Cleanup Job Specification (BE-1.7)', () => {
     const res = await cleanupExpiredFilesJob({
       olderThanHours: 24,
       batchSize: 50,
-      dbClient: mockDb as unknown as Parameters<typeof cleanupExpiredFilesJob>[0]['dbClient'],
-      s3Client: mockS3Client as unknown as Parameters<typeof cleanupExpiredFilesJob>[0]['s3Client'],
+      dbClient: mockDb as unknown as NonNullable<FileCleanupOptions['dbClient']>,
+      s3Client: mockS3Client as unknown as NonNullable<FileCleanupOptions['s3Client']>,
       bucket: 'test-bucket',
     });
 
