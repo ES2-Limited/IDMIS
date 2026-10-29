@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1158.0",
     "@idmis/contracts": "workspace:*",
     "@idmis/db": "workspace:*",
     "bullmq": "^6.4.1",

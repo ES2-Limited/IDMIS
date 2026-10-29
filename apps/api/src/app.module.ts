@@ -6,14 +6,25 @@ import { OpenApiModule } from './platform/openapi';
 import { RedisModule } from './platform/redis/redis.module';
 import { AuditModule } from './platform/audit/audit.module';
 import { OutboxModule } from './platform/outbox/outbox.module';
+import { StorageModule } from './platform/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CoreModule } from './modules/core/core.module';
 import { SampleModule } from './modules/sample/sample.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const devModules = !isProduction ? [SampleModule] : [];
 
 @Module({
-  imports: [RedisModule, AuditModule, OutboxModule, AuthModule, OpenApiModule, ...devModules],
+  imports: [
+    RedisModule,
+    AuditModule,
+    OutboxModule,
+    StorageModule,
+    AuthModule,
+    CoreModule,
+    OpenApiModule,
+    ...devModules,
+  ],
   controllers: [AppController],
   providers: [
     {
