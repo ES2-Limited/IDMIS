@@ -21,6 +21,17 @@ export class ImportTemplateService {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'TRIMING IDMIS 2.0';
     workbook.created = new Date();
+    workbook.description = JSON.stringify({ dataset, version: def.version });
+    workbook.keywords = `templateVersion:${def.version};dataset:${dataset}`;
+    workbook.subject = String(def.version);
+
+    // 0. Metadata Sheet (Hidden)
+    const metaSheet = workbook.addWorksheet('_metadata');
+    metaSheet.state = 'veryHidden';
+    metaSheet.getCell('A1').value = 'template_version';
+    metaSheet.getCell('B1').value = def.version;
+    metaSheet.getCell('A2').value = 'dataset';
+    metaSheet.getCell('B2').value = dataset;
 
     // 1. Data Entry Sheet
     const dataSheet = workbook.addWorksheet('Data', {

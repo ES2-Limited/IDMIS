@@ -9,7 +9,6 @@ import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import {
   permissions,
-  sanitizeFormulaSafety,
   type InitiateImportInput,
   type ListImportBatchesQuery,
   type ImportRowStatus,
@@ -18,6 +17,7 @@ import {
 import {
   db,
   wua,
+  wuaOfficer,
   organisation,
   organisationState,
   ward,
@@ -30,22 +30,65 @@ import {
   isNull,
 } from '@idmis/db';
 import { ImportRepository } from '../repositories/import.repository';
+import { ImportTemplateService } from './import-template.service';
 import { StorageService } from '../../../platform/storage/storage.service';
 import { EncryptionService } from '../../../platform/security/encryption.service';
 import { RedisService } from '../../../platform/redis/redis.service';
 import { type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 
+export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_IMPORT_ROWS = 50000;
+
 @Injectable()
 export class ImportService {
   private readonly logger = new Logger(ImportService.name);
+  private readonly runningValidations = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly importRepo: ImportRepository,
+    private readonly templateService: ImportTemplateService,
     private readonly storageService: StorageService,
     private readonly encryptionService: EncryptionService,
     private readonly redisService: RedisService,
   ) {}
+
+  private getEmbeddedTemplateVersion(workbook: ExcelJS.Workbook): number | null {
+    // 1. Check hidden _metadata worksheet
+    const metaSheet = workbook.getWorksheet('_metadata');
+    if (metaSheet) {
+      for (let i = 1; i <= metaSheet.rowCount; i++) {
+        const key = String(metaSheet.getCell(`A${i}`).value || '')
+          .trim()
+          .toLowerCase();
+        if (key === 'template_version') {
+          const val = Number(metaSheet.getCell(`B${i}`).value);
+          if (!isNaN(val) && val > 0) return val;
+        }
+      }
+    }
+    // 2. Check workbook description JSON / string
+    if (workbook.description) {
+      try {
+        const parsed = JSON.parse(workbook.description);
+        if (typeof parsed.version === 'number') return parsed.version;
+      } catch {
+        const match = workbook.description.match(/TemplateVersion:(\d+)/i);
+        if (match) return parseInt(match[1], 10);
+      }
+    }
+    // 3. Check workbook keywords
+    if (workbook.keywords) {
+      const match = workbook.keywords.match(/templateVersion:(\d+)/i);
+      if (match) return parseInt(match[1], 10);
+    }
+    // 4. Check workbook subject
+    if (workbook.subject) {
+      const sub = parseInt(workbook.subject, 10);
+      if (!isNaN(sub) && sub > 0) return sub;
+    }
+    return null;
+  }
 
   async initiateImport(input: InitiateImportInput, authz: UserAuthz) {
     if (input.dataset !== 'wua') {
@@ -66,6 +109,12 @@ export class ImportService {
     if (fileRow.scanStatus !== 'clean') {
       throw new BadRequestException(
         `File cannot be imported: scan status is '${fileRow.scanStatus}' (must be 'clean')`,
+      );
+    }
+
+    if (fileRow.sizeBytes > MAX_IMPORT_FILE_SIZE_BYTES) {
+      throw new BadRequestException(
+        `File size (${Math.round(fileRow.sizeBytes / (1024 * 1024))}MB) exceeds maximum import limit of 50 MB`,
       );
     }
 
@@ -194,6 +243,20 @@ export class ImportService {
   }
 
   async validateBatch(batchId: string) {
+    const existing = this.runningValidations.get(batchId);
+    if (existing) {
+      return existing;
+    }
+    const promise = this.executeValidateBatch(batchId);
+    this.runningValidations.set(batchId, promise);
+    try {
+      return await promise;
+    } finally {
+      this.runningValidations.delete(batchId);
+    }
+  }
+
+  private async executeValidateBatch(batchId: string) {
     const batch = await this.importRepo.getBatchById(batchId);
     if (!batch) {
       throw new NotFoundException(`Import batch ${batchId} not found`);
@@ -208,6 +271,16 @@ export class ImportService {
         status: 'validation_failed',
         errorMessage: 'Source file missing',
       });
+      return;
+    }
+
+    if (fileRow.sizeBytes > MAX_IMPORT_FILE_SIZE_BYTES) {
+      const errorMessage = `File size exceeds maximum allowed limit of 50 MB for imports (found ${Math.round(fileRow.sizeBytes / (1024 * 1024))}MB)`;
+      await this.importRepo.updateBatch(batchId, {
+        status: 'validation_failed',
+        errorMessage,
+      });
+      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage);
       return;
     }
 
@@ -235,11 +308,71 @@ export class ImportService {
       return;
     }
 
+    // 1. Template Version Gate: refuse workbooks whose embedded template version ≠ current definition version
+    const def = this.templateService.getDefinition(batch.dataset);
+    const embeddedVersion = this.getEmbeddedTemplateVersion(workbook);
+    if (!embeddedVersion || embeddedVersion !== def.version) {
+      const errorMessage = `Workbook template version mismatch. Expected version ${def.version} but found ${embeddedVersion ?? 'none'}. Please download the latest template.`;
+      await this.importRepo.updateBatch(batchId, {
+        status: 'validation_failed',
+        errorMessage,
+      });
+      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage);
+
+      await db.insert(outboxEvent).values({
+        eventType: 'core.import.validated',
+        eventVersion: 1,
+        aggregateType: 'import_batch',
+        aggregateId: batchId,
+        payload: {
+          batchId,
+          dataset: batch.dataset,
+          totalRows: 0,
+          validRows: 0,
+          errorRows: 0,
+          status: 'validation_failed',
+          errorMessage,
+        },
+      });
+      return;
+    }
+
     const worksheet = workbook.getWorksheet('Data') || workbook.worksheets[0];
     if (!worksheet || worksheet.rowCount < 2) {
       await this.importRepo.updateBatch(batchId, {
         status: 'validation_failed',
         errorMessage: 'Excel sheet has no data rows',
+      });
+      return;
+    }
+
+    // 2. Caps: Max rows check (50,000) - reject before parsing fully
+    const totalDataRows = worksheet.rowCount - 1;
+    if (totalDataRows > MAX_IMPORT_ROWS) {
+      const errorMessage = `Workbook exceeds maximum row limit of ${MAX_IMPORT_ROWS.toLocaleString()} rows (found ${totalDataRows.toLocaleString()} rows)`;
+      await this.importRepo.updateBatch(batchId, {
+        totalRows: totalDataRows,
+        status: 'validation_failed',
+        errorMessage,
+      });
+      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage, {
+        totalRows: totalDataRows,
+      });
+
+      await db.insert(outboxEvent).values({
+        eventType: 'core.import.validated',
+        eventVersion: 1,
+        aggregateType: 'import_batch',
+        aggregateId: batchId,
+        payload: {
+          batchId,
+          dataset: batch.dataset,
+          totalRows: totalDataRows,
+          validRows: 0,
+          errorRows: totalDataRows,
+          status: 'validation_failed',
+          errorMessage,
+        },
       });
       return;
     }
@@ -295,13 +428,30 @@ export class ImportService {
       const errors: Array<{ column: string; message: string; code?: string }> = [];
 
       colMap.forEach((fieldKey, colNumber) => {
-        let cellVal: unknown = row.getCell(colNumber).value;
+        const cell = row.getCell(colNumber);
+        let cellVal: unknown = cell.value;
+        const isFormula =
+          cell.type === ExcelJS.ValueType.Formula ||
+          Boolean(cell.formula) ||
+          (cellVal !== null && typeof cellVal === 'object' && 'formula' in cellVal);
+
         if (cellVal !== null && typeof cellVal === 'object' && 'result' in cellVal) {
           cellVal = (cellVal as { result: unknown }).result;
         }
-        // Formula injection protection
-        const sanitized = sanitizeFormulaSafety(cellVal);
-        rawData[fieldKey] = sanitized;
+
+        const valStr = cellVal !== null && cellVal !== undefined ? String(cellVal) : '';
+        const hasInjectionPrefix = /^[=+\-@\t\r]/.test(valStr);
+
+        // Reject formula cells with a per-cell error (don't prefix and store)
+        if (isFormula || hasInjectionPrefix) {
+          errors.push({
+            column: fieldKey,
+            message: 'Formulas and formula injection characters (=, +, -, @) are forbidden',
+            code: 'FORMULA_FORBIDDEN',
+          });
+        }
+
+        rawData[fieldKey] = cellVal;
       });
 
       // Skip row if it looks completely empty
@@ -401,8 +551,10 @@ export class ImportService {
       });
     }
 
-    await db.delete(importRow).where(eq(importRow.batchId, batchId));
-    await this.importRepo.createRows(rowsToInsert);
+    await runInTransaction(async (txDb) => {
+      await txDb.delete(importRow).where(eq(importRow.batchId, batchId));
+      await this.importRepo.createRows(rowsToInsert, txDb);
+    });
 
     const totalRows = rowsToInsert.length;
     const finalStatus = errorCount === 0 && totalRows > 0 ? 'validated' : 'validation_failed';
@@ -627,14 +779,45 @@ export class ImportService {
       limit: 10000,
     });
 
+    const skippedRows: Array<{ rowNumber: number; entityId: string; reason: string }> = [];
+    let undoneRowsCount = 0;
+
     await runInTransaction(
       async (txDb) => {
         for (const row of committedRows) {
           if (!row.targetEntityId) continue;
 
+          // Fetch current record state
+          const [current] = await txDb
+            .select()
+            .from(wua)
+            .where(and(eq(wua.id, row.targetEntityId), isNull(wua.deletedAt)))
+            .limit(1);
+
+          if (!current) {
+            skippedRows.push({
+              rowNumber: row.rowNumber,
+              entityId: row.targetEntityId,
+              reason: 'Record no longer exists or was already deleted',
+            });
+            continue;
+          }
+
           if (row.beforeImage) {
-            // Restore previous state
+            // Updated row: verify current version matches version written by import
             const prev = row.beforeImage as Record<string, unknown>;
+            const expectedVersion = ((prev.version as number) || 1) + 1;
+
+            if (current.version !== expectedVersion) {
+              skippedRows.push({
+                rowNumber: row.rowNumber,
+                entityId: row.targetEntityId,
+                reason: `Record version mismatch: expected ${expectedVersion} but found ${current.version} (modified after import)`,
+              });
+              continue;
+            }
+
+            // Restore previous state
             await txDb
               .update(wua)
               .set({
@@ -650,10 +833,45 @@ export class ImportService {
                 hasMaintenanceFund: Boolean(prev.hasMaintenanceFund),
                 updatedBy: authz.userId,
                 updatedAt: new Date().toISOString(),
-                version: ((prev.version as number) || 1) + 1,
+                version: current.version + 1,
               })
               .where(eq(wua.id, row.targetEntityId));
+
+            undoneRowsCount++;
           } else {
+            // Inserted row: verify current version is 1 (the version written on insert)
+            const expectedVersion = 1;
+            if (current.version !== expectedVersion) {
+              skippedRows.push({
+                rowNumber: row.rowNumber,
+                entityId: row.targetEntityId,
+                reason: `Record version mismatch: expected ${expectedVersion} but found ${current.version} (modified after import)`,
+              });
+              continue;
+            }
+
+            // Check if inserted row is now referenced by other records
+            const [officerRef] = await txDb
+              .select({ id: wuaOfficer.id })
+              .from(wuaOfficer)
+              .where(and(eq(wuaOfficer.wuaId, row.targetEntityId), isNull(wuaOfficer.deletedAt)))
+              .limit(1);
+
+            const [childWuaRef] = await txDb
+              .select({ id: wua.id })
+              .from(wua)
+              .where(and(eq(wua.parentId, row.targetEntityId), isNull(wua.deletedAt)))
+              .limit(1);
+
+            if (officerRef || childWuaRef) {
+              skippedRows.push({
+                rowNumber: row.rowNumber,
+                entityId: row.targetEntityId,
+                reason: 'Inserted record is referenced by other records (officers or child WUAs)',
+              });
+              continue;
+            }
+
             // Delete created record
             await txDb
               .update(wua)
@@ -662,6 +880,8 @@ export class ImportService {
                 updatedBy: authz.userId,
               })
               .where(eq(wua.id, row.targetEntityId));
+
+            undoneRowsCount++;
           }
         }
 
@@ -676,14 +896,23 @@ export class ImportService {
             dataset: batch.dataset,
             status: 'undone',
             undoneBy: authz.userId,
+            undoneRowsCount,
+            skippedRowsCount: skippedRows.length,
+            skippedRows,
           },
         });
+
+        const errorMessage =
+          skippedRows.length > 0
+            ? `Undo completed with ${skippedRows.length} row(s) skipped due to subsequent modifications or active references`
+            : null;
 
         await this.importRepo.updateBatch(
           batchId,
           {
             status: 'undone',
             undoneAt: new Date().toISOString(),
+            errorMessage,
           },
           batch.version,
           txDb,
@@ -701,9 +930,20 @@ export class ImportService {
       },
     );
 
-    await this.publishProgress(batchId, 'undone', 100, 'Successfully undone all batch changes.');
+    await this.publishProgress(
+      batchId,
+      'undone',
+      100,
+      `Undo completed: ${undoneRowsCount} undone, ${skippedRows.length} skipped.`,
+    );
 
-    return this.importRepo.getBatchById(batchId);
+    const finalBatch = await this.importRepo.getBatchById(batchId);
+    return {
+      ...finalBatch!,
+      undoneRowsCount,
+      skippedRowsCount: skippedRows.length,
+      skippedRows,
+    };
   }
 
   async generateSseToken(batchId: string, authz: UserAuthz) {

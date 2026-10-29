@@ -22,6 +22,7 @@ import {
   lga,
   file,
   wua,
+  wuaOfficer,
   importBatch,
   importRow,
   outboxEvent,
@@ -289,9 +290,25 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
     await adminClient.end();
   }, 20000);
 
-  // Helper to generate a test Excel workbook buffer
-  async function createTestWuaWorkbook(rows: Array<Record<string, unknown>>) {
+  // Helper to generate a test Excel workbook buffer with embedded template version
+  async function createTestWuaWorkbook(
+    rows: Array<Record<string, unknown>>,
+    options?: { templateVersion?: number | null; sparseRowCount?: number },
+  ) {
     const workbook = new ExcelJS.Workbook();
+    const version = options?.templateVersion !== undefined ? options.templateVersion : 1;
+    if (version !== null) {
+      workbook.description = JSON.stringify({ dataset: 'wua', version });
+      workbook.keywords = `templateVersion:${version};dataset:wua`;
+      workbook.subject = String(version);
+      const metaSheet = workbook.addWorksheet('_metadata');
+      metaSheet.state = 'veryHidden';
+      metaSheet.getCell('A1').value = 'template_version';
+      metaSheet.getCell('B1').value = version;
+      metaSheet.getCell('A2').value = 'dataset';
+      metaSheet.getCell('B2').value = 'wua';
+    }
+
     const sheet = workbook.addWorksheet('Data');
 
     sheet.columns = [
@@ -309,6 +326,10 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
 
     for (const r of rows) {
       sheet.addRow(r);
+    }
+
+    if (options?.sparseRowCount) {
+      sheet.getRow(options.sparseRowCount).getCell(1).value = 'filler';
     }
 
     const buf = await workbook.xlsx.writeBuffer();
@@ -530,21 +551,31 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
       expect(res.statusCode).toBe(200);
       const batch = JSON.parse(res.body);
       expect(batch.totalRows).toBe(3);
-      expect(batch.validRows).toBe(2);
-      expect(batch.errorRows).toBe(1);
+      expect(batch.validRows).toBe(1);
+      expect(batch.errorRows).toBe(2);
       expect(batch.status).toBe('validation_failed');
     });
 
-    it('formula safety: prefixes formula characters with single quote', async () => {
+    it('formula safety: rejects formula cells with a per-cell error without prefixing and storing', async () => {
       const rows = await testDb.select().from(importRow).where(eq(importRow.batchId, batchId));
 
       const formulaRow = rows.find((r) => r.rowNumber === 3);
       expect(formulaRow).toBeDefined();
 
       const raw = formulaRow!.rawData as Record<string, unknown>;
-      // The formula '=CMD|/C calc.exe!A1' must be safely prefixed with single quote
-      expect(String(raw.name).startsWith("'=")).toBe(true);
-      expect(String(raw.regNo).startsWith("'+")).toBe(true);
+      // The formula characters must NOT be prefixed with single quote
+      expect(String(raw.name)).toBe('=CMD|/C calc.exe!A1');
+      expect(String(raw.regNo)).toBe('+234800000000');
+
+      // The row status must be error, and errors must include FORMULA_FORBIDDEN
+      expect(formulaRow!.status).toBe('error');
+      const errs = formulaRow!.errors;
+      expect(errs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ column: 'name', code: 'FORMULA_FORBIDDEN' }),
+          expect.objectContaining({ column: 'regNo', code: 'FORMULA_FORBIDDEN' }),
+        ]),
+      );
     });
 
     it('GET /imports/:batchId/preview: returns rows with column-level errors', async () => {
@@ -559,7 +590,7 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
       expect(preview.totalRows).toBe(3);
       expect(preview.rows).toHaveLength(3);
 
-      const errRow = preview.rows.find((r: { errors: unknown[] }) => r.errors.length > 0);
+      const errRow = preview.rows.find((r: { rowNumber: number }) => r.rowNumber === 4);
       expect(errRow).toBeDefined();
       expect(errRow.errors[0].column).toBe('schemeCode');
       expect(errRow.errors[0].message).toContain('NON_EXISTENT_SCHEME');
@@ -811,6 +842,339 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
       const batchIds = data.items.map((b: { id: string }) => b.id);
       expect(batchIds).toContain(kanoBatchId);
       expect(batchIds).toContain(kadunaBatchId);
+    });
+  });
+
+  // --- 7. Template Version Gate (BE-1.8) ---
+  describe('Template Version Gate (BE-1.8)', () => {
+    it('refuses workbooks whose embedded template version does not match current definition version', async () => {
+      const outdatedFileId = crypto.randomUUID();
+      const storageKey = `files/${outdatedFileId}`;
+
+      // Create workbook with outdated template version 99 (definition version is 1)
+      const outdatedBuffer = await createTestWuaWorkbook(
+        [
+          {
+            name: 'Outdated Template WUA',
+            level: 'unit',
+            schemeCode: 'KRIS',
+          },
+        ],
+        { templateVersion: 99 },
+      );
+
+      const mockMap = (storageService as unknown as { mockStorageFiles: Map<string, Buffer> })
+        .mockStorageFiles;
+      mockMap.set(storageKey, outdatedBuffer);
+
+      await testDb.insert(file).values({
+        id: outdatedFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: outdatedBuffer.length,
+        sha256: crypto.createHash('sha256').update(outdatedBuffer).digest('hex'),
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: outdatedFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      expect(initRes.statusCode).toBe(201);
+      const batchId = JSON.parse(initRes.body).id;
+
+      const importService = app.get((await import('./services/import.service')).ImportService);
+      const result = await importService.validateBatch(batchId);
+
+      expect(result).toBeUndefined(); // Returns early after failing
+      const [batch] = await testDb.select().from(importBatch).where(eq(importBatch.id, batchId));
+      expect(batch.status).toBe('validation_failed');
+      expect(batch.errorMessage).toContain(
+        'Workbook template version mismatch. Expected version 1 but found 99',
+      );
+    });
+
+    it('refuses workbooks with missing template version metadata', async () => {
+      const missingVersionFileId = crypto.randomUUID();
+      const storageKey = `files/${missingVersionFileId}`;
+
+      // Create workbook with no version metadata
+      const rawBuffer = await createTestWuaWorkbook(
+        [
+          {
+            name: 'No Version WUA',
+            level: 'unit',
+            schemeCode: 'KRIS',
+          },
+        ],
+        { templateVersion: null },
+      );
+
+      const mockMap = (storageService as unknown as { mockStorageFiles: Map<string, Buffer> })
+        .mockStorageFiles;
+      mockMap.set(storageKey, rawBuffer);
+
+      await testDb.insert(file).values({
+        id: missingVersionFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: rawBuffer.length,
+        sha256: crypto.createHash('sha256').update(rawBuffer).digest('hex'),
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: missingVersionFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      const batchId = JSON.parse(initRes.body).id;
+      const importService = app.get((await import('./services/import.service')).ImportService);
+      await importService.validateBatch(batchId);
+
+      const [batch] = await testDb.select().from(importBatch).where(eq(importBatch.id, batchId));
+      expect(batch.status).toBe('validation_failed');
+      expect(batch.errorMessage).toContain(
+        'Workbook template version mismatch. Expected version 1 but found none',
+      );
+    });
+  });
+
+  // --- 8. Import Caps: Max File Size & Max Rows (BE-1.8) ---
+  describe('Import Caps: Max File Size & Max Rows (BE-1.8)', () => {
+    it('initiateImport rejects file sizes exceeding 50 MB before processing', async () => {
+      const oversizedFileId = crypto.randomUUID();
+      const storageKey = `files/${oversizedFileId}`;
+
+      await testDb.insert(file).values({
+        id: oversizedFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: 55 * 1024 * 1024, // 55 MB exceeds 50 MB cap
+        sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: oversizedFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const body = JSON.parse(res.body);
+      expect(body.detail).toContain('exceeds maximum import limit of 50 MB');
+    });
+
+    it('validateBatch rejects workbooks exceeding 50,000 rows before parsing', async () => {
+      const largeFileId = crypto.randomUUID();
+      const storageKey = `files/${largeFileId}`;
+
+      // Create a workbook with 50,002 rows using sparse row
+      const buffer = await createTestWuaWorkbook(
+        [
+          {
+            name: 'Small Sample WUA',
+            level: 'unit',
+            schemeCode: 'KRIS',
+          },
+        ],
+        { sparseRowCount: 50002 },
+      );
+
+      const mockMap = (storageService as unknown as { mockStorageFiles: Map<string, Buffer> })
+        .mockStorageFiles;
+      mockMap.set(storageKey, buffer);
+
+      await testDb.insert(file).values({
+        id: largeFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: buffer.length,
+        sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: largeFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      const batchId = JSON.parse(initRes.body).id;
+
+      const importService = app.get((await import('./services/import.service')).ImportService);
+      await importService.validateBatch(batchId);
+
+      const [batch] = await testDb.select().from(importBatch).where(eq(importBatch.id, batchId));
+      expect(batch.status).toBe('validation_failed');
+      expect(batch.errorMessage).toContain(
+        'Workbook exceeds maximum row limit of 50,000 rows (found 50,001 rows)',
+      );
+    });
+  });
+
+  // --- 9. Undo Conflict & Reference Safety (BE-1.8) ---
+  describe('Undo Conflict & Reference Safety (BE-1.8)', () => {
+    it('refuses to undo rows modified after import or inserted rows now referenced by other records', async () => {
+      const undoFileId = crypto.randomUUID();
+      const storageKey = `files/${undoFileId}`;
+      const regNoModified = 'WUA-SAFE-MOD-01';
+      const regNoReferenced = 'WUA-SAFE-REF-02';
+
+      const excelBuffer = await createTestWuaWorkbook([
+        {
+          name: 'To Be Modified WUA',
+          regNo: regNoModified,
+          level: 'unit',
+          schemeCode: 'KRIS',
+          wardCode: 'KURA-W-01',
+          address: 'Mod Road',
+          bankName: 'First Bank',
+          bankAccountNumber: '1111222233',
+          isOperational: true,
+          hasMaintenanceFund: true,
+        },
+        {
+          name: 'To Be Referenced WUA',
+          regNo: regNoReferenced,
+          level: 'sector',
+          schemeCode: 'KRIS',
+          wardCode: 'KURA-W-01',
+          address: 'Ref Road',
+          bankName: 'GTBank',
+          bankAccountNumber: '4444555566',
+          isOperational: true,
+          hasMaintenanceFund: false,
+        },
+      ]);
+
+      const mockMap = (storageService as unknown as { mockStorageFiles: Map<string, Buffer> })
+        .mockStorageFiles;
+      mockMap.set(storageKey, excelBuffer);
+
+      await testDb.insert(file).values({
+        id: undoFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: excelBuffer.length,
+        sha256: crypto.createHash('sha256').update(excelBuffer).digest('hex'),
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: undoFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      const batchId = JSON.parse(initRes.body).id;
+      const importService = app.get((await import('./services/import.service')).ImportService);
+      await importService.validateBatch(batchId);
+
+      // Commit the batch
+      const commitRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${batchId}/commit`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(commitRes.statusCode).toBe(201);
+
+      // 1. Modify the first WUA row directly (incrementing version to simulate concurrent update)
+      const [rowMod] = await testDb.select().from(wua).where(eq(wua.regNo, regNoModified));
+      expect(rowMod).toBeDefined();
+      await testDb
+        .update(wua)
+        .set({
+          name: 'Modified WUA Name After Import',
+          version: rowMod.version + 1, // version is now 2
+        })
+        .where(eq(wua.id, rowMod.id));
+
+      // 2. Reference the second WUA row in wua_officer
+      const [rowRef] = await testDb.select().from(wua).where(eq(wua.regNo, regNoReferenced));
+      expect(rowRef).toBeDefined();
+      await testDb.insert(wuaOfficer).values({
+        id: crypto.randomUUID(),
+        wuaId: rowRef.id,
+        office: 'chair',
+        fullName: 'Alhaji Musa Officer',
+        phone: '+2348011223344',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      // 3. Attempt to undo the batch
+      const undoRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${batchId}/undo`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+
+      expect(undoRes.statusCode).toBe(201);
+      const undoData = JSON.parse(undoRes.body);
+      expect(undoData.status).toBe('undone');
+      expect(undoData.undoneRowsCount).toBe(0);
+      expect(undoData.skippedRowsCount).toBe(2);
+      expect(undoData.skippedRows).toHaveLength(2);
+
+      // Verify reasons
+      const skippedMod = undoData.skippedRows.find(
+        (r: { entityId: string }) => r.entityId === rowMod.id,
+      );
+      expect(skippedMod).toBeDefined();
+      expect(skippedMod.reason).toContain('modified after import');
+
+      const skippedRef = undoData.skippedRows.find(
+        (r: { entityId: string }) => r.entityId === rowRef.id,
+      );
+      expect(skippedRef).toBeDefined();
+      expect(skippedRef.reason).toContain('referenced by other records');
+
+      // Verify neither record was soft-deleted
+      const [checkMod] = await testDb.select().from(wua).where(eq(wua.id, rowMod.id));
+      expect(checkMod.deletedAt).toBeNull();
+
+      const [checkRef] = await testDb.select().from(wua).where(eq(wua.id, rowRef.id));
+      expect(checkRef.deletedAt).toBeNull();
     });
   });
 });
