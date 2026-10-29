@@ -16,6 +16,9 @@ export const ApiEnvSchema = z.object({
   S3_BUCKET: z.string().default('idmis-files'),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // Field-level encryption (AES-256-GCM)
+  ENCRYPTION_KEY: z.string().min(32).default('0123456789abcdef0123456789abcdef'),
 });
 
 export type ApiEnv = z.infer<typeof ApiEnvSchema>;

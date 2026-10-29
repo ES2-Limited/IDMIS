@@ -49,7 +49,7 @@ export type ListWuasQuery = z.infer<typeof ListWuasQuerySchema>;
 export const CreateWuaOfficerInputSchema = z
   .object({
     id: z.uuid({ version: 'v7' }).optional(),
-    wuaId: z.uuid(),
+    wuaId: z.uuid().optional(),
     office: WuaOfficeSchema,
     fullName: z.string().min(1),
     phone: z.string().nullable().optional(),
