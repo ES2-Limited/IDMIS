@@ -22,6 +22,38 @@ import type { RequestScope } from '../../../platform/context';
 const MULTIPART_THRESHOLD_BYTES = 10 * 1024 * 1024; // 10MB
 const PART_SIZE_BYTES = 5 * 1024 * 1024; // 5MB minimum S3 part size
 
+export const DEFAULT_MAX_FILE_SIZES_BYTES: Record<string, number> = {
+  import: 50 * 1024 * 1024,
+  imports: 50 * 1024 * 1024,
+  import_batch: 50 * 1024 * 1024,
+  document: 10 * 1024 * 1024,
+  documents: 10 * 1024 * 1024,
+  default: 10 * 1024 * 1024,
+};
+
+export function getMaxFileSizeBytes(ownerEntity?: string | null): number {
+  const norm = (ownerEntity ?? 'default').toLowerCase().trim();
+  if (norm.includes('import')) {
+    const envMb = process.env.FILE_MAX_SIZE_IMPORT_MB;
+    if (envMb && !isNaN(Number(envMb))) {
+      return Number(envMb) * 1024 * 1024;
+    }
+    return DEFAULT_MAX_FILE_SIZES_BYTES.import;
+  }
+  if (norm.includes('document')) {
+    const envMb = process.env.FILE_MAX_SIZE_DOCUMENT_MB;
+    if (envMb && !isNaN(Number(envMb))) {
+      return Number(envMb) * 1024 * 1024;
+    }
+    return DEFAULT_MAX_FILE_SIZES_BYTES.document;
+  }
+  const defaultEnvMb = process.env.FILE_MAX_SIZE_DEFAULT_MB;
+  if (defaultEnvMb && !isNaN(Number(defaultEnvMb))) {
+    return Number(defaultEnvMb) * 1024 * 1024;
+  }
+  return DEFAULT_MAX_FILE_SIZES_BYTES.default;
+}
+
 @Injectable()
 export class FileService {
   private readonly logger = new Logger(FileService.name);
@@ -39,6 +71,13 @@ export class FileService {
     input: InitiateUploadInput,
     userId: string,
   ): Promise<InitiateUploadResponse> {
+    const maxSizeBytes = getMaxFileSizeBytes(input.ownerEntity);
+    if (input.sizeBytes > maxSizeBytes) {
+      throw new BadRequestException(
+        `File size ${input.sizeBytes} bytes exceeds maximum allowed size of ${maxSizeBytes} bytes for owner '${input.ownerEntity ?? 'default'}'`,
+      );
+    }
+
     const fileId = randomUUID();
     // UUID-only storage key; user-supplied paths or names are strictly forbidden in S3 keys
     const storageKey = `files/${fileId}`;
@@ -118,6 +157,14 @@ export class FileService {
       existing.storageKey,
       existing.mimeType,
     );
+
+    const maxSizeBytes = getMaxFileSizeBytes(existing.ownerEntity);
+    if (inspection.sizeBytes > maxSizeBytes) {
+      await this.storageService.deleteObject(existing.storageKey);
+      throw new BadRequestException(
+        `Uploaded object size ${inspection.sizeBytes} bytes exceeds maximum allowed size of ${maxSizeBytes} bytes for owner '${existing.ownerEntity ?? 'default'}'`,
+      );
+    }
 
     if (!inspection.isValidMimeType) {
       // Abort / delete invalid payload

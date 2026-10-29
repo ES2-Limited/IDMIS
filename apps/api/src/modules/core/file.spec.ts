@@ -209,6 +209,7 @@ describe('File Storage API Specification (BE-1.7)', () => {
           fileName: 'large_dataset.xlsx',
           mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           sizeBytes: 15 * 1024 * 1024, // 15MB
+          ownerEntity: 'import',
         },
       });
 
@@ -220,9 +221,78 @@ describe('File Storage API Specification (BE-1.7)', () => {
       expect(body.parts.length).toBe(3); // 15MB / 5MB = 3 parts
       expect(body.partSizeBytes).toBe(5 * 1024 * 1024);
     });
+
+    it('POST /files/upload/initiate: rejects initiation when size exceeds owner max size', async () => {
+      // document exceeds 10MB
+      const docRes = await app.inject({
+        method: 'POST',
+        url: '/files/upload/initiate',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          fileName: 'oversized_doc.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 11 * 1024 * 1024, // 11MB > 10MB
+          ownerEntity: 'document',
+        },
+      });
+      expect(docRes.statusCode).toBe(400);
+
+      // import exceeds 50MB
+      const importRes = await app.inject({
+        method: 'POST',
+        url: '/files/upload/initiate',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          fileName: 'oversized_import.xlsx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          sizeBytes: 51 * 1024 * 1024, // 51MB > 50MB
+          ownerEntity: 'import',
+        },
+      });
+      expect(importRes.statusCode).toBe(400);
+    });
   });
 
   describe('2. Upload Completion, Sniffing & Antivirus Verification', () => {
+    it('POST /files/upload/complete: rejects and deletes object when real size exceeds owner max size', async () => {
+      // 1. Initiate with declared size under limit
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/files/upload/initiate',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          fileName: 'doc.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 5 * 1024 * 1024,
+          ownerEntity: 'document',
+        },
+      });
+      const { fileId } = JSON.parse(initRes.body);
+
+      // 2. Mock storageService inspect to return real size > 10MB
+      const deleteSpy = vi.spyOn(storageService, 'deleteObject').mockResolvedValue(undefined);
+      const inspectSpy = vi.spyOn(storageService, 'inspectUploadedObject').mockResolvedValue({
+        isValidMimeType: true,
+        sniffedMimeType: 'application/pdf',
+        sizeBytes: 12 * 1024 * 1024,
+        sha256: 'a'.repeat(64),
+      });
+
+      const compRes = await app.inject({
+        method: 'POST',
+        url: '/files/upload/complete',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { fileId },
+      });
+
+      try {
+        expect(compRes.statusCode).toBe(400);
+        expect(deleteSpy).toHaveBeenCalledWith(`files/${fileId}`);
+      } finally {
+        inspectSpy.mockRestore();
+        deleteSpy.mockRestore();
+      }
+    });
     it('POST /files/upload/complete: completes clean upload, verifies sha256 and outbox events', async () => {
       // 1. Initiate
       const initRes = await app.inject({
