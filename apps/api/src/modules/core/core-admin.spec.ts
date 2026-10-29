@@ -11,6 +11,7 @@ import {
   lga,
   organisation,
   organisationState,
+  outboxEvent,
   role,
   rolePermission,
   session,
@@ -26,7 +27,7 @@ import {
   isNotNull,
 } from '@idmis/db';
 import * as schema from '@idmis/db';
-import { permissions } from '@idmis/contracts';
+import { KNOWN_EVENT_TYPES, permissions } from '@idmis/contracts';
 import { AppModule } from '../../app.module';
 import { ProblemDetailsFilter } from '../../platform/filters';
 import { TokenService } from '../auth/token.service';
@@ -57,6 +58,10 @@ describe('Core Admin APIs (BE-1.6)', () => {
   const KANO_OFFICER_ID = '018f3a5e-1000-7000-8000-000000000002';
   const SYS_ADMIN_ROLE_ID = '018f3a5e-3000-7000-8000-000000000001';
   const FIELD_OFFICER_ROLE_ID = '018f3a5e-3000-7000-8000-000000000002';
+  const PROGRAMME_MGR_ROLE_ID = '018f3a5e-3000-7000-8000-000000000003';
+  const PROG_MGR_USER_ID = '018f3a5e-1000-7000-8000-000000000003';
+  const SECOND_ADMIN_USER_ID = '018f3a5e-1000-7000-8000-000000000004';
+  const KADUNA_USER_ID = '018f3a5e-1000-7000-8000-000000000005';
 
   const KANO_ORG_ID = '018f3a5e-4000-7000-8000-000000000001';
   const KADUNA_ORG_ID = '018f3a5e-4000-7000-8000-000000000002';
@@ -65,6 +70,8 @@ describe('Core Admin APIs (BE-1.6)', () => {
 
   let adminToken: string;
   let kanoOfficerToken: string;
+  let progMgrToken: string;
+  let adminAssignmentId: string;
 
   beforeAll(async () => {
     adminClient = postgres(baseAdminUrl);
@@ -174,6 +181,13 @@ describe('Core Admin APIs (BE-1.6)', () => {
         description: 'Field officer',
         isSystem: true,
       },
+      {
+        id: PROGRAMME_MGR_ROLE_ID,
+        key: 'programme_manager',
+        name: 'Programme Manager',
+        description: 'National programme manager',
+        isSystem: true,
+      },
     ]);
 
     // System admin has all permissions
@@ -191,6 +205,21 @@ describe('Core Admin APIs (BE-1.6)', () => {
       { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_WUA_MANAGE },
       { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_ASSIGNMENT_READ },
       { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_ASSIGNMENT_MANAGE },
+      { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_USER_READ },
+      { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_USER_CREATE },
+      { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_USER_UPDATE },
+      { roleId: FIELD_OFFICER_ROLE_ID, permission: permissions.CORE_USER_DEACTIVATE },
+    ]);
+
+    // Programme manager has user and assignment management, but not system admin powers
+    await testDb.insert(rolePermission).values([
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_USER_READ },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_USER_CREATE },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_USER_UPDATE },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_USER_DEACTIVATE },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_ASSIGNMENT_READ },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_ASSIGNMENT_MANAGE },
+      { roleId: PROGRAMME_MGR_ROLE_ID, permission: permissions.CORE_WUA_READ },
     ]);
 
     // 5. Seed Users & Assignments
@@ -205,6 +234,15 @@ describe('Core Admin APIs (BE-1.6)', () => {
         updatedBy: SYSTEM_USER_ID,
       },
       {
+        id: SECOND_ADMIN_USER_ID,
+        email: 'admin2@idmis.gov.ng',
+        fullName: 'Second Global Admin',
+        passwordHash: passHash,
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
         id: KANO_OFFICER_ID,
         email: 'kano.officer@idmis.gov.ng',
         fullName: 'Kano Officer',
@@ -213,13 +251,54 @@ describe('Core Admin APIs (BE-1.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: PROG_MGR_USER_ID,
+        email: 'progmgr@idmis.gov.ng',
+        fullName: 'National Programme Manager',
+        passwordHash: passHash,
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: KADUNA_USER_ID,
+        email: 'kaduna.user@idmis.gov.ng',
+        fullName: 'Kaduna User',
+        passwordHash: passHash,
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
-    // Admin has national assignment
+    // Admin has national assignment (capture ID)
+    adminAssignmentId = crypto.randomUUID();
     await testDb.insert(assignment).values({
-      id: crypto.randomUUID(),
+      id: adminAssignmentId,
       userId: ADMIN_USER_ID,
       roleId: SYS_ADMIN_ROLE_ID,
+      module: 'core',
+      scopeType: 'national',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    // Second admin also has national assignment
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: SECOND_ADMIN_USER_ID,
+      roleId: SYS_ADMIN_ROLE_ID,
+      module: 'core',
+      scopeType: 'national',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    // Programme manager has national assignment
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: PROG_MGR_USER_ID,
+      roleId: PROGRAMME_MGR_ROLE_ID,
       module: 'core',
       scopeType: 'national',
       createdBy: SYSTEM_USER_ID,
@@ -238,6 +317,18 @@ describe('Core Admin APIs (BE-1.6)', () => {
       updatedBy: SYSTEM_USER_ID,
     });
 
+    // Kaduna user has state-scoped assignment (Kaduna only)
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: KADUNA_USER_ID,
+      roleId: FIELD_OFFICER_ROLE_ID,
+      module: 'core',
+      scopeType: 'state',
+      scopeStateId: KADUNA_STATE_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
     const sidAdmin = crypto.randomUUID();
     await testDb.insert(session).values({
       id: sidAdmin,
@@ -249,6 +340,16 @@ describe('Core Admin APIs (BE-1.6)', () => {
     const adminAuth = await tokenService.createAccessToken(ADMIN_USER_ID, sidAdmin);
     adminToken = adminAuth.accessToken;
 
+    const sidSecondAdmin = crypto.randomUUID();
+    await testDb.insert(session).values({
+      id: sidSecondAdmin,
+      familyId: crypto.randomUUID(),
+      userId: SECOND_ADMIN_USER_ID,
+      refreshTokenHash: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+    await tokenService.createAccessToken(SECOND_ADMIN_USER_ID, sidSecondAdmin);
+
     const sidOfficer = crypto.randomUUID();
     await testDb.insert(session).values({
       id: sidOfficer,
@@ -259,6 +360,17 @@ describe('Core Admin APIs (BE-1.6)', () => {
     });
     const officerAuth = await tokenService.createAccessToken(KANO_OFFICER_ID, sidOfficer);
     kanoOfficerToken = officerAuth.accessToken;
+
+    const sidProgMgr = crypto.randomUUID();
+    await testDb.insert(session).values({
+      id: sidProgMgr,
+      familyId: crypto.randomUUID(),
+      userId: PROG_MGR_USER_ID,
+      refreshTokenHash: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+    const progMgrAuth = await tokenService.createAccessToken(PROG_MGR_USER_ID, sidProgMgr);
+    progMgrToken = progMgrAuth.accessToken;
   });
 
   afterAll(async () => {
@@ -297,6 +409,7 @@ describe('Core Admin APIs (BE-1.6)', () => {
       const data = JSON.parse(res.body);
       expect(data.email).toBe('newuser@idmis.gov.ng');
       expect(data.fullName).toBe('New Test User');
+      expect(data.mustChangePassword).toBe(true);
       expect(data.passwordHash).toBeUndefined(); // Never returned
       createdUserId = data.id;
 
@@ -355,6 +468,142 @@ describe('Core Admin APIs (BE-1.6)', () => {
       });
       expect(getUserRes.statusCode).toBe(404);
     });
+
+    it('createUser: non-national creator requires first assignment in scope', async () => {
+      // 1. Missing firstAssignment -> 400
+      const missingAssignmentRes = await app.inject({
+        method: 'POST',
+        url: '/admin/users',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          email: 'officer_sub1@idmis.gov.ng',
+          fullName: 'Subordinate 1',
+          password: 'SecretPassword123!',
+        },
+      });
+      expect(missingAssignmentRes.statusCode).toBe(400);
+      expect(JSON.parse(missingAssignmentRes.body).detail).toContain(
+        'first assignment inside their scope',
+      );
+
+      // 2. First assignment in Kaduna (out of scope for Kano officer) -> 403
+      const outOfScopeRes = await app.inject({
+        method: 'POST',
+        url: '/admin/users',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          email: 'officer_sub2@idmis.gov.ng',
+          fullName: 'Subordinate 2',
+          password: 'SecretPassword123!',
+          firstAssignment: {
+            roleId: FIELD_OFFICER_ROLE_ID,
+            module: 'core',
+            scopeType: 'state',
+            scopeStateId: KADUNA_STATE_ID,
+          },
+        },
+      });
+      expect(outOfScopeRes.statusCode).toBe(403);
+
+      // 3. First assignment in Kano -> 201
+      const inScopeRes = await app.inject({
+        method: 'POST',
+        url: '/admin/users',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          email: 'officer_sub3@idmis.gov.ng',
+          fullName: 'Subordinate 3',
+          password: 'SecretPassword123!',
+          firstAssignment: {
+            roleId: FIELD_OFFICER_ROLE_ID,
+            module: 'core',
+            scopeType: 'state',
+            scopeStateId: KANO_STATE_ID,
+          },
+        },
+      });
+      expect(inScopeRes.statusCode).toBe(201);
+      const createdData = JSON.parse(inScopeRes.body);
+      expect(createdData.mustChangePassword).toBe(true);
+    });
+
+    it('user visibility and isolation: state admin cannot see/edit/deactivate users outside their state or any admin (404)', async () => {
+      // State officer cannot see national admin -> 404
+      const getAdminRes = await app.inject({
+        method: 'GET',
+        url: `/admin/users/${ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(getAdminRes.statusCode).toBe(404);
+
+      // State officer cannot edit national admin -> 404
+      const patchAdminRes = await app.inject({
+        method: 'PATCH',
+        url: `/admin/users/${ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: { fullName: 'Hacked Admin' },
+      });
+      expect(patchAdminRes.statusCode).toBe(404);
+
+      // State officer cannot deactivate national admin -> 404
+      const delAdminRes = await app.inject({
+        method: 'DELETE',
+        url: `/admin/users/${ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(delAdminRes.statusCode).toBe(404);
+
+      // State officer cannot see Kaduna user -> 404
+      const getKadunaRes = await app.inject({
+        method: 'GET',
+        url: `/admin/users/${KADUNA_USER_ID}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(getKadunaRes.statusCode).toBe(404);
+
+      // State officer listing users does not include admin or kaduna user
+      const listRes = await app.inject({
+        method: 'GET',
+        url: '/admin/users',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(listRes.statusCode).toBe(200);
+      const listBody = JSON.parse(listRes.body);
+      const emails = listBody.items.map((u: { email: string }) => u.email);
+      expect(emails).not.toContain('admin@idmis.gov.ng');
+      expect(emails).not.toContain('kaduna.user@idmis.gov.ng');
+    });
+
+    it('deactivateUser: no self-deactivation and the last active national system_admin cannot be deactivated', async () => {
+      // 1. Self deactivation forbidden -> 403
+      const selfDelRes = await app.inject({
+        method: 'DELETE',
+        url: `/admin/users/${ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(selfDelRes.statusCode).toBe(403);
+      expect(JSON.parse(selfDelRes.body).detail).toContain('Cannot deactivate your own account');
+
+      // 2. Admin can deactivate second admin -> 200
+      const delSecondAdminRes = await app.inject({
+        method: 'DELETE',
+        url: `/admin/users/${SECOND_ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(delSecondAdminRes.statusCode).toBe(200);
+
+      // 3. Now only ADMIN_USER_ID is an active national system_admin.
+      // Another national caller (progMgrToken) cannot deactivate the last active national system admin -> 403
+      const delOnlyAdminRes = await app.inject({
+        method: 'DELETE',
+        url: `/admin/users/${ADMIN_USER_ID}`,
+        headers: { authorization: `Bearer ${progMgrToken}` },
+      });
+      expect(delOnlyAdminRes.statusCode).toBe(403);
+      expect(JSON.parse(delOnlyAdminRes.body).detail).toContain(
+        'Cannot deactivate the last active national system administrator',
+      );
+    });
   });
 
   // --- 2. Anti-Privilege Escalation in Assignments ---
@@ -392,9 +641,7 @@ describe('Core Admin APIs (BE-1.6)', () => {
       });
 
       expect(res.statusCode).toBe(403);
-      expect(JSON.parse(res.body).detail).toContain(
-        'non-national user cannot assign national scope',
-      );
+      expect(JSON.parse(res.body).detail).toContain('outside your assignment management scope');
     });
 
     it('anti-privilege escalation: state-scoped officer CANNOT assign to a state outside their scope (403)', async () => {
@@ -412,9 +659,7 @@ describe('Core Admin APIs (BE-1.6)', () => {
       });
 
       expect(res.statusCode).toBe(403);
-      expect(JSON.parse(res.body).detail).toContain(
-        'Cannot assign to a state outside your assigned scope',
-      );
+      expect(JSON.parse(res.body).detail).toContain('outside your assignment management scope');
     });
 
     it('anti-privilege escalation: assigner CANNOT assign a role with permissions exceeding their own (403)', async () => {
@@ -433,7 +678,66 @@ describe('Core Admin APIs (BE-1.6)', () => {
       });
 
       expect(res.statusCode).toBe(403);
-      expect(JSON.parse(res.body).detail).toContain('exceeds your own permissions');
+      expect(JSON.parse(res.body).detail).toContain('exceeds your scope or is not held by you');
+    });
+
+    it('anti-privilege escalation: national programme_manager cannot grant system_admin (403)', async () => {
+      // National programme manager holds national scope, but lacks system_admin permissions like core.setting.manage
+      const res = await app.inject({
+        method: 'POST',
+        url: '/admin/assignments',
+        headers: { authorization: `Bearer ${progMgrToken}` },
+        payload: {
+          userId: testSubjectUserId,
+          roleId: SYS_ADMIN_ROLE_ID,
+          module: 'core',
+          scopeType: 'national',
+        },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(JSON.parse(res.body).detail).toContain('exceeds your scope or is not held by you');
+    });
+
+    it('anti-privilege escalation: nobody can self-assign or delete their own assignment (403)', async () => {
+      // Self-assignment forbidden
+      const selfAssignRes = await app.inject({
+        method: 'POST',
+        url: '/admin/assignments',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          userId: ADMIN_USER_ID,
+          roleId: FIELD_OFFICER_ROLE_ID,
+          module: 'core',
+          scopeType: 'national',
+        },
+      });
+      expect(selfAssignRes.statusCode).toBe(403);
+      expect(JSON.parse(selfAssignRes.body).detail).toContain('Cannot assign roles to yourself');
+
+      // Self-deassignment forbidden
+      const selfDeassignRes = await app.inject({
+        method: 'DELETE',
+        url: `/admin/assignments/${adminAssignmentId}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(selfDeassignRes.statusCode).toBe(403);
+      expect(JSON.parse(selfDeassignRes.body).detail).toContain(
+        'Cannot remove your own assignments',
+      );
+    });
+
+    it('anti-privilege escalation: the last active national system_admin assignment cannot be removed (403)', async () => {
+      // Programme manager (national) tries to remove the last active national system_admin assignment of ADMIN_USER_ID
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/admin/assignments/${adminAssignmentId}`,
+        headers: { authorization: `Bearer ${progMgrToken}` },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(JSON.parse(res.body).detail).toContain(
+        'Cannot remove the last active national system administrator assignment',
+      );
     });
 
     it('allows assignment creation when within assigner role permissions and scope', async () => {
@@ -454,6 +758,14 @@ describe('Core Admin APIs (BE-1.6)', () => {
       const data = JSON.parse(res.body);
       expect(data.userId).toBe(testSubjectUserId);
       expect(data.scopeStateId).toBe(KANO_STATE_ID);
+    });
+
+    it('event catalogue verification: every outbox event emitted exists in KNOWN_EVENT_TYPES', async () => {
+      const events = await testDb.select().from(outboxEvent);
+      expect(events.length).toBeGreaterThan(0);
+      for (const ev of events) {
+        expect(KNOWN_EVENT_TYPES).toContain(ev.eventType);
+      }
     });
   });
 

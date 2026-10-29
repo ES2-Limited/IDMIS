@@ -1,10 +1,14 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { permissions, type CreateAssignmentInput } from '@idmis/contracts';
+import { permissions, type CreateAssignmentInput, type ScopeType } from '@idmis/contracts';
 import { AssignmentRepository } from '../repositories/assignment.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { RedisService } from '../../../platform/redis/redis.service';
 import type { UserAuthz } from '../../../platform/auth/authz.interface';
-import { runInTransaction } from '../../../platform/database/transaction.helper';
+import type { RequestScope } from '../../../platform/context';
+import {
+  runInTransaction,
+  type TransactionClient,
+} from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
 
 @Injectable()
@@ -14,6 +18,33 @@ export class AssignmentService {
     private readonly userRepo: UserRepository,
     private readonly redisService: RedisService,
   ) {}
+
+  private scopeCoversTarget(
+    scope: RequestScope,
+    targetScopeType: ScopeType,
+    targetStateId?: string | null,
+    targetOrgId?: string | null,
+  ): boolean {
+    if (scope.isNational) {
+      return true;
+    }
+    if (targetScopeType === 'national') {
+      return false;
+    }
+    if (targetScopeType === 'state') {
+      return !!targetStateId && scope.stateIds.includes(targetStateId);
+    }
+    if (targetScopeType === 'rbda') {
+      return !!targetOrgId && scope.rbdaIds.includes(targetOrgId);
+    }
+    if (targetScopeType === 'scheme') {
+      return !!targetOrgId && scope.schemeIds.includes(targetOrgId);
+    }
+    if (targetScopeType === 'sector') {
+      return !!targetOrgId && scope.sectorIds.includes(targetOrgId);
+    }
+    return false;
+  }
 
   private async invalidateUserAuthz(userId: string): Promise<void> {
     const epochRaw = await this.redisService.get('auth:rbac:epoch');
@@ -33,93 +64,98 @@ export class AssignmentService {
     input: CreateAssignmentInput,
     assignerAuthz: UserAuthz,
     actorUserId: string,
+    existingTx?: TransactionClient,
   ) {
-    // 1. Target user exists check
-    const targetUser = await this.userRepo.findById(input.userId);
+    // 1. Nobody can create assignments for themselves (actor === target → 403)
+    if (actorUserId === input.userId) {
+      throw new ForbiddenException('Cannot assign roles to yourself');
+    }
+
+    // 2. Target user exists check
+    const targetUser = await this.userRepo.findById(input.userId, existingTx);
     if (!targetUser) {
       throw new NotFoundException(`User ${input.userId} not found`);
     }
 
-    // 2. Target role exists check
-    const targetRole = await this.assignmentRepo.getRoleById(input.roleId);
+    // 3. Target role exists check
+    const targetRole = await this.assignmentRepo.getRoleById(input.roleId, existingTx);
     if (!targetRole) {
       throw new NotFoundException(`Role ${input.roleId} not found`);
     }
 
-    // 3. Anti-Privilege Escalation Check: Scope
-    const assignerScope = assignerAuthz.scopeFor(permissions.CORE_ASSIGNMENT_MANAGE);
-    if (!assignerScope.isNational) {
-      if (input.scopeType === 'national') {
-        throw new ForbiddenException('A non-national user cannot assign national scope');
-      }
-      if (input.scopeType === 'state') {
-        if (!input.scopeStateId || !assignerScope.stateIds.includes(input.scopeStateId)) {
-          throw new ForbiddenException('Cannot assign to a state outside your assigned scope');
-        }
-      } else if (input.scopeType === 'scheme') {
-        if (!input.scopeOrgId || !assignerScope.schemeIds.includes(input.scopeOrgId)) {
-          throw new ForbiddenException('Cannot assign to a scheme outside your assigned scope');
-        }
-      } else if (input.scopeType === 'sector') {
-        if (!input.scopeOrgId || !assignerScope.sectorIds.includes(input.scopeOrgId)) {
-          throw new ForbiddenException('Cannot assign to a sector outside your assigned scope');
-        }
-      } else if (input.scopeType === 'rbda') {
-        if (!input.scopeOrgId || !assignerScope.rbdaIds.includes(input.scopeOrgId)) {
-          throw new ForbiddenException('Cannot assign to an RBDA outside your assigned scope');
-        }
-      }
+    // 4. Anti-Privilege Escalation Check: Scope of assignment management
+    const assignerManageScope = assignerAuthz.scopeFor(permissions.CORE_ASSIGNMENT_MANAGE);
+    if (
+      !this.scopeCoversTarget(
+        assignerManageScope,
+        input.scopeType,
+        input.scopeStateId,
+        input.scopeOrgId,
+      )
+    ) {
+      throw new ForbiddenException(
+        'Cannot assign in a scope outside your assignment management scope',
+      );
     }
 
-    // 4. Anti-Privilege Escalation Check: Permissions
-    // An assigner CANNOT grant a role that possesses permissions the assigner does not hold
-    if (!assignerScope.isNational) {
-      const targetPermissions = await this.assignmentRepo.getRolePermissions(input.roleId);
-      for (const perm of targetPermissions) {
-        if (!assignerAuthz.permissions.includes(perm)) {
-          throw new ForbiddenException(
-            `Cannot assign a role that grants permission '${perm}' which exceeds your own permissions`,
-          );
-        }
-      }
-    }
-
-    // 5. Create assignment inside transaction with audit log & outbox event
-    const created = await runInTransaction(
-      async (tx) => {
-        const row = await this.assignmentRepo.create(
-          {
-            id: input.id,
-            userId: input.userId,
-            roleId: input.roleId,
-            module: input.module,
-            scopeType: input.scopeType,
-            scopeStateId: input.scopeStateId ?? null,
-            scopeOrgId: input.scopeOrgId ?? null,
-            canCaptureOffline: input.canCaptureOffline ?? false,
-            validFromOn: input.validFromOn ?? null,
-            validToOn: input.validToOn ?? null,
-            createdBy: actorUserId,
-          },
-          tx,
+    // 5. Anti-Privilege Escalation Check applies to EVERYONE, national included:
+    // For every permission in the target role, assignerAuthz.scopeFor(perm) must cover the target scope.
+    // (a national scope covers anything; otherwise check state/rbda/scheme/sector containment).
+    const targetPermissions = await this.assignmentRepo.getRolePermissions(
+      input.roleId,
+      existingTx,
+    );
+    for (const perm of targetPermissions) {
+      const permScope = assignerAuthz.scopeFor(perm);
+      if (
+        !this.scopeCoversTarget(permScope, input.scopeType, input.scopeStateId, input.scopeOrgId)
+      ) {
+        throw new ForbiddenException(
+          `Cannot assign role '${targetRole.name}': permission '${perm}' exceeds your scope or is not held by you`,
         );
+      }
+    }
 
-        await enqueueOutboxEvent(tx, {
-          eventType: 'core.assignment.created',
-          aggregateType: 'assignment',
-          aggregateId: row.id,
-          payload: {
-            assignmentId: row.id,
-            userId: row.userId,
-            roleId: row.roleId,
-            scopeType: row.scopeType,
-            assignedBy: actorUserId,
-          },
-        });
+    const executeInsert = async (tx: TransactionClient) => {
+      const row = await this.assignmentRepo.create(
+        {
+          id: input.id,
+          userId: input.userId,
+          roleId: input.roleId,
+          module: input.module,
+          scopeType: input.scopeType,
+          scopeStateId: input.scopeStateId ?? null,
+          scopeOrgId: input.scopeOrgId ?? null,
+          canCaptureOffline: input.canCaptureOffline ?? false,
+          validFromOn: input.validFromOn ?? null,
+          validToOn: input.validToOn ?? null,
+          createdBy: actorUserId,
+        },
+        tx,
+      );
 
-        return row;
-      },
-      {
+      // Emit core.assignment.changed with changeType created
+      await enqueueOutboxEvent(tx, {
+        eventType: 'core.assignment.changed',
+        aggregateType: 'assignment',
+        aggregateId: row.id,
+        payload: {
+          userId: row.userId,
+          roleId: row.roleId,
+          module: row.module,
+          scopeType: row.scopeType,
+          changeType: 'created',
+        },
+      });
+
+      return row;
+    };
+
+    let created;
+    if (existingTx) {
+      created = await executeInsert(existingTx);
+    } else {
+      created = await runInTransaction(executeInsert, {
         audit: {
           actorType: 'user',
           actorUserId,
@@ -129,8 +165,8 @@ export class AssignmentService {
           stateId: input.scopeStateId ?? undefined,
           after: input,
         },
-      },
-    );
+      });
+    }
 
     // 6. Invalidate target user's authz cache in Redis
     await this.invalidateUserAuthz(input.userId);
@@ -144,17 +180,32 @@ export class AssignmentService {
       throw new NotFoundException(`Assignment ${assignmentId} not found`);
     }
 
-    // Scope check on assignment being removed
+    // 1. Nobody can delete assignments for themselves (actor === target → 403)
+    if (actorUserId === existing.userId) {
+      throw new ForbiddenException('Cannot remove your own assignments');
+    }
+
+    // 2. Full scope check for every scope type (not just state)
     const assignerScope = assignerAuthz.scopeFor(permissions.CORE_ASSIGNMENT_MANAGE);
-    if (!assignerScope.isNational) {
-      if (existing.scopeType === 'national') {
-        throw new ForbiddenException('A non-national user cannot remove national assignments');
-      }
-      if (
-        existing.scopeType === 'state' &&
-        (!existing.scopeStateId || !assignerScope.stateIds.includes(existing.scopeStateId))
-      ) {
-        throw new ForbiddenException('Cannot remove an assignment outside your assigned scope');
+    if (
+      !this.scopeCoversTarget(
+        assignerScope,
+        existing.scopeType,
+        existing.scopeStateId,
+        existing.scopeOrgId,
+      )
+    ) {
+      throw new ForbiddenException('Cannot remove an assignment outside your assigned scope');
+    }
+
+    // 3. The last active national system_admin assignment can't be removed
+    const targetRole = await this.assignmentRepo.getRoleById(existing.roleId);
+    if (targetRole && targetRole.key === 'system_admin' && existing.scopeType === 'national') {
+      const activeSysAdminCount = await this.assignmentRepo.countActiveNationalSystemAdmins();
+      if (activeSysAdminCount <= 1) {
+        throw new ForbiddenException(
+          'Cannot remove the last active national system administrator assignment',
+        );
       }
     }
 
@@ -162,14 +213,17 @@ export class AssignmentService {
       async (tx) => {
         await this.assignmentRepo.softDelete(assignmentId, actorUserId, tx);
 
+        // Emit core.assignment.changed with changeType deleted
         await enqueueOutboxEvent(tx, {
-          eventType: 'core.assignment.deleted',
+          eventType: 'core.assignment.changed',
           aggregateType: 'assignment',
           aggregateId: assignmentId,
           payload: {
-            assignmentId,
             userId: existing.userId,
-            deletedBy: actorUserId,
+            roleId: existing.roleId,
+            module: existing.module,
+            scopeType: existing.scopeType,
+            changeType: 'deleted',
           },
         });
       },

@@ -20,6 +20,7 @@ export interface CreateUserData {
   phone?: string | null;
   passwordHash: string;
   isActive?: boolean;
+  mustChangePassword?: boolean;
   createdBy?: string;
 }
 
@@ -108,6 +109,7 @@ export class UserRepository {
         phone: data.phone ?? null,
         passwordHash: data.passwordHash,
         isActive: data.isActive ?? true,
+        mustChangePassword: data.mustChangePassword ?? false,
         createdBy: creator,
         updatedBy: creator,
       })

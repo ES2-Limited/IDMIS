@@ -1,5 +1,19 @@
 import { z } from 'zod';
 import { BaseListQuerySchema, StandardResponseColumnsSchema } from './common';
+import { ModuleKeySchema, ScopeTypeSchema } from './enums';
+
+export const FirstAssignmentInputSchema = z.object({
+  id: z.uuid({ version: 'v7' }).optional(),
+  roleId: z.uuid(),
+  module: ModuleKeySchema,
+  scopeType: ScopeTypeSchema,
+  scopeStateId: z.uuid().nullable().optional(),
+  scopeOrgId: z.uuid().nullable().optional(),
+  canCaptureOffline: z.boolean().default(false),
+  validFromOn: z.iso.date().nullable().optional(),
+  validToOn: z.iso.date().nullable().optional(),
+});
+export type FirstAssignmentInput = z.infer<typeof FirstAssignmentInputSchema>;
 
 export const CreateAppUserInputSchema = z.object({
   id: z.uuid({ version: 'v7' }).optional(),
@@ -9,6 +23,7 @@ export const CreateAppUserInputSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(8),
   isActive: z.boolean().default(true),
+  firstAssignment: FirstAssignmentInputSchema.optional(),
 });
 export type CreateAppUserInput = z.infer<typeof CreateAppUserInputSchema>;
 

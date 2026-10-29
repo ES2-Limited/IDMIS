@@ -1,5 +1,5 @@
-import { and, eq, isNull } from '@idmis/db';
-import { assignment, db, role, rolePermission } from '@idmis/db';
+import { and, eq, gte, isNull, lte, or } from '@idmis/db';
+import { appUser, assignment, db, role, rolePermission } from '@idmis/db';
 import { Injectable } from '@nestjs/common';
 import type { DatabaseOrTx } from './file.repository';
 import type { ModuleKey, ScopeType } from '@idmis/contracts';
@@ -102,5 +102,58 @@ export class AssignmentRepository {
   async getRoleById(roleId: string, txDb: DatabaseOrTx = db) {
     const [r] = await txDb.select().from(role).where(eq(role.id, roleId)).limit(1);
     return r ?? null;
+  }
+
+  async countActiveNationalSystemAdmins(txDb: DatabaseOrTx = db): Promise<number> {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await txDb
+      .select({ id: assignment.id })
+      .from(assignment)
+      .innerJoin(role, eq(assignment.roleId, role.id))
+      .innerJoin(appUser, eq(assignment.userId, appUser.id))
+      .where(
+        and(
+          isNull(assignment.deletedAt),
+          eq(role.key, 'system_admin'),
+          eq(assignment.scopeType, 'national'),
+          eq(appUser.isActive, true),
+          isNull(appUser.deletedAt),
+          or(isNull(assignment.validFromOn), lte(assignment.validFromOn, today)),
+          or(isNull(assignment.validToOn), gte(assignment.validToOn, today)),
+        ),
+      );
+    return rows.length;
+  }
+
+  async listActiveByUser(userId: string, txDb: DatabaseOrTx = db) {
+    const today = new Date().toISOString().slice(0, 10);
+    return txDb
+      .select()
+      .from(assignment)
+      .where(
+        and(
+          eq(assignment.userId, userId),
+          isNull(assignment.deletedAt),
+          or(isNull(assignment.validFromOn), lte(assignment.validFromOn, today)),
+          or(isNull(assignment.validToOn), gte(assignment.validToOn, today)),
+        ),
+      );
+  }
+
+  async getUserPermissions(userId: string, txDb: DatabaseOrTx = db): Promise<string[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await txDb
+      .select({ permission: rolePermission.permission })
+      .from(assignment)
+      .innerJoin(rolePermission, eq(assignment.roleId, rolePermission.roleId))
+      .where(
+        and(
+          eq(assignment.userId, userId),
+          isNull(assignment.deletedAt),
+          or(isNull(assignment.validFromOn), lte(assignment.validFromOn, today)),
+          or(isNull(assignment.validToOn), gte(assignment.validToOn, today)),
+        ),
+      );
+    return [...new Set(rows.map((r) => r.permission))];
   }
 }
