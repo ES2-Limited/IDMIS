@@ -37,6 +37,11 @@ import { AuditRepository } from './repositories/audit.repository';
 import { AuditService } from './services/audit.service';
 import { AuditController } from './controllers/audit.controller';
 
+import { ImportRepository } from './repositories/import.repository';
+import { ImportTemplateService } from './services/import-template.service';
+import { ImportService } from './services/import.service';
+import { ImportController } from './controllers/import.controller';
+
 @Module({
   imports: [StorageModule],
   controllers: [
@@ -49,6 +54,7 @@ import { AuditController } from './controllers/audit.controller';
     LookupController,
     SettingController,
     AuditController,
+    ImportController,
   ],
   providers: [
     EncryptionService,
@@ -70,6 +76,9 @@ import { AuditController } from './controllers/audit.controller';
     SettingService,
     AuditRepository,
     AuditService,
+    ImportRepository,
+    ImportTemplateService,
+    ImportService,
   ],
   exports: [
     EncryptionService,
@@ -91,6 +100,9 @@ import { AuditController } from './controllers/audit.controller';
     SettingService,
     AuditRepository,
     AuditService,
+    ImportRepository,
+    ImportTemplateService,
+    ImportService,
     StorageModule,
   ],
 })
