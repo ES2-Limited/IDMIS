@@ -46,3 +46,37 @@ export const AuditRecordSchema = z.object({
 });
 
 export type AuditRecord = z.infer<typeof AuditRecordSchema>;
+
+export const AuditLogResponseSchema = z.object({
+  id: z.string().uuid(),
+  occurredAt: z.coerce.date(),
+  actorType: ActorTypeSchema,
+  actorUserId: z.string().uuid().nullable(),
+  requestId: z.string().nullable(),
+  action: AuditActionSchema,
+  entityType: z.string(),
+  entityId: z.string().nullable(),
+  stateId: z.string().uuid().nullable(),
+  changes: z
+    .object({
+      before: z.unknown().optional(),
+      after: z.unknown().optional(),
+    })
+    .nullable(),
+  ip: z.string().nullable(),
+  userAgent: z.string().nullable(),
+});
+export type AuditLogResponse = z.infer<typeof AuditLogResponseSchema>;
+
+export const ListAuditLogsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+  actorUserId: z.string().uuid().optional(),
+  entityType: z.string().optional(),
+  entityId: z.string().optional(),
+  action: AuditActionSchema.optional(),
+  stateId: z.string().uuid().optional(),
+  fromOccurredAt: z.coerce.date().optional(),
+  toOccurredAt: z.coerce.date().optional(),
+});
+export type ListAuditLogsQuery = z.infer<typeof ListAuditLogsQuerySchema>;

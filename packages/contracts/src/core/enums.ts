@@ -32,6 +32,6 @@ export const WUA_OFFICES = ['chair', 'secretary', 'treasurer', 'other'] as const
 export const WuaOfficeSchema = z.enum(WUA_OFFICES);
 export type WuaOffice = z.infer<typeof WuaOfficeSchema>;
 
-export const FILE_SCAN_STATUSES = ['pending', 'clean', 'infected'] as const;
+export const FILE_SCAN_STATUSES = ['pending', 'clean', 'infected', 'failed'] as const;
 export const FileScanStatusSchema = z.enum(FILE_SCAN_STATUSES);
 export type FileScanStatus = z.infer<typeof FileScanStatusSchema>;
