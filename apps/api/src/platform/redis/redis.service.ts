@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
 import { Redis } from 'ioredis';
 
 @Injectable()
@@ -6,6 +7,7 @@ export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private redisClient: Redis | null = null;
   private readonly inMemoryStore = new Map<string, { value: string; expiresAt: number }>();
+  private readonly pubSubEmitter = new EventEmitter();
 
   constructor() {
     const redisUrl = process.env.REDIS_URL;
@@ -151,6 +153,24 @@ export class RedisService implements OnModuleDestroy {
   async consumeJti(jti: string, ttlSeconds = 300): Promise<boolean> {
     const key = `auth:jti:${jti}`;
     return this.setNx(key, '1', ttlSeconds);
+  }
+
+  async publish(channel: string, message: string): Promise<void> {
+    if (this.redisClient && this.redisClient.status === 'ready') {
+      try {
+        await this.redisClient.publish(channel, message);
+      } catch (err) {
+        this.logger.warn(`Redis publish error: ${(err as Error).message}`);
+      }
+    }
+    this.pubSubEmitter.emit(channel, message);
+  }
+
+  subscribe(channel: string, listener: (message: string) => void): () => void {
+    this.pubSubEmitter.on(channel, listener);
+    return () => {
+      this.pubSubEmitter.off(channel, listener);
+    };
   }
 
   async onModuleDestroy(): Promise<void> {

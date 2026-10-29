@@ -214,6 +214,25 @@ export class StorageService {
   }
 
   /**
+   * Reads an object from S3 and returns its contents as a Buffer.
+   */
+  async getObjectBuffer(storageKey: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: storageKey,
+    });
+    const response = await this.s3Client.send(command);
+    if (!response.Body) {
+      throw new Error(`Object body is empty for key: ${storageKey}`);
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of response.Body as Readable) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /**
    * Deletes an object from S3.
    */
   async deleteObject(storageKey: string): Promise<void> {

@@ -24,6 +24,8 @@ import {
   MODULE_KEYS,
   WUA_OFFICES,
   FILE_SCAN_STATUSES,
+  IMPORT_BATCH_STATUSES,
+  IMPORT_ROW_STATUSES,
 } from '@idmis/contracts';
 import {
   citext,
@@ -44,6 +46,8 @@ export const recordStatusEnum = coreSchema.enum('record_status', RECORD_STATUSES
 export const moduleKeyEnum = coreSchema.enum('module_key', MODULE_KEYS);
 export const wuaOfficeEnum = coreSchema.enum('wua_office', WUA_OFFICES);
 export const fileScanStatusEnum = coreSchema.enum('file_scan_status', FILE_SCAN_STATUSES);
+export const importBatchStatusEnum = coreSchema.enum('import_batch_status', IMPORT_BATCH_STATUSES);
+export const importRowStatusEnum = coreSchema.enum('import_row_status', IMPORT_ROW_STATUSES);
 
 // --- Access: App User ---
 export const appUser = coreSchema.table('app_user', {
@@ -288,6 +292,72 @@ export const file = coreSchema.table(
     ownerId: uuid('owner_id'),
   },
   () => [check('file_size_bytes_check', sql`"size_bytes" > 0`)],
+);
+
+// --- Import Batches & Rows ---
+export const importBatch = coreSchema.table(
+  'import_batch',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    dataset: text('dataset').notNull(),
+    fileId: uuid('file_id')
+      .notNull()
+      .references(() => file.id),
+    status: importBatchStatusEnum('status').notNull().default('uploaded'),
+    schemeId: uuid('scheme_id').references(() => organisation.id),
+    stateId: uuid('state_id').references(() => state.id),
+    totalRows: integer('total_rows').notNull().default(0),
+    validRows: integer('valid_rows').notNull().default(0),
+    errorRows: integer('error_rows').notNull().default(0),
+    committedRows: integer('committed_rows').notNull().default(0),
+    errorMessage: text('error_message'),
+    committedAt: timestamp('committed_at', { withTimezone: true, mode: 'string' }),
+    undoneAt: timestamp('undone_at', { withTimezone: true, mode: 'string' }),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => appUser.id),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    version: integer('version').notNull().default(1),
+  },
+  (table) => [
+    index('import_batch_created_by_idx').on(table.createdBy, table.createdAt),
+    index('import_batch_state_id_idx').on(table.stateId),
+    index('import_batch_scheme_id_idx').on(table.schemeId),
+    index('import_batch_status_idx').on(table.status),
+  ],
+);
+
+export const importRow = coreSchema.table(
+  'import_row',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    batchId: uuid('batch_id')
+      .notNull()
+      .references(() => importBatch.id, { onDelete: 'cascade' }),
+    rowNumber: integer('row_number').notNull(),
+    rawData: jsonb('raw_data').notNull().$type<Record<string, unknown>>(),
+    parsedData: jsonb('parsed_data').$type<Record<string, unknown>>(),
+    status: importRowStatusEnum('status').notNull(),
+    errors: jsonb('errors')
+      .notNull()
+      .default([])
+      .$type<Array<{ column: string; message: string; code?: string }>>(),
+    naturalKey: text('natural_key'),
+    targetEntityId: uuid('target_entity_id'),
+    beforeImage: jsonb('before_image').$type<Record<string, unknown> | null>(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('import_row_batch_id_row_idx').on(table.batchId, table.rowNumber),
+    index('import_row_batch_id_status_idx').on(table.batchId, table.status),
+  ],
 );
 
 // --- System Settings ---

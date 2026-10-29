@@ -57,6 +57,13 @@
       "when": 1793258761666,
       "tag": "0007_sticky_selene",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793262600110,
+      "tag": "0008_condemned_hawkeye",
+      "breakpoints": true
     }
   ]
 }
