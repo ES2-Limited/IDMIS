@@ -395,6 +395,12 @@ export class ImportService {
       else if (val.includes('account')) colMap.set(colNumber, 'bankAccountNumber');
       else if (val.includes('operational')) colMap.set(colNumber, 'isOperational');
       else if (val.includes('maintenance')) colMap.set(colNumber, 'hasMaintenanceFund');
+      else if (val.includes('phone')) colMap.set(colNumber, 'phone');
+      else if (val.includes('balance') || val.includes('amount')) colMap.set(colNumber, 'balance');
+      else {
+        const headerText = String(cell.value || '').trim();
+        if (headerText) colMap.set(colNumber, headerText);
+      }
     });
 
     const rowsToInsert: Parameters<typeof this.importRepo.createRows>[0] = [];
@@ -439,14 +445,15 @@ export class ImportService {
           cellVal = (cellVal as { result: unknown }).result;
         }
 
-        const valStr = cellVal !== null && cellVal !== undefined ? String(cellVal) : '';
-        const hasInjectionPrefix = /^[=+\-@\t\r]/.test(valStr);
+        // On IMPORT: reject only real formula cells (cell.type === Formula / cell.formula)
+        // and string values starting with "=". Allow values starting with + - @ (phone numbers like +2348031234567, negative numbers).
+        const isStringFormula = typeof cellVal === 'string' && cellVal.startsWith('=');
 
         // Reject formula cells with a per-cell error (don't prefix and store)
-        if (isFormula || hasInjectionPrefix) {
+        if (isFormula || isStringFormula) {
           errors.push({
             column: fieldKey,
-            message: 'Formulas and formula injection characters (=, +, -, @) are forbidden',
+            message: 'Formula cells and values starting with = are forbidden',
             code: 'FORMULA_FORBIDDEN',
           });
         }

@@ -322,6 +322,8 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
       { header: 'Account Number', key: 'bankAccountNumber' },
       { header: 'Is Operational', key: 'isOperational' },
       { header: 'Has Maintenance Fund', key: 'hasMaintenanceFund' },
+      { header: 'Phone Number', key: 'phone' },
+      { header: 'Balance', key: 'balance' },
     ];
 
     for (const r of rows) {
@@ -567,15 +569,108 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
       expect(String(raw.name)).toBe('=CMD|/C calc.exe!A1');
       expect(String(raw.regNo)).toBe('+234800000000');
 
-      // The row status must be error, and errors must include FORMULA_FORBIDDEN
+      // The row status must be error, and errors must include FORMULA_FORBIDDEN on name
       expect(formulaRow!.status).toBe('error');
       const errs = formulaRow!.errors;
       expect(errs).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ column: 'name', code: 'FORMULA_FORBIDDEN' }),
-          expect.objectContaining({ column: 'regNo', code: 'FORMULA_FORBIDDEN' }),
         ]),
       );
+      // Values starting with + are allowed (phone/regNo numbers), so regNo must NOT be flagged as forbidden formula
+      expect(errs.find((e) => e.column === 'regNo')).toBeUndefined();
+    });
+
+    it('formula safety on import: allows phone numbers starting with + and negative numbers; rejects =SUM(A1) formula cell', async () => {
+      const testFileId = crypto.randomUUID();
+      const storageKey = `files/${testFileId}`;
+
+      const excelBuffer = await createTestWuaWorkbook([
+        {
+          name: 'Valid WUA with Phone and Negative',
+          regNo: 'WUA-PN-001',
+          level: 'unit',
+          schemeCode: 'KRIS',
+          wardCode: 'KURA-W-01',
+          phone: '+2348031234567', // Allowed phone number with +
+          balance: -1500, // Allowed negative number
+          isOperational: true,
+        },
+        {
+          name: '=SUM(A1)', // Real formula cell / starts with = (must be rejected!)
+          regNo: 'WUA-SUM-002',
+          level: 'unit',
+          schemeCode: 'KRIS',
+          wardCode: 'KURA-W-01',
+          phone: '+2348031112233',
+          balance: -50,
+          isOperational: true,
+        },
+      ]);
+
+      const mockMap = (storageService as unknown as { mockStorageFiles: Map<string, Buffer> })
+        .mockStorageFiles;
+      mockMap.set(storageKey, excelBuffer);
+
+      await testDb.insert(file).values({
+        id: testFileId,
+        storageKey,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: excelBuffer.length,
+        sha256: crypto.createHash('sha256').update(excelBuffer).digest('hex'),
+        scanStatus: 'clean',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'wua',
+          fileId: testFileId,
+          stateId: KANO_STATE_ID,
+        },
+      });
+
+      expect(initRes.statusCode).toBe(201);
+      const testBatchId = JSON.parse(initRes.body).id;
+
+      const importService = app.get((await import('./services/import.service')).ImportService);
+      await importService.validateBatch(testBatchId);
+
+      const rows = await testDb
+        .select()
+        .from(importRow)
+        .where(eq(importRow.batchId, testBatchId))
+        .orderBy(importRow.rowNumber);
+
+      expect(rows).toHaveLength(2);
+
+      // Row 1: phone "+2348031234567" and negative number -1500 must import successfully as valid
+      const row1 = rows[0];
+      expect(row1.status).toBe('valid');
+      expect(row1.errors).toHaveLength(0);
+      expect(row1.rawData.phone).toBe('+2348031234567');
+      expect(row1.rawData.balance).toBe(-1500);
+
+      // Row 2: cell with "=SUM(A1)" must be rejected with FORMULA_FORBIDDEN
+      const row2 = rows[1];
+      expect(row2.status).toBe('error');
+      expect(row2.rawData.name).toBe('=SUM(A1)');
+      expect(row2.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            column: 'name',
+            code: 'FORMULA_FORBIDDEN',
+            message: 'Formula cells and values starting with = are forbidden',
+          }),
+        ]),
+      );
+      // Row 2's phone (+2348031112233) and negative balance (-50) must not have formula errors
+      expect(row2.errors.find((e) => e.column === 'phone')).toBeUndefined();
+      expect(row2.errors.find((e) => e.column === 'balance')).toBeUndefined();
     });
 
     it('GET /imports/:batchId/preview: returns rows with column-level errors', async () => {
