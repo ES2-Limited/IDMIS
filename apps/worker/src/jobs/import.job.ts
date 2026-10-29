@@ -9,20 +9,26 @@ export interface ImportJobOptions {
   batchId: string;
   s3Client: S3Client;
   bucket: string;
+  dbClient?: typeof db;
 }
 
 export async function processImportValidationJob(options: ImportJobOptions) {
   const { batchId, s3Client, bucket } = options;
+  const dbClient = options.dbClient ?? db;
 
-  const [batch] = await db.select().from(importBatch).where(eq(importBatch.id, batchId)).limit(1);
+  const [batch] = await dbClient
+    .select()
+    .from(importBatch)
+    .where(eq(importBatch.id, batchId))
+    .limit(1);
 
   if (!batch || batch.status !== 'uploaded') {
     return { status: 'skipped', reason: `Batch not in uploaded status: ${batch?.status}` };
   }
 
-  const [fileRow] = await db.select().from(file).where(eq(file.id, batch.fileId)).limit(1);
+  const [fileRow] = await dbClient.select().from(file).where(eq(file.id, batch.fileId)).limit(1);
   if (!fileRow) {
-    await db
+    await dbClient
       .update(importBatch)
       .set({ status: 'validation_failed', errorMessage: 'File not found' })
       .where(eq(importBatch.id, batchId));
@@ -51,7 +57,7 @@ export async function processImportValidationJob(options: ImportJobOptions) {
 
   const sheet = workbook.getWorksheet('Data') || workbook.worksheets[0];
   if (!sheet) {
-    await db
+    await dbClient
       .update(importBatch)
       .set({ status: 'validation_failed', errorMessage: 'Sheet missing' })
       .where(eq(importBatch.id, batchId));
@@ -72,7 +78,7 @@ export async function processImportValidationJob(options: ImportJobOptions) {
     const sanitizedName = sanitizeFormulaSafety(nameCell);
     validCount++;
 
-    await db.insert(importRow).values({
+    await dbClient.insert(importRow).values({
       batchId,
       rowNumber: r,
       rawData: { name: sanitizedName },
@@ -83,7 +89,7 @@ export async function processImportValidationJob(options: ImportJobOptions) {
   }
 
   const finalStatus = errorCount === 0 && validCount > 0 ? 'validated' : 'validation_failed';
-  await db
+  await dbClient
     .update(importBatch)
     .set({
       totalRows: validCount + errorCount,
