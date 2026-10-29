@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./migrate": "./src/migrate.ts"
   },
   "scripts": {
     "build": "tsup",
@@ -16,10 +17,10 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/seed.ts",
+    "db:seed": "tsx src/cli/seed.ts",
     "db:hash-password": "tsx scripts/hash-password.ts",
-    "migrate": "node dist/migrate.js",
-    "seed": "node dist/seed.js",
+    "migrate": "node dist/cli/migrate.js",
+    "seed": "node dist/cli/seed.js",
     "release": "node dist/release.js"
   },
   "dependencies": {

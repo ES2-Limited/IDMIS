@@ -1,5 +1,5 @@
 import { sql, eq, and, inArray } from 'drizzle-orm';
-import { client, db } from './index';
+import { db } from './index';
 import {
   appUser,
   state,
@@ -389,28 +389,4 @@ export async function seed() {
 
   console.log('--- Core Seed Completed Successfully ---');
   return { rolePermsInserted, rolePermsDeleted };
-}
-
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-
-// Allow direct execution
-const isDirectRun =
-  process.argv[1] &&
-  (import.meta.url === `file://${process.argv[1]}` ||
-    fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) ||
-    process.argv[1].endsWith('seed.ts') ||
-    process.argv[1].endsWith('seed.js'));
-
-if (isDirectRun) {
-  seed()
-    .then(async () => {
-      await client.end();
-      process.exit(0);
-    })
-    .catch(async (err) => {
-      console.error('Seed failed:', err);
-      await client.end();
-      process.exit(1);
-    });
 }
