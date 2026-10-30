@@ -149,3 +149,23 @@ export const ListSyncQuarantineQuerySchema = BaseListQuerySchema.extend({
   status: z.enum(['pending', 'resolved']).optional().default('pending'),
 });
 export type ListSyncQuarantineQuery = z.infer<typeof ListSyncQuarantineQuerySchema>;
+
+// --- Device Registration ---
+export const RegisterDeviceInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  installationId: z.string().uuid(),
+  label: z.string().max(100).optional(),
+  platform: z.string().max(50).optional(),
+});
+export type RegisterDeviceInput = z.infer<typeof RegisterDeviceInputSchema>;
+
+export const RegisterDeviceResponseSchema = z.object({
+  id: z.string().uuid(),
+  installationId: z.string().uuid(),
+  userId: z.string().uuid(),
+  label: z.string().nullable(),
+  platform: z.string().nullable(),
+  registeredAt: z.iso.datetime(),
+  offlineGrantUntil: z.iso.datetime().nullable(),
+});
+export type RegisterDeviceResponse = z.infer<typeof RegisterDeviceResponseSchema>;

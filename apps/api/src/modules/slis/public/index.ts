@@ -18,3 +18,5 @@ export * from '../services/stream-flow.service';
 export * from '../repositories/stream-flow.repository';
 export * from '../services/review.service';
 export * from '../repositories/review.repository';
+export * from '../services/sync.service';
+export * from '../repositories/sync.repository';
