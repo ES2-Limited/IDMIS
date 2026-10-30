@@ -39,6 +39,43 @@ export const permissions = {
 
   // Core: Outbox
   CORE_OUTBOX_MANAGE: 'core.outbox.manage',
+
+  // SLIS: Farmers & Households
+  SLIS_FARMER_READ: 'slis.farmer.read',
+  SLIS_FARMER_CREATE: 'slis.farmer.create',
+  SLIS_FARMER_UPDATE: 'slis.farmer.update',
+  SLIS_FARMER_DELETE: 'slis.farmer.delete',
+  SLIS_IDENTITY_VIEW: 'slis.identity.view',
+  SLIS_HOUSEHOLD_MANAGE: 'slis.household.manage',
+
+  // SLIS: Plots, Farms & Allocations
+  SLIS_PLOT_READ: 'slis.plot.read',
+  SLIS_PLOT_MANAGE: 'slis.plot.manage',
+  SLIS_ALLOCATION_MANAGE: 'slis.allocation.manage',
+
+  // SLIS: Operations (Water, Fees, Crops, Trainings, Stream Flow)
+  SLIS_WATER_REQUEST_READ: 'slis.water_request.read',
+  SLIS_WATER_REQUEST_CREATE: 'slis.water_request.create',
+  SLIS_WATER_REQUEST_DECIDE: 'slis.water_request.decide',
+  SLIS_FEE_READ: 'slis.fee.read',
+  SLIS_FEE_RECORD: 'slis.fee.record',
+  SLIS_CROP_MANAGE: 'slis.crop.manage',
+  SLIS_TRAINING_MANAGE: 'slis.training.manage',
+  SLIS_STREAM_FLOW_RECORD: 'slis.stream_flow.record',
+
+  // SLIS: Review & Approval Workflow
+  SLIS_REVIEW_SUBMIT: 'slis.review.submit',
+  SLIS_REVIEW_APPROVE: 'slis.review.approve',
+
+  // SLIS: Sync Engine
+  SLIS_SYNC_PUSH: 'slis.sync.push',
+  SLIS_SYNC_PULL: 'slis.sync.pull',
+  SLIS_SYNC_CONFLICT_RESOLVE: 'slis.sync.conflict_resolve',
+
+  // SLIS: Imports & Reports
+  SLIS_IMPORT_RUN: 'slis.import.run',
+  SLIS_REPORT_READ: 'slis.report.read',
+  SLIS_EXPORT_GENERATE: 'slis.export.generate',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -69,4 +106,31 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.CORE_IMPORT_RUN]: 'scoped',
   [permissions.CORE_AUDIT_READ]: 'global',
   [permissions.CORE_OUTBOX_MANAGE]: 'global',
+
+  // SLIS permissions (all strictly scoped)
+  [permissions.SLIS_FARMER_READ]: 'scoped',
+  [permissions.SLIS_FARMER_CREATE]: 'scoped',
+  [permissions.SLIS_FARMER_UPDATE]: 'scoped',
+  [permissions.SLIS_FARMER_DELETE]: 'scoped',
+  [permissions.SLIS_IDENTITY_VIEW]: 'scoped',
+  [permissions.SLIS_HOUSEHOLD_MANAGE]: 'scoped',
+  [permissions.SLIS_PLOT_READ]: 'scoped',
+  [permissions.SLIS_PLOT_MANAGE]: 'scoped',
+  [permissions.SLIS_ALLOCATION_MANAGE]: 'scoped',
+  [permissions.SLIS_WATER_REQUEST_READ]: 'scoped',
+  [permissions.SLIS_WATER_REQUEST_CREATE]: 'scoped',
+  [permissions.SLIS_WATER_REQUEST_DECIDE]: 'scoped',
+  [permissions.SLIS_FEE_READ]: 'scoped',
+  [permissions.SLIS_FEE_RECORD]: 'scoped',
+  [permissions.SLIS_CROP_MANAGE]: 'scoped',
+  [permissions.SLIS_TRAINING_MANAGE]: 'scoped',
+  [permissions.SLIS_STREAM_FLOW_RECORD]: 'scoped',
+  [permissions.SLIS_REVIEW_SUBMIT]: 'scoped',
+  [permissions.SLIS_REVIEW_APPROVE]: 'scoped',
+  [permissions.SLIS_SYNC_PUSH]: 'scoped',
+  [permissions.SLIS_SYNC_PULL]: 'scoped',
+  [permissions.SLIS_SYNC_CONFLICT_RESOLVE]: 'scoped',
+  [permissions.SLIS_IMPORT_RUN]: 'scoped',
+  [permissions.SLIS_REPORT_READ]: 'scoped',
+  [permissions.SLIS_EXPORT_GENERATE]: 'scoped',
 };
