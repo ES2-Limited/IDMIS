@@ -29,6 +29,7 @@ export const KNOWN_EVENT_TYPES = [
   'slis.crop.recorded',
   'slis.training.created',
   'slis.training.attended',
+  'slis.stream_flow.recorded',
   'slis.sync.conflict_detected',
   'slis.sync.conflict_resolved',
 ] as const;
