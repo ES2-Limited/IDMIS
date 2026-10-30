@@ -1,7 +1,6 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import * as dbModule from './index';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,12 +25,17 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     sql = options.client;
     migrationDb = options.db ?? drizzle(sql);
   } else if (options.connectionString) {
-    sql = postgres(options.connectionString, { max: 1 });
+    sql = postgres(options.connectionString, { max: 5 });
     migrationDb = options.db ?? drizzle(sql);
     shouldCloseSql = true;
   } else {
-    sql = dbModule.client;
-    migrationDb = options.db ?? dbModule.db;
+    const connStr =
+      process.env.MIGRATION_DATABASE_URL ||
+      process.env.DATABASE_URL ||
+      'postgresql://idmis:idmis@localhost:5432/idmis';
+    sql = postgres(connStr, { max: 5 });
+    migrationDb = options.db ?? drizzle(sql);
+    shouldCloseSql = true;
   }
 
   const reserved = await sql.reserve();
@@ -59,24 +63,4 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       await sql.end();
     }
   }
-}
-
-const isDirectRun =
-  process.argv[1] &&
-  (import.meta.url === `file://${process.argv[1]}` ||
-    fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) ||
-    process.argv[1].endsWith('migrate.ts') ||
-    process.argv[1].endsWith('migrate.js'));
-
-if (isDirectRun) {
-  runMigrations()
-    .then(async () => {
-      await dbModule.client.end();
-      process.exit(0);
-    })
-    .catch(async (err) => {
-      console.error('Migration failed:', err);
-      await dbModule.client.end();
-      process.exit(1);
-    });
 }
