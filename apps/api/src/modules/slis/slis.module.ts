@@ -28,6 +28,9 @@ import { TrainingController } from './controllers/training.controller';
 import { StreamFlowRepository } from './repositories/stream-flow.repository';
 import { StreamFlowService } from './services/stream-flow.service';
 import { StreamFlowController } from './controllers/stream-flow.controller';
+import { ReviewRepository } from './repositories/review.repository';
+import { ReviewService } from './services/review.service';
+import { ReviewController } from './controllers/review.controller';
 import { BlisStationStubService } from '../blis/public';
 
 @Module({
@@ -41,6 +44,7 @@ import { BlisStationStubService } from '../blis/public';
     CropProductionController,
     TrainingController,
     StreamFlowController,
+    ReviewController,
   ],
   providers: [
     EncryptionService,
@@ -64,6 +68,8 @@ import { BlisStationStubService } from '../blis/public';
     TrainingService,
     StreamFlowRepository,
     StreamFlowService,
+    ReviewRepository,
+    ReviewService,
   ],
   exports: [
     EncryptionService,
@@ -87,6 +93,8 @@ import { BlisStationStubService } from '../blis/public';
     TrainingService,
     StreamFlowRepository,
     StreamFlowService,
+    ReviewRepository,
+    ReviewService,
   ],
 })
 export class SlisModule {}
