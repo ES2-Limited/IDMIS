@@ -21,8 +21,24 @@ export const ApiEnvSchema = z
     // Field-level encryption (AES-256-GCM)
     ENCRYPTION_KEY: z.string().min(32).optional(),
     ENCRYPTION_KEYS: z.string().optional(),
+
+    // API documentation & Swagger UI
+    API_DOCS_ENABLED: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          if (val.toLowerCase() === 'true' || val === '1') return true;
+          if (val.toLowerCase() === 'false' || val === '0') return false;
+        }
+        return val;
+      }, z.boolean())
+      .optional(),
+    API_PUBLIC_BASE_PATH: z.string().default('/'),
   })
   .superRefine((data, ctx) => {
+    if (data.API_DOCS_ENABLED === undefined) {
+      data.API_DOCS_ENABLED = data.NODE_ENV !== 'production';
+    }
+
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_KEY) {
       if (data.JWT_SECRET === 'ci-only-jwt-secret-not-used-anywhere-else') {
         data.ENCRYPTION_KEY = 'ci-only-encryption-key-for-docker-smoke-test-32bytes';
