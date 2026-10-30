@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -202,6 +201,8 @@ jobs:
             -e APP_URL="http://localhost:8080" \
             -e API_URL="http://localhost:8080/api" \
             -e COOKIE_PATH="/api/auth" \
+            -e ENCRYPTION_KEY="ci-only-encryption-key-not-used-anywhere-else-000" \
+            -e IDENTITY_HASH_KEY="ci-only-identity-hash-key-not-used-anywhere-else-0" \
             -e JWT_SECRET="ci-only-jwt-secret-not-used-anywhere-else" \
             -e S3_ENDPOINT="http://127.0.0.1:9000" \
             -e S3_REGION="auto" \
@@ -235,8 +236,14 @@ jobs:
             idmis-worker
           for i in $(seq 1 15); do
             if docker logs test-worker 2>&1 | grep -q "worker started"; then
-              echo "Worker smoke test passed."
-              exit 0
+              sleep 10
+              if [ "$(docker inspect -f '{{.State.Running}}' test-worker)" = "true" ] && ! docker logs test-worker 2>&1 | grep -qiE "failed|uncaught|unhandled"; then
+                echo "Worker smoke test passed: still running after 10s."
+                exit 0
+              fi
+              echo "Worker smoke test failed: worker crashed or logged errors after startup."
+              docker logs test-worker
+              exit 1
             fi
             sleep 1
           done
