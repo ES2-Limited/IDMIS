@@ -23,6 +23,7 @@ describe('Storage & Antivirus Service Specification (BE-1.7)', () => {
       S3_ACCESS_KEY_ID: 'minioadmin',
       S3_SECRET_ACCESS_KEY: 'minioadmin',
       ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
+      API_PUBLIC_BASE_PATH: '/',
     });
     antivirusService = new AntivirusService(storageService);
   });

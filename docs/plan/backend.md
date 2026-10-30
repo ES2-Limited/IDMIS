@@ -78,6 +78,7 @@ The agent rules say "no new dependency without asking". These are already approv
 | Load tests             | `k6` (installed separately, not an npm package)                                              |
 | Bundling               | `tsup` (bundles monorepo packages into standalone JS for production runtime without tsx)     |
 | TypeScript metadata    | `@swc/core` (emits emitDecoratorMetadata required by NestJS dependency injection under tsup) |
+| API Documentation UI   | `@fastify/swagger-ui` (serves static Swagger UI bundle locally without CDN for Fastify)      |
 
 ## 1. Phase 1 — Foundations (weeks 1–3)
 

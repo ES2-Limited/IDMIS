@@ -44,4 +44,29 @@ describe('ApiEnvSchema', () => {
     });
     expect(parsed.ENCRYPTION_KEY).toBe('ci-only-encryption-key-for-docker-smoke-test-32bytes');
   });
+
+  it('defaults API_DOCS_ENABLED to true in non-production, false in production', () => {
+    const devEnv = ApiEnvSchema.parse({
+      NODE_ENV: 'development',
+    });
+    expect(devEnv.API_DOCS_ENABLED).toBe(true);
+    expect(devEnv.API_PUBLIC_BASE_PATH).toBe('/');
+
+    const prodEnv = ApiEnvSchema.parse({
+      NODE_ENV: 'production',
+      JWT_SECRET: 'production-secret-min-16-chars-long',
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
+    });
+    expect(prodEnv.API_DOCS_ENABLED).toBe(false);
+
+    const explicitProdDocs = ApiEnvSchema.parse({
+      NODE_ENV: 'production',
+      JWT_SECRET: 'production-secret-min-16-chars-long',
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
+      API_DOCS_ENABLED: 'true',
+      API_PUBLIC_BASE_PATH: '/api',
+    });
+    expect(explicitProdDocs.API_DOCS_ENABLED).toBe(true);
+    expect(explicitProdDocs.API_PUBLIC_BASE_PATH).toBe('/api');
+  });
 });
