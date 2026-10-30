@@ -9,6 +9,7 @@ import { OutboxModule } from './platform/outbox/outbox.module';
 import { StorageModule } from './platform/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CoreModule } from './modules/core/core.module';
+import { SlisModule } from './modules/slis/slis.module';
 import { SampleModule } from './modules/sample/sample.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -22,6 +23,7 @@ const devModules = !isProduction ? [SampleModule] : [];
     StorageModule,
     AuthModule,
     CoreModule,
+    SlisModule,
     OpenApiModule,
     ...devModules,
   ],

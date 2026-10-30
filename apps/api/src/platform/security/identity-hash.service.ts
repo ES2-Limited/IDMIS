@@ -75,6 +75,21 @@ export class IdentityHashService {
   }
 
   /**
+   * Alias for getLast4.
+   */
+  last4(value: string): string {
+    return this.getLast4(value);
+  }
+
+  /**
+   * Mask an identification document number (e.g. ••••1234).
+   */
+  mask(value: string): string {
+    const l4 = this.getLast4(value);
+    return `••••${l4}`;
+  }
+
+  /**
    * Computes HMAC-SHA256 hash using the primary key.
    * Returns a versioned hash string: "${keyId}:${hmacHex}".
    */
