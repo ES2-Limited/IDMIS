@@ -167,7 +167,7 @@ describe('SLIS Database Schema & Identity Protection (BE-2.1)', () => {
       label: 'Samsung Field Tablet',
       platform: 'android',
     });
-  });
+  }, 30000);
 
   afterAll(async () => {
     if (testClient) await testClient.end();
@@ -435,7 +435,6 @@ describe('SLIS Database Schema & Identity Protection (BE-2.1)', () => {
           op: 'upsert',
           schemeId: TEST_SCHEME_ID,
           stateId: TEST_STATE_ID,
-          data: { farmerCode: 'KRIS-F-001', firstName: 'Aliyu' },
         })
         .returning();
 

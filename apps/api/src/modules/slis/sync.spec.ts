@@ -37,6 +37,7 @@ import { AppModule } from '../../app.module';
 import { ProblemDetailsFilter } from '../../platform/filters';
 import { TokenService } from '../auth/token.service';
 import { AuthzService } from '../../platform/auth';
+import { RedisService } from '../../platform/redis/redis.service';
 import { initAuditWriter } from '../../platform/audit/audit-writer';
 
 describe('SLIS Sync Server Engine (BE-2.6)', () => {
@@ -227,11 +228,13 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_PLOT_MANAGE },
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_CREATE },
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_READ },
+      { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_REVIEW_SUBMIT },
 
-      // Scheme data officer: all above + conflict resolve
+      // Scheme data officer: all above + conflict resolve + review approval
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_SYNC_PUSH },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_SYNC_PULL },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_SYNC_CONFLICT_RESOLVE },
+      { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_REVIEW_APPROVE },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_FARMER_READ },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_FARMER_CREATE },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_FARMER_UPDATE },
@@ -336,7 +339,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
     fieldOfficerToken = (await tokenService.createAccessToken(FIELD_OFFICER_ID, sid1)).accessToken;
     schemeDataOfficerToken = (await tokenService.createAccessToken(SCHEME_DATA_OFFICER_ID, sid2))
       .accessToken;
-  });
+  }, 60000);
 
   afterAll(async () => {
     if (app) await app.close();
@@ -373,6 +376,47 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       const [stored] = await testDb.select().from(device).where(eq(device.id, body.id));
       expect(stored).toBeDefined();
       expect(stored?.label).toBe('Field Kit 4');
+    });
+
+    it('rejects push and pull when device does not belong to caller with 403 Forbidden', async () => {
+      // Scheme Data Officer calls push with validDeviceId owned by Field Officer
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${schemeDataOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: crypto.randomUUID(),
+              entity: 'farmer',
+              action: 'create',
+              recordId: crypto.randomUUID(),
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FORBIDDEN-001',
+                wardId: KANO_WARD_ID,
+                firstName: 'Hassan',
+                lastName: 'Lawan',
+                gender: 'male',
+              },
+            },
+          ],
+        },
+      });
+      expect(pushRes.statusCode).toBe(403);
+
+      // Scheme Data Officer calls pull with validDeviceId owned by Field Officer
+      const pullRes = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${schemeDataOfficerToken}`,
+          'x-device-id': validDeviceId,
+        },
+      });
+      expect(pullRes.statusCode).toBe(403);
     });
   });
 
@@ -522,6 +566,60 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       expect(body.results[0]?.errors).toBeDefined();
       expect(body.results[0]?.errors[0]?.status).toBe(403);
     });
+
+    it('applies concurrent pushes with identical opId atomically without running domain logic twice', async () => {
+      const concurrentFarmerId = crypto.randomUUID();
+      const concurrentOpId = crypto.randomUUID();
+      const payload = {
+        deviceId: validDeviceId,
+        ops: [
+          {
+            opId: concurrentOpId,
+            entity: 'farmer',
+            action: 'create',
+            recordId: concurrentFarmerId,
+            baseVersion: 1,
+            data: {
+              schemeId: KANO_SCHEME_ID,
+              farmerCode: 'CONC-F-001',
+              wardId: KANO_WARD_ID,
+              firstName: 'Concurrent',
+              lastName: 'Farmer',
+              gender: 'male',
+              phone: '08033334444',
+            },
+          },
+        ],
+      };
+
+      const [res1, res2] = await Promise.all([
+        app.inject({
+          method: 'POST',
+          url: '/slis/sync/push',
+          headers: { authorization: `Bearer ${fieldOfficerToken}` },
+          payload,
+        }),
+        app.inject({
+          method: 'POST',
+          url: '/slis/sync/push',
+          headers: { authorization: `Bearer ${fieldOfficerToken}` },
+          payload,
+        }),
+      ]);
+
+      expect(res1.statusCode).toBe(201);
+      expect(res2.statusCode).toBe(201);
+      expect(res1.json().results[0]?.outcome).toBe('applied');
+      expect(res2.json().results[0]?.outcome).toBe('applied');
+
+      // Farmer is created only once
+      const farmers = await testDb.select().from(farmer).where(eq(farmer.id, concurrentFarmerId));
+      expect(farmers).toHaveLength(1);
+
+      // sync_op has only 1 row
+      const ops = await testDb.select().from(syncOp).where(eq(syncOp.opId, concurrentOpId));
+      expect(ops).toHaveLength(1);
+    });
   });
 
   describe('Concurrency & Conflict Resolution', () => {
@@ -560,7 +658,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         },
       });
 
-      // 2. Server updates farmer (version becomes 2)
+      // 2. Server updates farmer twice (version becomes 3)
       await app.inject({
         method: 'PATCH',
         url: `/slis/farmers/${conflictFarmerId}`,
@@ -569,7 +667,19 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
           'if-match': '"1"',
         },
         payload: {
-          firstName: 'Ibrahim Server-Updated',
+          firstName: 'Ibrahim Server-Updated V2',
+        },
+      });
+
+      await app.inject({
+        method: 'PATCH',
+        url: `/slis/farmers/${conflictFarmerId}`,
+        headers: {
+          authorization: `Bearer ${schemeDataOfficerToken}`,
+          'if-match': '"2"',
+        },
+        payload: {
+          firstName: 'Ibrahim Server-Updated V3',
         },
       });
 
@@ -602,7 +712,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       expect(body.results[0]?.conflictId).toBeDefined();
       conflictId = body.results[0]?.conflictId;
 
-      // Verify sync_conflict row exists
+      // Verify sync_conflict row exists with actual real serverVersion = 3 (not fallback)
       const [conf] = await testDb
         .select()
         .from(syncConflict)
@@ -610,7 +720,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       expect(conf).toBeDefined();
       expect(conf?.status).toBe('open');
       expect(conf?.baseVersion).toBe(1);
-      expect(conf?.serverVersion).toBe(2);
+      expect(conf?.serverVersion).toBe(3);
     });
 
     it('lists conflicts scoped to scheme', async () => {
@@ -764,6 +874,141 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       expect(nextBody.items).toHaveLength(0);
     });
 
+    it('records change_log via triggers on REST create, approval, return, and import, and returns current records in pull', async () => {
+      // (a) REST create farmer
+      const createRes = await app.inject({
+        method: 'POST',
+        url: '/slis/farmers',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          farmerCode: 'REST-TRG-001',
+          wardId: KANO_WARD_ID,
+          firstName: 'TriggerRest',
+          lastName: 'Farmer',
+          gender: 'female',
+          phone: '08088887777',
+        },
+      });
+      expect(createRes.statusCode).toBe(201);
+      const restFarmer = createRes.json();
+
+      // (b) Submit for review
+      const submitRes = await app.inject({
+        method: 'POST',
+        url: '/slis/review/submit/farmer',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          recordIds: [restFarmer.id],
+        },
+      });
+      expect(submitRes.statusCode).toBe(201);
+
+      // (c) Return with comment (version bumped to 2 by submission)
+      const returnRes = await app.inject({
+        method: 'POST',
+        url: `/slis/review/farmer/${restFarmer.id}/return`,
+        headers: {
+          authorization: `Bearer ${schemeDataOfficerToken}`,
+          'if-match': '"2"',
+        },
+        payload: {
+          comment: 'fix the phone number',
+        },
+      });
+      expect(returnRes.statusCode).toBe(201);
+
+      // (d) Direct import insert
+      const importedFarmerId = crypto.randomUUID();
+      await testDb.insert(farmer).values({
+        id: importedFarmerId,
+        schemeId: KANO_SCHEME_ID,
+        farmerCode: 'IMP-TRG-001',
+        wardId: KANO_WARD_ID,
+        stateId: KANO_STATE_ID,
+        firstName: 'TriggerImported',
+        lastName: 'Farmer',
+        gender: 'male',
+        phone: '08011112222',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      // (e) Pull changes
+      const pullRes = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${fieldOfficerToken}`,
+          'x-device-id': validDeviceId,
+        },
+      });
+      expect(pullRes.statusCode).toBe(200);
+      const pullBody = pullRes.json();
+
+      // Verify returned farmer appears with status returned and returnComment
+      const returnedItem = pullBody.items.find(
+        (item: { entity: string; recordId: string }) =>
+          item.entity === 'farmer' && item.recordId === restFarmer.id,
+      );
+      expect(returnedItem).toBeDefined();
+      expect(returnedItem.op).toBe('upsert');
+      expect(returnedItem.data.status).toBe('returned');
+      expect(returnedItem.data.returnComment).toBe('fix the phone number');
+
+      // Verify imported farmer appears
+      const importedItem = pullBody.items.find(
+        (item: { entity: string; recordId: string }) =>
+          item.entity === 'farmer' && item.recordId === importedFarmerId,
+      );
+      expect(importedItem).toBeDefined();
+      expect(importedItem.op).toBe('upsert');
+      expect(importedItem.data.firstName).toBe('TriggerImported');
+    });
+
+    it('scope fingerprint on core.device triggers rebaseline even across Redis flushes', async () => {
+      const redis = app.get(RedisService);
+      const redisClient = redis.getClient();
+      if (redisClient) await redisClient.flushall();
+
+      // Fetch initial pull with deviceId
+      const p1 = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${fieldOfficerToken}`,
+          'x-device-id': validDeviceId,
+        },
+      });
+      expect(p1.statusCode).toBe(200);
+      const cursor = p1.json().nextCursor;
+
+      // Next pull with cursor should have rebaseline false
+      const p2 = await app.inject({
+        method: 'GET',
+        url: `/slis/sync/pull?cursor=${cursor}`,
+        headers: {
+          authorization: `Bearer ${fieldOfficerToken}`,
+          'x-device-id': validDeviceId,
+        },
+      });
+      expect(p2.json().rebaseline).toBeFalsy();
+
+      // Flush Redis completely
+      if (redisClient) await redisClient.flushall();
+
+      // Subsequent pull with same cursor: should STILL have rebaseline false because fingerprint is on core.device!
+      const p3 = await app.inject({
+        method: 'GET',
+        url: `/slis/sync/pull?cursor=${cursor}`,
+        headers: {
+          authorization: `Bearer ${fieldOfficerToken}`,
+          'x-device-id': validDeviceId,
+        },
+      });
+      expect(p3.json().rebaseline).toBeFalsy();
+    });
+
     it('signals rebaseline: true when user scope grows with new scheme', async () => {
       // Assign Field Officer to Kaduna Scheme
       await testDb.insert(assignment).values([
@@ -827,10 +1072,10 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
 
           expect(BigInt(xidB)).toBeGreaterThan(BigInt(xidA));
 
-          // 3. TxB writes to change_log first (gets lower seq), then COMMITS
+          // 3. TxB writes to farmer first (gets lower seq), then COMMITS
           await connB.unsafe(`
-            INSERT INTO "core"."change_log" ("entity", "record_id", "op", "scheme_id", "data")
-            VALUES ('farmer', '${recordBId}', 'upsert', '${KANO_SCHEME_ID}', '{"name": "Farmer B"}');
+            INSERT INTO "slis"."farmer" ("id", "scheme_id", "ward_id", "state_id", "farmer_code", "first_name", "last_name", "gender", "created_by", "updated_by")
+            VALUES ('${recordBId}', '${KANO_SCHEME_ID}', '${KANO_WARD_ID}', '${KANO_STATE_ID}', 'TXB-001', 'Farmer B', 'LastName', 'male', '${SYSTEM_USER_ID}', '${SYSTEM_USER_ID}');
           `);
           await connB.unsafe('COMMIT;');
 
@@ -850,10 +1095,10 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
           );
           expect(foundBWhileOpen).toBe(false);
 
-          // 5. TxA now writes to change_log (gets higher seq) and COMMITS
+          // 5. TxA now writes to farmer (gets higher seq) and COMMITS
           await connA.unsafe(`
-            INSERT INTO "core"."change_log" ("entity", "record_id", "op", "scheme_id", "data")
-            VALUES ('farmer', '${recordAId}', 'upsert', '${KANO_SCHEME_ID}', '{"name": "Farmer A"}');
+            INSERT INTO "slis"."farmer" ("id", "scheme_id", "ward_id", "state_id", "farmer_code", "first_name", "last_name", "gender", "created_by", "updated_by")
+            VALUES ('${recordAId}', '${KANO_SCHEME_ID}', '${KANO_WARD_ID}', '${KANO_STATE_ID}', 'TXA-001', 'Farmer A', 'LastName', 'male', '${SYSTEM_USER_ID}', '${SYSTEM_USER_ID}');
           `);
           await connA.unsafe('COMMIT;');
 

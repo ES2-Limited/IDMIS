@@ -388,6 +388,7 @@ export const device = coreSchema.table(
     lastPullSeq: bigint('last_pull_seq', { mode: 'number' }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'string' }),
     revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
+    scopeFingerprint: text('scope_fingerprint'),
   },
   (table) => [
     index('device_user_id_idx').on(table.userId),
@@ -536,7 +537,6 @@ export const changeLog = coreSchema.table(
     schemeId: uuid('scheme_id').references(() => organisation.id),
     stateId: uuid('state_id').references(() => state.id),
     basinId: uuid('basin_id'),
-    data: jsonb('data').notNull(),
   },
   (table) => [
     index('change_log_xid_seq_idx').on(table.xid, table.seq),

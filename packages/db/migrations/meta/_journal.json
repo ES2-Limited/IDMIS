@@ -71,6 +71,13 @@
       "when": 1793340960312,
       "tag": "0009_marvelous_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793427300000,
+      "tag": "0010_slis_change_log_triggers",
+      "breakpoints": true
     }
   ]
 }

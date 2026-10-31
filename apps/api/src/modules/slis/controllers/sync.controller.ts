@@ -49,9 +49,10 @@ export class SyncController {
   async pull(
     @Query(new ZodValidationPipe(SyncPullQuerySchema)) query: SyncPullQuery,
     @CurrentAuthz() authz: UserAuthz,
+    @CurrentUser() user: RequestUser,
     @Headers('x-device-id') deviceId?: string,
   ) {
-    return this.syncService.pull(query, authz, deviceId);
+    return this.syncService.pull(query, authz, user.id, deviceId);
   }
 
   @Get('conflicts')
