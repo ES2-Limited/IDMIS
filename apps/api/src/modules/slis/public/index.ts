@@ -16,3 +16,5 @@ export * from '../services/training.service';
 export * from '../repositories/training.repository';
 export * from '../services/stream-flow.service';
 export * from '../repositories/stream-flow.repository';
+export * from '../services/review.service';
+export * from '../repositories/review.repository';
