@@ -365,8 +365,10 @@ describe('API Platform Plumbing (BE-1.2)', () => {
     it('does not register sample endpoints in production mode', async () => {
       const prevEnv = process.env.NODE_ENV;
       const prevEnc = process.env.ENCRYPTION_KEY;
+      const prevIdHash = process.env.IDENTITY_HASH_KEY;
       process.env.NODE_ENV = 'production';
-      process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+      process.env.ENCRYPTION_KEY = 'a'.repeat(32);
+      process.env.IDENTITY_HASH_KEY = 'b'.repeat(32);
       try {
         const { AppModule: ProdAppModule } = await import('./app.module?prod=' + Date.now());
 
@@ -393,6 +395,11 @@ describe('API Platform Plumbing (BE-1.2)', () => {
           process.env.ENCRYPTION_KEY = prevEnc;
         } else {
           delete process.env.ENCRYPTION_KEY;
+        }
+        if (prevIdHash !== undefined) {
+          process.env.IDENTITY_HASH_KEY = prevIdHash;
+        } else {
+          delete process.env.IDENTITY_HASH_KEY;
         }
       }
     });

@@ -62,7 +62,7 @@ describe('core schema and database integrity (fresh database per test run)', () 
       createdBy: SYSTEM_USER_ID,
       updatedBy: SYSTEM_USER_ID,
     });
-  });
+  }, 30000);
 
   afterAll(async () => {
     // Teardown: ensure temporary database is dropped even if tests fail

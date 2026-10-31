@@ -10,6 +10,7 @@ export const SYSTEM_USER_ID = '00000000-0000-7000-8000-000000000001';
  * Well-known UUID for the seeded System Administrator role.
  */
 export const ROLE_SYSTEM_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000010';
+export const ROLE_SLIS_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000019';
 
 export const SYSTEM_ROLES = [
   {
@@ -31,6 +32,13 @@ export const SYSTEM_ROLES = [
     key: 'module_admin',
     name: 'Module Administrator',
     description: 'Administrative control within an assigned functional module',
+    isSystem: true,
+  },
+  {
+    id: ROLE_SLIS_ADMIN_ID,
+    key: 'slis_admin',
+    name: 'SLIS Administrator',
+    description: 'Module administrator with full control over SLIS features, records, and imports',
     isSystem: true,
   },
   {
@@ -78,11 +86,11 @@ export const SYSTEM_ROLES = [
 ] as const;
 
 /**
- * Default permission matrix for all 9 seeded system roles.
+ * Default permission matrix for all 10 seeded system roles.
  * System roles (is_system = true) are reconciled against this matrix during seed.
  */
 export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
-  // 1. System Administrator: Explicit full core permissions (no manage:all wildcard)
+  // 1. System Administrator: Full administrative control across core and SLIS
   system_admin: [
     permissions.CORE_USER_READ,
     permissions.CORE_USER_CREATE,
@@ -107,6 +115,32 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
     permissions.CORE_OUTBOX_MANAGE,
+    // SLIS
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_FARMER_CREATE,
+    permissions.SLIS_FARMER_UPDATE,
+    permissions.SLIS_FARMER_DELETE,
+    permissions.SLIS_IDENTITY_VIEW,
+    permissions.SLIS_HOUSEHOLD_MANAGE,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_PLOT_MANAGE,
+    permissions.SLIS_ALLOCATION_MANAGE,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_WATER_REQUEST_CREATE,
+    permissions.SLIS_WATER_REQUEST_DECIDE,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_FEE_RECORD,
+    permissions.SLIS_CROP_MANAGE,
+    permissions.SLIS_TRAINING_MANAGE,
+    permissions.SLIS_STREAM_FLOW_RECORD,
+    permissions.SLIS_REVIEW_SUBMIT,
+    permissions.SLIS_REVIEW_APPROVE,
+    permissions.SLIS_SYNC_PUSH,
+    permissions.SLIS_SYNC_PULL,
+    permissions.SLIS_SYNC_CONFLICT_RESOLVE,
+    permissions.SLIS_IMPORT_RUN,
+    permissions.SLIS_REPORT_READ,
+    permissions.SLIS_EXPORT_GENERATE,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope
@@ -131,12 +165,59 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
+    // SLIS Oversight
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_REPORT_READ,
+    permissions.SLIS_EXPORT_GENERATE,
   ],
 
-  // 3. Module Administrator: Empty for now (assigned module rights added in future module PRDs)
+  // 3. Module Administrator: Generic placeholder (specific module admins use dedicated roles)
   module_admin: [],
 
-  // 4. Scheme Data Officer: Scheme-scoped review, data entry & WUA management
+  // 4. SLIS Administrator: Explicit permissions for SLIS module administration
+  slis_admin: [
+    permissions.CORE_ORGANISATION_READ,
+    permissions.CORE_GEOGRAPHY_READ,
+    permissions.CORE_WUA_READ,
+    permissions.CORE_WUA_MANAGE,
+    permissions.CORE_LOOKUP_READ,
+    permissions.CORE_LOOKUP_MANAGE,
+    permissions.CORE_FILE_UPLOAD,
+    permissions.CORE_FILE_READ,
+    permissions.CORE_IMPORT_RUN,
+    permissions.CORE_AUDIT_READ,
+    // SLIS
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_FARMER_CREATE,
+    permissions.SLIS_FARMER_UPDATE,
+    permissions.SLIS_FARMER_DELETE,
+    permissions.SLIS_IDENTITY_VIEW,
+    permissions.SLIS_HOUSEHOLD_MANAGE,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_PLOT_MANAGE,
+    permissions.SLIS_ALLOCATION_MANAGE,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_WATER_REQUEST_CREATE,
+    permissions.SLIS_WATER_REQUEST_DECIDE,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_FEE_RECORD,
+    permissions.SLIS_CROP_MANAGE,
+    permissions.SLIS_TRAINING_MANAGE,
+    permissions.SLIS_STREAM_FLOW_RECORD,
+    permissions.SLIS_REVIEW_SUBMIT,
+    permissions.SLIS_REVIEW_APPROVE,
+    permissions.SLIS_SYNC_PUSH,
+    permissions.SLIS_SYNC_PULL,
+    permissions.SLIS_SYNC_CONFLICT_RESOLVE,
+    permissions.SLIS_IMPORT_RUN,
+    permissions.SLIS_REPORT_READ,
+    permissions.SLIS_EXPORT_GENERATE,
+  ],
+
+  // 5. Scheme Data Officer: Scheme-level review, approval, validation & full scheme operations
   scheme_data_officer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
@@ -146,9 +227,32 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_UPLOAD,
     permissions.CORE_FILE_READ,
     permissions.CORE_IMPORT_RUN,
+    // SLIS
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_FARMER_CREATE,
+    permissions.SLIS_FARMER_UPDATE,
+    permissions.SLIS_HOUSEHOLD_MANAGE,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_PLOT_MANAGE,
+    permissions.SLIS_ALLOCATION_MANAGE,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_WATER_REQUEST_CREATE,
+    permissions.SLIS_WATER_REQUEST_DECIDE,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_FEE_RECORD,
+    permissions.SLIS_CROP_MANAGE,
+    permissions.SLIS_TRAINING_MANAGE,
+    permissions.SLIS_STREAM_FLOW_RECORD,
+    permissions.SLIS_REVIEW_SUBMIT,
+    permissions.SLIS_REVIEW_APPROVE,
+    permissions.SLIS_SYNC_PUSH,
+    permissions.SLIS_SYNC_PULL,
+    permissions.SLIS_SYNC_CONFLICT_RESOLVE,
+    permissions.SLIS_IMPORT_RUN,
+    permissions.SLIS_REPORT_READ,
   ],
 
-  // 5. Field Officer: Mobile field data capture with offline support
+  // 6. Field Officer: Mobile field data capture with offline support (cannot approve)
   field_officer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
@@ -156,9 +260,27 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_LOOKUP_READ,
     permissions.CORE_FILE_UPLOAD,
     permissions.CORE_FILE_READ,
+    // SLIS
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_FARMER_CREATE,
+    permissions.SLIS_FARMER_UPDATE,
+    permissions.SLIS_HOUSEHOLD_MANAGE,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_PLOT_MANAGE,
+    permissions.SLIS_ALLOCATION_MANAGE,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_WATER_REQUEST_CREATE,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_FEE_RECORD,
+    permissions.SLIS_CROP_MANAGE,
+    permissions.SLIS_TRAINING_MANAGE,
+    permissions.SLIS_STREAM_FLOW_RECORD,
+    permissions.SLIS_REVIEW_SUBMIT,
+    permissions.SLIS_SYNC_PUSH,
+    permissions.SLIS_SYNC_PULL,
   ],
 
-  // 6. M&E Officer: Indicator tracking, survey collection & reports
+  // 7. M&E Officer: Monitoring & Evaluation data entry, survey collection, and analysis
   me_officer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
@@ -166,9 +288,14 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_LOOKUP_READ,
     permissions.CORE_FILE_UPLOAD,
     permissions.CORE_FILE_READ,
+    // SLIS
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_REPORT_READ,
+    permissions.SLIS_EXPORT_GENERATE,
   ],
 
-  // 7. Basin Officer: Dam safety records & river basin monitoring
+  // 8. Basin Officer: Dam safety records & river basin monitoring
   basin_officer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
@@ -177,7 +304,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
   ],
 
-  // 8. Procurement Officer: Tender records & contract tracking
+  // 9. Procurement Officer: Tender records & contract tracking
   procurement_officer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
@@ -186,12 +313,18 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
   ],
 
-  // 9. Viewer: Read-only access to scoped dashboards, WUAs, geography, lookups, files
+  // 10. Viewer: Read-only access to scoped dashboards, WUAs, geography, lookups, files
   viewer: [
     permissions.CORE_ORGANISATION_READ,
     permissions.CORE_GEOGRAPHY_READ,
     permissions.CORE_WUA_READ,
     permissions.CORE_LOOKUP_READ,
     permissions.CORE_FILE_READ,
+    // SLIS Read-only
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_REPORT_READ,
   ],
 };

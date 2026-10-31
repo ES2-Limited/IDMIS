@@ -1,4 +1,4 @@
-import { customType, integer, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { customType, integer, timestamp, uuid, text } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 // Custom Postgres types
@@ -13,6 +13,20 @@ export const bytea = customType<{ data: Buffer | Uint8Array }>({
     return 'bytea';
   },
 });
+
+export const xid8 = (name: string) =>
+  customType<{ data: string }>({
+    dataType() {
+      return 'xid8';
+    },
+  })(name);
+
+export const geometryPoint = (name: string) =>
+  customType<{ data: unknown }>({
+    dataType() {
+      return 'geometry(Point, 4326)';
+    },
+  })(name);
 
 export const geometryMultiPolygon = (name: string) =>
   customType<{ data: unknown }>({
@@ -45,6 +59,30 @@ export function standardColumns(appUserIdRef: () => AnyPgColumn) {
       .defaultNow(),
     updatedBy: uuid('updated_by').notNull().references(appUserIdRef),
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'string' }),
+  };
+}
+
+/**
+ * Standard audit and review workflow columns for reviewable SLIS entities.
+ */
+export function slisReviewableColumns(
+  appUserIdRef: () => AnyPgColumn,
+  deviceIdRef?: () => AnyPgColumn,
+  importBatchIdRef?: () => AnyPgColumn,
+) {
+  return {
+    status: text('status').notNull().default('draft'),
+    submittedBy: uuid('submitted_by').references(appUserIdRef),
+    submittedAt: timestamp('submitted_at', { withTimezone: true, mode: 'string' }),
+    approvedBy: uuid('approved_by').references(appUserIdRef),
+    approvedAt: timestamp('approved_at', { withTimezone: true, mode: 'string' }),
+    returnedBy: uuid('returned_by').references(appUserIdRef),
+    returnedAt: timestamp('returned_at', { withTimezone: true, mode: 'string' }),
+    returnComment: text('return_comment'),
+    deviceId: deviceIdRef ? uuid('device_id').references(deviceIdRef) : uuid('device_id'),
+    importBatchId: importBatchIdRef
+      ? uuid('import_batch_id').references(importBatchIdRef)
+      : uuid('import_batch_id'),
   };
 }
 
