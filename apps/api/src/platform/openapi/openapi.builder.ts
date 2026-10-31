@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { slisSchemas, slisPaths } from './slis.openapi';
 import {
   ProblemDetailsSchema,
   ConflictProblemSchema,
@@ -331,6 +332,9 @@ export function buildOpenApiDocument(
     // Outbox
     ListDeadEventsResponse: toJsonSchema(ListDeadEventsResponseSchema),
     RequeueEventResponse: toJsonSchema(RequeueEventResponseSchema),
+
+    // SLIS
+    ...slisSchemas,
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -1698,6 +1702,9 @@ export function buildOpenApiDocument(
     };
   }
 
+  // SLIS endpoints
+  Object.assign(paths, slisPaths);
+
   const tags = [
     { name: 'auth', description: 'Authentication, TOTP MFA, sessions, and passwords' },
     { name: 'users', description: 'User account provisioning, profiles, and status' },
@@ -1712,6 +1719,10 @@ export function buildOpenApiDocument(
     { name: 'audit', description: 'Immutable RFC-compliant audit trail logs' },
     { name: 'outbox', description: 'Dead letter queue monitoring and event requeue' },
     { name: 'health', description: 'Liveness and service readiness checks' },
+    {
+      name: 'slis',
+      description: 'Scheme Land Information System (farmers, plots, operations, sync)',
+    },
   ];
 
   return {
