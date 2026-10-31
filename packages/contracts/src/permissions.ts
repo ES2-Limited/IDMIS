@@ -75,6 +75,7 @@ export const permissions = {
   // SLIS: Imports & Reports
   SLIS_IMPORT_RUN: 'slis.import.run',
   SLIS_REPORT_READ: 'slis.report.read',
+  SLIS_REPORT_VIEW: 'slis.report.view',
   SLIS_EXPORT_GENERATE: 'slis.export.generate',
 } as const;
 
@@ -132,5 +133,6 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.SLIS_SYNC_CONFLICT_RESOLVE]: 'scoped',
   [permissions.SLIS_IMPORT_RUN]: 'scoped',
   [permissions.SLIS_REPORT_READ]: 'scoped',
+  [permissions.SLIS_REPORT_VIEW]: 'scoped',
   [permissions.SLIS_EXPORT_GENERATE]: 'scoped',
 };

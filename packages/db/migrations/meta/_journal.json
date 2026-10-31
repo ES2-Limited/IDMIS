@@ -92,6 +92,13 @@
       "when": 1793427500000,
       "tag": "0012_fee_change_log_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793427600000,
+      "tag": "0013_slis_report_views",
+      "breakpoints": true
     }
   ]
 }
