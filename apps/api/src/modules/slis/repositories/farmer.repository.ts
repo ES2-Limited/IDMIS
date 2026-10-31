@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import type { RequestScope, ListFarmersQuery, SlisGender, RecordStatus } from '@idmis/contracts';
 import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
+import { txStorage } from '../../../platform/database/transaction.helper';
 
 export interface CreateFarmerData {
   id?: string;
@@ -32,6 +33,8 @@ export interface CreateFarmerData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface UpdateFarmerData {
@@ -76,6 +79,10 @@ export interface CreateFarmerIdentityData {
 
 @Injectable()
 export class FarmerRepository {
+  private getDb(txDb?: DatabaseOrTx): DatabaseOrTx {
+    return txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
+  }
+
   async listFarmers(
     scope: RequestScope,
     filters: Partial<ListFarmersQuery> = {},
@@ -148,7 +155,8 @@ export class FarmerRepository {
     return { items, nextCursor };
   }
 
-  async findById(id: string, scope?: RequestScope, txDb: DatabaseOrTx = db) {
+  async findById(id: string, scope?: RequestScope, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const conditions: SQL[] = [eq(farmer.id, id)];
     if (scope) {
       const scopeCond = applyScope(scope, {
@@ -158,7 +166,7 @@ export class FarmerRepository {
       if (scopeCond) conditions.push(scopeCond);
     }
 
-    const rows = await txDb
+    const rows = await client
       .select()
       .from(farmer)
       .where(and(...conditions))
@@ -167,14 +175,18 @@ export class FarmerRepository {
     return rows[0] ?? null;
   }
 
-  async create(data: CreateFarmerData, txDb: DatabaseOrTx = db) {
+  async create(data: CreateFarmerData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const creator = data.createdBy ?? SYSTEM_USER_ID;
-    const rows = await txDb
+    const rows = await client
       .insert(farmer)
       .values({
         ...data,
         id: data.id ?? crypto.randomUUID(),
         status: data.status ?? 'draft',
+        submittedBy: data.submittedBy ?? (data.status === 'submitted' ? creator : null),
+        submittedAt:
+          data.submittedAt ?? (data.status === 'submitted' ? new Date().toISOString() : null),
         version: 1,
         createdBy: creator,
         updatedBy: creator,

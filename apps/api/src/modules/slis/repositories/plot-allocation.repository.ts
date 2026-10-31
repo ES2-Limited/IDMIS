@@ -17,6 +17,8 @@ export interface CreatePlotAllocationData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface UpdatePlotAllocationData {
@@ -156,6 +158,9 @@ export class PlotAllocationRepository {
         ...data,
         id: data.id ?? crypto.randomUUID(),
         status: data.status ?? 'draft',
+        submittedBy: data.submittedBy ?? (data.status === 'submitted' ? creator : null),
+        submittedAt:
+          data.submittedAt ?? (data.status === 'submitted' ? new Date().toISOString() : null),
         version: 1,
         createdBy: creator,
         updatedBy: creator,

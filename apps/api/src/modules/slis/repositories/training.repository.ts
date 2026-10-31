@@ -10,6 +10,7 @@ import type {
 } from '@idmis/contracts';
 import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
+import { txStorage } from '../../../platform/database/transaction.helper';
 
 export interface CreateTrainingData {
   id?: string;
@@ -23,6 +24,8 @@ export interface CreateTrainingData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface UpdateTrainingData {
@@ -48,6 +51,10 @@ export interface RecordTrainingAttendanceData {
 
 @Injectable()
 export class TrainingRepository {
+  private getDb(txDb?: DatabaseOrTx): DatabaseOrTx {
+    return txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
+  }
+
   async listTrainings(
     scope: RequestScope,
     filters: Partial<ListTrainingsQuery> = {},
@@ -94,7 +101,8 @@ export class TrainingRepository {
     return { items, nextCursor };
   }
 
-  async findById(id: string, scope?: RequestScope, txDb: DatabaseOrTx = db) {
+  async findById(id: string, scope?: RequestScope, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const conditions: SQL[] = [eq(training.id, id)];
     if (scope) {
       const scopeCond = applyScope(scope, {
@@ -103,7 +111,7 @@ export class TrainingRepository {
       if (scopeCond) conditions.push(scopeCond);
     }
 
-    const rows = await txDb
+    const rows = await client
       .select()
       .from(training)
       .where(and(...conditions))
@@ -112,9 +120,10 @@ export class TrainingRepository {
     return rows[0] ?? null;
   }
 
-  async createTraining(data: CreateTrainingData, txDb: DatabaseOrTx = db) {
+  async createTraining(data: CreateTrainingData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const id = data.id ?? crypto.randomUUID();
-    const rows = await txDb
+    const rows = await client
       .insert(training)
       .values({
         id,
@@ -125,6 +134,11 @@ export class TrainingRepository {
         trainerName: data.trainerName ?? null,
         topicsCovered: data.tags ? JSON.stringify(data.tags) : null,
         status: data.status ?? 'draft',
+        submittedBy:
+          data.submittedBy ??
+          (data.status === 'submitted' ? (data.createdBy ?? SYSTEM_USER_ID) : null),
+        submittedAt:
+          data.submittedAt ?? (data.status === 'submitted' ? new Date().toISOString() : null),
         deviceId: data.deviceId ?? null,
         importBatchId: data.importBatchId ?? null,
         createdBy: data.createdBy ?? SYSTEM_USER_ID,
@@ -175,9 +189,10 @@ export class TrainingRepository {
     return rows[0] ?? null;
   }
 
-  async recordAttendance(data: RecordTrainingAttendanceData, txDb: DatabaseOrTx = db) {
+  async recordAttendance(data: RecordTrainingAttendanceData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const id = data.id ?? crypto.randomUUID();
-    const rows = await txDb
+    const rows = await client
       .insert(trainingAttendance)
       .values({
         id,

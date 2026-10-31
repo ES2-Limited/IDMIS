@@ -1366,16 +1366,35 @@ export function buildOpenApiDocument(
     // -------------------------------------------------------------
     '/imports/template/{dataset}': {
       get: {
-        summary: 'Download CSV template for import dataset',
+        summary: 'Download template for import dataset',
         tags: ['imports'],
         security: SECURED,
-        parameters: [{ name: 'dataset', in: 'path', required: true, schema: { type: 'string' } }],
+        parameters: [
+          {
+            name: 'dataset',
+            in: 'path',
+            required: true,
+            schema: {
+              type: 'string',
+              enum: [
+                'wua',
+                'slis.farmer',
+                'slis.plot',
+                'slis.fee_billing',
+                'slis.fee_collection',
+                'slis.water_request',
+                'slis.training',
+                'slis.crop_production',
+              ],
+            },
+          },
+        ],
         responses: {
           '200': {
-            description: 'CSV template headers and documentation',
+            description: 'XLSX template workbook with Data and Instructions sheets',
             content: {
-              'text/csv': {
-                schema: { type: 'string' },
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+                schema: { type: 'string', format: 'binary' },
               },
             },
           },

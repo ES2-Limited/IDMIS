@@ -28,3 +28,6 @@ export * from '../repositories/audit.repository';
 export * from '../services/import.service';
 export * from '../services/import-template.service';
 export * from '../repositories/import.repository';
+export * from '../imports/import-handler.interface';
+export * from '../imports/import-handler.registry';
+export * from '../imports/wua.handler';

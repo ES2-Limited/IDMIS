@@ -25,6 +25,8 @@ export interface CreateWaterRequestData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface UpdateWaterRequestData {
@@ -129,6 +131,11 @@ export class WaterRequestRepository {
         periodFromOn: data.periodFromOn ?? null,
         periodToOn: data.periodToOn ?? null,
         status: data.status ?? 'draft',
+        submittedBy:
+          data.submittedBy ??
+          (data.status === 'submitted' ? (data.createdBy ?? SYSTEM_USER_ID) : null),
+        submittedAt:
+          data.submittedAt ?? (data.status === 'submitted' ? new Date().toISOString() : null),
         deviceId: data.deviceId ?? null,
         importBatchId: data.importBatchId ?? null,
         createdBy: data.createdBy ?? SYSTEM_USER_ID,
