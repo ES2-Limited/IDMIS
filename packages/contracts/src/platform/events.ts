@@ -13,6 +13,24 @@ export const KNOWN_EVENT_TYPES = [
   'core.import.validated',
   'core.import.committed',
   'core.import.undone',
+
+  // SLIS domain events
+  'slis.farmer.created',
+  'slis.farmer.updated',
+  'slis.farmer.approved',
+  'slis.farmer.returned',
+  'slis.plot.created',
+  'slis.plot.updated',
+  'slis.plot.approved',
+  'slis.fee.billed',
+  'slis.fee.recorded',
+  'slis.water_request.created',
+  'slis.water_request.decided',
+  'slis.crop.recorded',
+  'slis.training.created',
+  'slis.training.attended',
+  'slis.sync.conflict_detected',
+  'slis.sync.conflict_resolved',
 ] as const;
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number];
