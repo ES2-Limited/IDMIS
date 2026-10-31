@@ -16,6 +16,19 @@ import { FarmController } from './controllers/farm.controller';
 import { PlotAllocationRepository } from './repositories/plot-allocation.repository';
 import { PlotAllocationService } from './services/plot-allocation.service';
 import { PlotAllocationController } from './controllers/plot-allocation.controller';
+import { WaterRequestRepository } from './repositories/water-request.repository';
+import { WaterRequestService } from './services/water-request.service';
+import { WaterRequestController } from './controllers/water-request.controller';
+import { CropProductionRepository } from './repositories/crop-production.repository';
+import { CropProductionService } from './services/crop-production.service';
+import { CropProductionController } from './controllers/crop-production.controller';
+import { TrainingRepository } from './repositories/training.repository';
+import { TrainingService } from './services/training.service';
+import { TrainingController } from './controllers/training.controller';
+import { StreamFlowRepository } from './repositories/stream-flow.repository';
+import { StreamFlowService } from './services/stream-flow.service';
+import { StreamFlowController } from './controllers/stream-flow.controller';
+import { BlisStationStubService } from '../blis/public';
 
 @Module({
   controllers: [
@@ -24,10 +37,15 @@ import { PlotAllocationController } from './controllers/plot-allocation.controll
     PlotController,
     FarmController,
     PlotAllocationController,
+    WaterRequestController,
+    CropProductionController,
+    TrainingController,
+    StreamFlowController,
   ],
   providers: [
     EncryptionService,
     IdentityHashService,
+    BlisStationStubService,
     FarmerRepository,
     FarmerService,
     HouseholdRepository,
@@ -38,10 +56,19 @@ import { PlotAllocationController } from './controllers/plot-allocation.controll
     FarmService,
     PlotAllocationRepository,
     PlotAllocationService,
+    WaterRequestRepository,
+    WaterRequestService,
+    CropProductionRepository,
+    CropProductionService,
+    TrainingRepository,
+    TrainingService,
+    StreamFlowRepository,
+    StreamFlowService,
   ],
   exports: [
     EncryptionService,
     IdentityHashService,
+    BlisStationStubService,
     FarmerRepository,
     FarmerService,
     HouseholdRepository,
@@ -52,6 +79,14 @@ import { PlotAllocationController } from './controllers/plot-allocation.controll
     FarmService,
     PlotAllocationRepository,
     PlotAllocationService,
+    WaterRequestRepository,
+    WaterRequestService,
+    CropProductionRepository,
+    CropProductionService,
+    TrainingRepository,
+    TrainingService,
+    StreamFlowRepository,
+    StreamFlowService,
   ],
 })
 export class SlisModule {}
