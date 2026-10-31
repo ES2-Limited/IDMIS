@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { NestFactory } from '@nestjs/core';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import * as argon2 from 'argon2';
@@ -39,6 +39,7 @@ import { TokenService } from '../auth/token.service';
 import { AuthzService } from '../../platform/auth';
 import { RedisService } from '../../platform/redis/redis.service';
 import { initAuditWriter } from '../../platform/audit/audit-writer';
+import { SyncRepository } from './repositories/sync.repository';
 
 describe('SLIS Sync Server Engine (BE-2.6)', () => {
   const TEST_DB_NAME = `idmis_slis_sync_test_${Date.now()}`;
@@ -59,23 +60,30 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
   // UUIDs
   const KANO_STATE_ID = '018f3a5e-2000-7000-8000-000000000001';
   const KADUNA_STATE_ID = '018f3a5e-2000-7000-8000-000000000002';
+  const LAGOS_STATE_ID = '018f3a5e-2000-7000-8000-000000000003';
   const KANO_LGA_ID = '018f3a5e-5000-7000-8000-000000000001';
   const KADUNA_LGA_ID = '018f3a5e-5000-7000-8000-000000000002';
+  const LAGOS_LGA_ID = '018f3a5e-5000-7000-8000-000000000003';
   const KANO_WARD_ID = '018f3a5e-6000-7000-8000-000000000001';
   const KADUNA_WARD_ID = '018f3a5e-6000-7000-8000-000000000002';
+  const LAGOS_WARD_ID = '018f3a5e-6000-7000-8000-000000000003';
 
   const KANO_SCHEME_ID = '018f3a5e-4000-7000-8000-000000000001';
   const KANO_SECTOR_ID = '018f3a5e-4000-7000-8000-000000000003';
   const KADUNA_SCHEME_ID = '018f3a5e-4000-7000-8000-000000000002';
+  const LAGOS_SCHEME_ID = '018f3a5e-4000-7000-8000-000000000004';
 
   const FIELD_OFFICER_ID = '018f3a5e-1000-7000-8000-000000000010';
   const SCHEME_DATA_OFFICER_ID = '018f3a5e-1000-7000-8000-000000000020';
+  const KANO_SLIS_ADMIN_ID = '018f3a5e-1000-7000-8000-000000000030';
 
   const ROLE_FIELD_OFFICER_ID = '018f3a5e-3000-7000-8000-000000000010';
   const ROLE_SCHEME_DATA_OFFICER_ID = '018f3a5e-3000-7000-8000-000000000020';
+  const ROLE_SLIS_ADMIN_ID = '018f3a5e-3000-7000-8000-000000000030';
 
   let fieldOfficerToken: string;
   let schemeDataOfficerToken: string;
+  let kanoSlisAdminToken: string;
   let testFarmerId: string;
 
   const validDeviceId = '018f3a5e-8000-7000-8000-000000000001';
@@ -134,6 +142,15 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: KANO_SLIS_ADMIN_ID,
+        email: 'slis-admin-kano@idmis.gov.ng',
+        passwordHash,
+        fullName: 'Kano SLIS Admin',
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     // 2. Geography
@@ -152,16 +169,25 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: LAGOS_STATE_ID,
+        code: 'LA',
+        name: 'Lagos',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     await testDb.insert(lga).values([
       { id: KANO_LGA_ID, stateId: KANO_STATE_ID, code: 'KN-KMC', name: 'Kano Municipal' },
       { id: KADUNA_LGA_ID, stateId: KADUNA_STATE_ID, code: 'KD-KDN', name: 'Kaduna North' },
+      { id: LAGOS_LGA_ID, stateId: LAGOS_STATE_ID, code: 'LA-IKE', name: 'Ikeja' },
     ]);
 
     await testDb.insert(ward).values([
       { id: KANO_WARD_ID, lgaId: KANO_LGA_ID, code: 'KN-WARD-1', name: 'Kano Central Ward' },
       { id: KADUNA_WARD_ID, lgaId: KADUNA_LGA_ID, code: 'KD-WARD-1', name: 'Kaduna Central Ward' },
+      { id: LAGOS_WARD_ID, lgaId: LAGOS_LGA_ID, code: 'LA-WARD-1', name: 'Ikeja Ward' },
     ]);
 
     // 3. Organisations
@@ -191,12 +217,21 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: LAGOS_SCHEME_ID,
+        type: 'scheme',
+        code: 'LAG-SCH',
+        name: 'Lagos Urban Scheme',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     await testDb.insert(organisationState).values([
       { organisationId: KANO_SCHEME_ID, stateId: KANO_STATE_ID },
       { organisationId: KANO_SECTOR_ID, stateId: KANO_STATE_ID },
       { organisationId: KADUNA_SCHEME_ID, stateId: KADUNA_STATE_ID },
+      { organisationId: LAGOS_SCHEME_ID, stateId: LAGOS_STATE_ID },
     ]);
 
     // 4. Roles & Permissions
@@ -213,6 +248,13 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         key: 'scheme_data_officer',
         name: 'Scheme Data Officer',
         description: 'Reviews, approves, resolves conflicts',
+        isSystem: true,
+      },
+      {
+        id: ROLE_SLIS_ADMIN_ID,
+        key: 'slis_admin',
+        name: 'SLIS Administrator',
+        description: 'Module administrator for SLIS',
         isSystem: true,
       },
     ]);
@@ -242,9 +284,22 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_PLOT_MANAGE },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_CREATE },
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_READ },
+
+      // SLIS admin: conflict resolve + full read/write
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_SYNC_PUSH },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_SYNC_PULL },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_SYNC_CONFLICT_RESOLVE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_REVIEW_APPROVE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_FARMER_READ },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_FARMER_CREATE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_FARMER_UPDATE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_PLOT_READ },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_PLOT_MANAGE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_WATER_REQUEST_CREATE },
+      { roleId: ROLE_SLIS_ADMIN_ID, permission: permissions.SLIS_WATER_REQUEST_READ },
     ]);
 
-    // 5. Assignments (Both scoped to Kano Scheme & State)
+    // 5. Assignments (Scoped to Kano Scheme & State)
     await testDb.insert(assignment).values([
       {
         id: crypto.randomUUID(),
@@ -286,6 +341,26 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_SLIS_ADMIN_ID,
+        roleId: ROLE_SLIS_ADMIN_ID,
+        module: 'slis',
+        scopeType: 'state',
+        scopeStateId: KANO_STATE_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_SLIS_ADMIN_ID,
+        roleId: ROLE_SLIS_ADMIN_ID,
+        module: 'slis',
+        scopeType: 'scheme',
+        scopeOrgId: KANO_SCHEME_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     // 6. Devices
@@ -315,6 +390,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
     // 7. Sessions & JWT tokens
     const sid1 = crypto.randomUUID();
     const sid2 = crypto.randomUUID();
+    const sid3 = crypto.randomUUID();
     await testDb.insert(session).values([
       {
         id: sid1,
@@ -334,10 +410,21 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         ip: '127.0.0.1',
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       },
+      {
+        id: sid3,
+        familyId: crypto.randomUUID(),
+        userId: KANO_SLIS_ADMIN_ID,
+        refreshTokenHash: crypto.randomUUID(),
+        userAgent: 'test-agent',
+        ip: '127.0.0.1',
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      },
     ]);
 
     fieldOfficerToken = (await tokenService.createAccessToken(FIELD_OFFICER_ID, sid1)).accessToken;
     schemeDataOfficerToken = (await tokenService.createAccessToken(SCHEME_DATA_OFFICER_ID, sid2))
+      .accessToken;
+    kanoSlisAdminToken = (await tokenService.createAccessToken(KANO_SLIS_ADMIN_ID, sid3))
       .accessToken;
   }, 60000);
 
@@ -620,6 +707,122 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       const ops = await testDb.select().from(syncOp).where(eq(syncOp.opId, concurrentOpId));
       expect(ops).toHaveLength(1);
     });
+
+    it('rolls back both domain write and sync_op when post-domain update throws, allowing successful retry', async () => {
+      const crashFarmerId = crypto.randomUUID();
+      const crashOpId = crypto.randomUUID();
+      const syncRepo = app.get(SyncRepository);
+
+      const spy = vi.spyOn(syncRepo, 'updateSyncOpOutcome');
+      spy.mockRejectedValueOnce(
+        new Error('Simulated failure during sync_op applied status update'),
+      );
+
+      const pushPayload = {
+        deviceId: validDeviceId,
+        ops: [
+          {
+            opId: crashOpId,
+            entity: 'farmer',
+            action: 'create',
+            recordId: crashFarmerId,
+            baseVersion: 1,
+            data: {
+              schemeId: KANO_SCHEME_ID,
+              farmerCode: 'FARM-CRASH-001',
+              wardId: KANO_WARD_ID,
+              firstName: 'Crash',
+              lastName: 'Tester',
+              gender: 'male',
+              phone: '08099991111',
+            },
+          },
+        ],
+      };
+
+      const resFail = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: pushPayload,
+      });
+
+      expect(resFail.statusCode).toBe(500);
+
+      // Verify transaction atomicity: BOTH farmer AND sync_op were rolled back
+      const [fBefore] = await testDb.select().from(farmer).where(eq(farmer.id, crashFarmerId));
+      expect(fBefore).toBeUndefined();
+
+      const [opBefore] = await testDb.select().from(syncOp).where(eq(syncOp.opId, crashOpId));
+      expect(opBefore).toBeUndefined();
+
+      // Retry the exact same push operation now that spy is cleared
+      const resRetry = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: pushPayload,
+      });
+
+      expect(resRetry.statusCode).toBe(201);
+      const bodyRetry = resRetry.json();
+      expect(bodyRetry.results[0]?.outcome).toBe('applied');
+
+      const [fAfter] = await testDb.select().from(farmer).where(eq(farmer.id, crashFarmerId));
+      expect(fAfter).toBeDefined();
+      expect(fAfter?.firstName).toBe('Crash');
+
+      const [opAfter] = await testDb.select().from(syncOp).where(eq(syncOp.opId, crashOpId));
+      expect(opAfter).toBeDefined();
+      expect(opAfter?.outcome).toBe('applied');
+    });
+
+    it('records rejected outcome and stores sync_op when domain validation fails', async () => {
+      const rejectFarmerId = crypto.randomUUID();
+      const rejectOpId = crypto.randomUUID();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: rejectOpId,
+              entity: 'farmer',
+              action: 'create',
+              recordId: rejectFarmerId,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-REJECT-001',
+                wardId: KANO_WARD_ID,
+                firstName: 'Invalid',
+                lastName: 'Farmer',
+                gender: 'invalid_gender', // Domain validation schema constraint violation
+                phone: '08099992222',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.results[0]?.outcome).toBe('rejected');
+      expect(body.results[0]?.errors).toBeDefined();
+      expect(body.results[0]?.errors?.length).toBeGreaterThan(0);
+
+      // Farmer was NOT inserted
+      const [f] = await testDb.select().from(farmer).where(eq(farmer.id, rejectFarmerId));
+      expect(f).toBeUndefined();
+
+      // sync_op row exists with outcome: rejected
+      const [op] = await testDb.select().from(syncOp).where(eq(syncOp.opId, rejectOpId));
+      expect(op).toBeDefined();
+      expect(op?.outcome).toBe('rejected');
+    });
   });
 
   describe('Concurrency & Conflict Resolution', () => {
@@ -839,6 +1042,67 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       const [f] = await testDb.select().from(farmer).where(eq(farmer.id, testQuarantineFarmerId));
       expect(f).toBeDefined();
       expect(f?.firstName).toBe('Quarantined');
+    });
+
+    it('enforces scope isolation: Kano slis_admin cannot list or resolve Lagos quarantine item', async () => {
+      const lagosQuarantineId = crypto.randomUUID();
+      const lagosOpId = crypto.randomUUID();
+      const lagosFarmerId = crypto.randomUUID();
+
+      // Insert a quarantine record directly with Lagos schemeId and stateId
+      await testDb.insert(syncQuarantine).values({
+        id: lagosQuarantineId,
+        deviceId: validDeviceId,
+        opId: lagosOpId,
+        entity: 'farmer',
+        action: 'create',
+        recordId: lagosFarmerId,
+        baseVersion: 1,
+        payload: {
+          schemeId: LAGOS_SCHEME_ID,
+          stateId: LAGOS_STATE_ID,
+          farmerCode: 'FARM-LAG-Q01',
+          wardId: LAGOS_WARD_ID,
+          firstName: 'Lagos',
+          lastName: 'Quarantined',
+          gender: 'female',
+          phone: '08099998888',
+        },
+        reason: 'device_revoked',
+        schemeId: LAGOS_SCHEME_ID,
+        stateId: LAGOS_STATE_ID,
+      });
+
+      // 1. Kano slis_admin lists quarantine: Lagos item must NOT appear
+      const resList = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/quarantine',
+        headers: { authorization: `Bearer ${kanoSlisAdminToken}` },
+      });
+
+      expect(resList.statusCode).toBe(200);
+      const items = resList.json();
+      expect(items.some((item: { id: string }) => item.id === lagosQuarantineId)).toBe(false);
+
+      // 2. Kano slis_admin attempts to resolve Lagos quarantine: returns 404
+      const resResolve = await app.inject({
+        method: 'POST',
+        url: `/slis/sync/quarantine/${lagosQuarantineId}/resolve`,
+        headers: { authorization: `Bearer ${kanoSlisAdminToken}` },
+        payload: {
+          resolution: 'applied',
+        },
+      });
+
+      expect(resResolve.statusCode).toBe(404);
+
+      // 3. Verify item in DB is still un-resolved
+      const [q] = await testDb
+        .select()
+        .from(syncQuarantine)
+        .where(eq(syncQuarantine.id, lagosQuarantineId));
+      expect(q).toBeDefined();
+      expect(q?.resolution).toBeNull();
     });
   });
 

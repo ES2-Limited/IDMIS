@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, sql, type SQL } from '@idmis/db';
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from '@idmis/db';
 import {
   db,
   device,
+  assignment,
   changeLog,
   syncOp,
   syncConflict,
@@ -104,9 +105,58 @@ export class SyncRepository {
     return row ?? null;
   }
 
-  async findExistingSyncOps(opIds: string[], txDb: DatabaseOrTx = db) {
-    if (opIds.length === 0) return [];
-    return txDb.select().from(syncOp).where(inArray(syncOp.opId, opIds));
+  async claimSyncOp(
+    opId: string,
+    deviceId: string,
+    entity: string,
+    recordId: string,
+    txDb: DatabaseOrTx = db,
+  ) {
+    return txDb
+      .insert(syncOp)
+      .values({
+        opId,
+        deviceId,
+        entity,
+        recordId,
+        outcome: 'pending',
+      })
+      .onConflictDoNothing()
+      .returning();
+  }
+
+  async updateSyncOpOutcome(
+    opId: string,
+    data: {
+      outcome: 'applied' | 'rejected' | 'conflict' | 'quarantined';
+      newVersion?: number;
+      errors?: Array<{ status: number; detail: string }>;
+    },
+    txDb: DatabaseOrTx = db,
+  ) {
+    return txDb
+      .update(syncOp)
+      .set({
+        outcome: data.outcome,
+        newVersion: data.newVersion,
+        errors: data.errors,
+      })
+      .where(eq(syncOp.opId, opId));
+  }
+
+  async findPrimaryAssignmentForDevice(deviceId: string, txDb: DatabaseOrTx = db) {
+    const [row] = await txDb
+      .select({
+        scopeOrgId: assignment.scopeOrgId,
+        scopeStateId: assignment.scopeStateId,
+      })
+      .from(device)
+      .innerJoin(assignment, eq(device.userId, assignment.userId))
+      .where(and(eq(device.id, deviceId), isNull(assignment.deletedAt)))
+      .orderBy(asc(assignment.createdAt))
+      .limit(1);
+
+    return row ?? null;
   }
 
   async recordConflict(
@@ -151,9 +201,34 @@ export class SyncRepository {
       baseVersion: number;
       payload: unknown;
       reason: string;
+      schemeId?: string | null;
+      stateId?: string | null;
     },
     txDb: DatabaseOrTx = db,
   ) {
+    let schemeId = data.schemeId ?? null;
+    let stateId = data.stateId ?? null;
+
+    const payloadObj =
+      data.payload && typeof data.payload === 'object'
+        ? (data.payload as Record<string, unknown>)
+        : {};
+
+    if (!schemeId && typeof payloadObj.schemeId === 'string') {
+      schemeId = payloadObj.schemeId;
+    }
+    if (!stateId && typeof payloadObj.stateId === 'string') {
+      stateId = payloadObj.stateId;
+    }
+
+    if (!schemeId && !stateId) {
+      const primary = await this.findPrimaryAssignmentForDevice(data.deviceId, txDb);
+      if (primary) {
+        schemeId = primary.scopeOrgId ?? null;
+        stateId = primary.scopeStateId ?? null;
+      }
+    }
+
     const [row] = await txDb
       .insert(syncQuarantine)
       .values({
@@ -164,8 +239,10 @@ export class SyncRepository {
         action: data.action,
         recordId: data.recordId,
         baseVersion: data.baseVersion,
-        payload: data.payload as Record<string, unknown>,
+        payload: payloadObj,
         reason: data.reason,
+        schemeId,
+        stateId,
       })
       .returning();
 
@@ -452,9 +529,21 @@ export class SyncRepository {
     return row ?? null;
   }
 
-  async listQuarantines(filters: Partial<ListSyncQuarantineQuery> = {}, txDb: DatabaseOrTx = db) {
+  async listQuarantines(
+    scope: RequestScope,
+    filters: Partial<ListSyncQuarantineQuery> = {},
+    txDb: DatabaseOrTx = db,
+  ) {
     const limit = Math.min(filters.limit ?? 50, 100);
     const conditions: SQL[] = [];
+
+    const scopeCond = applyScope(scope, {
+      scheme: syncQuarantine.schemeId,
+      state: syncQuarantine.stateId,
+    });
+    if (scopeCond) {
+      conditions.push(scopeCond);
+    }
 
     if (filters.deviceId) conditions.push(eq(syncQuarantine.deviceId, filters.deviceId));
     if (filters.reason) conditions.push(eq(syncQuarantine.reason, filters.reason));
@@ -474,11 +563,22 @@ export class SyncRepository {
     return rows;
   }
 
-  async findQuarantineById(id: string, txDb: DatabaseOrTx = db) {
+  async findQuarantineById(id: string, scope?: RequestScope, txDb: DatabaseOrTx = db) {
+    const conditions: SQL[] = [eq(syncQuarantine.id, id)];
+    if (scope) {
+      const scopeCond = applyScope(scope, {
+        scheme: syncQuarantine.schemeId,
+        state: syncQuarantine.stateId,
+      });
+      if (scopeCond) {
+        conditions.push(scopeCond);
+      }
+    }
+
     const [row] = await txDb
       .select()
       .from(syncQuarantine)
-      .where(eq(syncQuarantine.id, id))
+      .where(and(...conditions))
       .limit(1);
 
     return row ?? null;

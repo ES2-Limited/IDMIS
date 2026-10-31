@@ -614,10 +614,14 @@ export const syncQuarantine = coreSchema.table(
     resolvedBy: uuid('resolved_by').references(() => appUser.id),
     resolution: text('resolution'), // 'applied' | 'discarded'
     auditLogId: uuid('audit_log_id').references(() => auditLog.id),
+    schemeId: uuid('scheme_id').references(() => organisation.id),
+    stateId: uuid('state_id').references(() => state.id),
   },
   (table) => [
     index('sync_quarantine_device_id_idx').on(table.deviceId),
     index('sync_quarantine_quarantined_at_idx').on(table.quarantinedAt),
     index('sync_quarantine_resolved_at_idx').on(table.resolvedAt),
+    index('sync_quarantine_scheme_id_idx').on(table.schemeId),
+    index('sync_quarantine_state_id_idx').on(table.stateId),
   ],
 );

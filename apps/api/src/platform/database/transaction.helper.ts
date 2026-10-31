@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Logger } from '@nestjs/common';
 import { db as defaultDb } from '@idmis/db';
 import type { AuditAction, ActorType } from '@idmis/contracts';
@@ -29,6 +30,8 @@ export type AuditWriterHook = (tx: TransactionClient, audit: AuditRecordOptions)
 
 let activeAuditWriter: AuditWriterHook | null = null;
 
+export const txStorage = new AsyncLocalStorage<TransactionClient>();
+
 /**
  * Registers an audit writer hook.
  * Task BE-1.5 registers the persistent `core.audit_log` database writer here.
@@ -57,27 +60,30 @@ export async function runInTransaction<T>(
     audit?: AuditRecordOptions;
   },
 ): Promise<T> {
-  const database = options?.db ?? defaultDb;
+  const activeTx = txStorage.getStore();
+  const database = options?.db ?? (activeTx ? activeTx : defaultDb);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return database.transaction(async (tx: any) => {
-    const result = await callback(tx);
+    return txStorage.run(tx, async () => {
+      const result = await callback(tx);
 
-    if (options?.audit) {
-      if (activeAuditWriter) {
-        await activeAuditWriter(tx, options.audit);
-      } else {
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error(
-            `[AuditWriterError] Active audit writer is required in production for [${options.audit.action}] on ${options.audit.entity}`,
+      if (options?.audit) {
+        if (activeAuditWriter) {
+          await activeAuditWriter(tx, options.audit);
+        } else {
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error(
+              `[AuditWriterError] Active audit writer is required in production for [${options.audit.action}] on ${options.audit.entity}`,
+            );
+          }
+          logger.warn(
+            `Audit record requested for [${options.audit.action}] on ${options.audit.entity} (${options.audit.entityId ?? 'no id'}), but no audit writer is registered yet.`,
           );
         }
-        logger.warn(
-          `Audit record requested for [${options.audit.action}] on ${options.audit.entity} (${options.audit.entityId ?? 'no id'}), but no audit writer is registered yet.`,
-        );
       }
-    }
 
-    return result;
+      return result;
+    });
   });
 }

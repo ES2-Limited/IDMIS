@@ -78,6 +78,13 @@
       "when": 1793427300000,
       "tag": "0010_slis_change_log_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793427400000,
+      "tag": "0011_scope_sync_quarantine",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,6 @@ import {
   type SyncPushInput,
   type SyncPushResponse,
 } from '@idmis/contracts';
-import { eq, syncOp } from '@idmis/db';
 import { SyncRepository } from '../repositories/sync.repository';
 import { FarmerService } from './farmer.service';
 import { PlotService } from './plot.service';
@@ -84,17 +83,13 @@ export class SyncService {
       // Execute each op inside an atomic transaction:
       // Claim sync_op ON CONFLICT DO NOTHING in the same transaction as the domain write.
       const opResult = await runInTransaction(async (txDb) => {
-        const [claimed] = await txDb
-          .insert(syncOp)
-          .values({
-            opId: op.opId,
-            deviceId: input.deviceId,
-            entity: op.entity,
-            recordId: op.recordId,
-            outcome: 'pending',
-          })
-          .onConflictDoNothing()
-          .returning();
+        const [claimed] = await this.syncRepo.claimSyncOp(
+          op.opId,
+          input.deviceId,
+          op.entity,
+          op.recordId,
+          txDb,
+        );
 
         if (!claimed) {
           // Op already claimed or processed by a concurrent push
@@ -117,7 +112,7 @@ export class SyncService {
           const reason: 'device_revoked' | 'grant_expired' = isRevoked
             ? 'device_revoked'
             : 'grant_expired';
-          await txDb.update(syncOp).set({ outcome: 'quarantined' }).where(eq(syncOp.opId, op.opId));
+          await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'quarantined' }, txDb);
 
           const quarantined = await this.syncRepo.recordQuarantine(
             {
@@ -129,6 +124,8 @@ export class SyncService {
               baseVersion: op.baseVersion,
               payload: op.data,
               reason,
+              schemeId: typeof op.data?.schemeId === 'string' ? op.data.schemeId : undefined,
+              stateId: typeof op.data?.stateId === 'string' ? op.data.stateId : undefined,
             },
             txDb,
           );
@@ -144,8 +141,9 @@ export class SyncService {
         }
 
         // Domain Service Execution with Exact Same Permissions & Scope
+        let domainResult: { version?: number } | undefined;
         try {
-          const domainResult = await this.executeDomainOperation(
+          domainResult = await this.executeDomainOperation(
             op.entity,
             op.action,
             op.recordId,
@@ -154,22 +152,6 @@ export class SyncService {
             authz,
             actorUserId,
           );
-
-          await txDb
-            .update(syncOp)
-            .set({
-              outcome: 'applied',
-              newVersion: domainResult.version,
-            })
-            .where(eq(syncOp.opId, op.opId));
-
-          return {
-            opId: op.opId,
-            entity: op.entity,
-            recordId: op.recordId,
-            outcome: 'applied' as SyncOutcome,
-            newVersion: domainResult.version,
-          };
         } catch (err: unknown) {
           if (err instanceof ConflictProblemException) {
             let serverVer = err.currentVersion;
@@ -185,12 +167,7 @@ export class SyncService {
                   : 1;
             }
 
-            await txDb
-              .update(syncOp)
-              .set({
-                outcome: 'conflict',
-              })
-              .where(eq(syncOp.opId, op.opId));
+            await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'conflict' }, txDb);
 
             const currentPayload =
               err.current && typeof err.current === 'object'
@@ -227,13 +204,14 @@ export class SyncService {
             const status = typeof error.getStatus === 'function' ? error.getStatus() : 400;
             const errorObj = [{ status, detail: error.message || 'Operation failed' }];
 
-            await txDb
-              .update(syncOp)
-              .set({
+            await this.syncRepo.updateSyncOpOutcome(
+              op.opId,
+              {
                 outcome: 'rejected',
                 errors: errorObj,
-              })
-              .where(eq(syncOp.opId, op.opId));
+              },
+              txDb,
+            );
 
             return {
               opId: op.opId,
@@ -244,6 +222,25 @@ export class SyncService {
             };
           }
         }
+
+        // Domain write succeeded. Now update sync_op to 'applied' in the SAME transaction.
+        // A failure after the domain write rolls back BOTH the domain write and the sync_op claim.
+        await this.syncRepo.updateSyncOpOutcome(
+          op.opId,
+          {
+            outcome: 'applied',
+            newVersion: domainResult?.version,
+          },
+          txDb,
+        );
+
+        return {
+          opId: op.opId,
+          entity: op.entity,
+          recordId: op.recordId,
+          outcome: 'applied' as SyncOutcome,
+          newVersion: domainResult?.version,
+        };
       });
 
       results.push(opResult);
@@ -542,37 +539,39 @@ export class SyncService {
       throw new NotFoundException(`Sync conflict ${id} not found`);
     }
 
-    if (input.resolution === 'keep_server') {
-      return this.syncRepo.resolveConflict(id, actorUserId, 'resolved');
-    }
-
-    if (input.resolution === 'accept_device' || input.resolution === 'merge') {
-      const payload =
-        input.resolution === 'accept_device' ? conflict.devicePayload : input.mergedData;
-      if (!payload) {
-        throw new BadRequestException('Merged data is required for resolution mode "merge"');
+    return runInTransaction(async (txDb) => {
+      if (input.resolution === 'keep_server') {
+        return this.syncRepo.resolveConflict(id, actorUserId, 'resolved', txDb);
       }
 
-      // Apply resolution to entity
-      await this.executeDomainOperation(
-        conflict.entity,
-        'update',
-        conflict.recordId,
-        conflict.serverVersion,
-        payload as Record<string, unknown>,
-        authz,
-        actorUserId,
-      );
+      if (input.resolution === 'accept_device' || input.resolution === 'merge') {
+        const payload =
+          input.resolution === 'accept_device' ? conflict.devicePayload : input.mergedData;
+        if (!payload) {
+          throw new BadRequestException('Merged data is required for resolution mode "merge"');
+        }
 
-      return this.syncRepo.resolveConflict(id, actorUserId, 'resolved');
-    }
+        // Apply resolution to entity
+        await this.executeDomainOperation(
+          conflict.entity,
+          'update',
+          conflict.recordId,
+          conflict.serverVersion,
+          payload as Record<string, unknown>,
+          authz,
+          actorUserId,
+        );
 
-    throw new BadRequestException(`Unknown resolution strategy '${input.resolution}'`);
+        return this.syncRepo.resolveConflict(id, actorUserId, 'resolved', txDb);
+      }
+
+      throw new BadRequestException(`Unknown resolution strategy '${input.resolution}'`);
+    });
   }
 
   async listQuarantine(query: ListSyncQuarantineQuery, authz: UserAuthz) {
-    authz.scopeFor(permissions.SLIS_SYNC_CONFLICT_RESOLVE);
-    return this.syncRepo.listQuarantines(query);
+    const scope = authz.scopeFor(permissions.SLIS_SYNC_CONFLICT_RESOLVE);
+    return this.syncRepo.listQuarantines(scope, query);
   }
 
   async resolveQuarantine(
@@ -581,27 +580,29 @@ export class SyncService {
     authz: UserAuthz,
     reviewerId: string,
   ) {
-    authz.scopeFor(permissions.SLIS_SYNC_CONFLICT_RESOLVE);
-    const item = await this.syncRepo.findQuarantineById(id);
+    const scope = authz.scopeFor(permissions.SLIS_SYNC_CONFLICT_RESOLVE);
+    const item = await this.syncRepo.findQuarantineById(id, scope);
     if (!item) {
       throw new NotFoundException(`Quarantined operation ${id} not found`);
     }
 
-    if (input.resolution === 'applied') {
-      // Re-run domain operation with permission, scope, and validation checks
-      await this.executeDomainOperation(
-        item.entity,
-        item.action,
-        item.recordId,
-        item.baseVersion,
-        item.payload as Record<string, unknown>,
-        authz,
-        reviewerId,
-      );
+    return runInTransaction(async (txDb) => {
+      if (input.resolution === 'applied') {
+        // Re-run domain operation with permission, scope, and validation checks
+        await this.executeDomainOperation(
+          item.entity,
+          item.action,
+          item.recordId,
+          item.baseVersion,
+          item.payload as Record<string, unknown>,
+          authz,
+          reviewerId,
+        );
 
-      return this.syncRepo.resolveQuarantine(id, reviewerId, 'applied');
-    }
+        return this.syncRepo.resolveQuarantine(id, reviewerId, 'applied', undefined, txDb);
+      }
 
-    return this.syncRepo.resolveQuarantine(id, reviewerId, 'discarded');
+      return this.syncRepo.resolveQuarantine(id, reviewerId, 'discarded', undefined, txDb);
+    });
   }
 }
