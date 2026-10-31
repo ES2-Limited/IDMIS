@@ -22,6 +22,10 @@ export const ApiEnvSchema = z
     ENCRYPTION_KEY: z.string().min(32).optional(),
     ENCRYPTION_KEYS: z.string().optional(),
 
+    // Identity HMAC Hashing (HMAC-SHA256 with key rotation)
+    IDENTITY_HASH_KEY: z.string().min(32).optional(),
+    IDENTITY_HASH_KEYS: z.string().optional(),
+
     // API documentation & Swagger UI
     API_DOCS_ENABLED: z
       .preprocess((val) => {
@@ -39,14 +43,20 @@ export const ApiEnvSchema = z
       data.API_DOCS_ENABLED = data.NODE_ENV !== 'production';
     }
 
-    if (data.NODE_ENV === 'production' && !data.ENCRYPTION_KEY) {
-      if (data.JWT_SECRET === 'ci-only-jwt-secret-not-used-anywhere-else') {
-        data.ENCRYPTION_KEY = 'ci-only-encryption-key-for-docker-smoke-test-32bytes';
-      } else {
+    if (data.NODE_ENV === 'production') {
+      if (!data.ENCRYPTION_KEY) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['ENCRYPTION_KEY'],
           message: 'ENCRYPTION_KEY is required when NODE_ENV=production',
+        });
+      }
+
+      if (!data.IDENTITY_HASH_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['IDENTITY_HASH_KEY'],
+          message: 'IDENTITY_HASH_KEY is required when NODE_ENV=production',
         });
       }
     }

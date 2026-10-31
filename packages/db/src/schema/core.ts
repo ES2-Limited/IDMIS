@@ -34,6 +34,7 @@ import {
   geometryGeneric,
   standardColumns,
   standardUserColumns,
+  xid8,
 } from './common';
 
 export const coreSchema = pgSchema('core');
@@ -273,6 +274,7 @@ export const lookupValue = coreSchema.table(
     label: text('label').notNull(),
     sortOrder: integer('sort_order').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
+    metadata: jsonb('metadata'),
   },
   (table) => [uniqueIndex('lookup_value_type_code_unique').on(table.lookupTypeId, table.code)],
 );
@@ -514,4 +516,108 @@ export const outboxConsumption = coreSchema.table(
       .defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.handlerName] })],
+);
+
+// --- Offline Sync Protocol & Storage ---
+
+export const changeLog = coreSchema.table(
+  'change_log',
+  {
+    seq: bigint('seq', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    xid: xid8('xid')
+      .notNull()
+      .default(sql`pg_current_xact_id()`),
+    changedAt: timestamp('changed_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    entity: text('entity').notNull(),
+    recordId: uuid('record_id').notNull(),
+    op: text('op').notNull(), // 'upsert' | 'delete'
+    schemeId: uuid('scheme_id').references(() => organisation.id),
+    stateId: uuid('state_id').references(() => state.id),
+    basinId: uuid('basin_id'),
+    data: jsonb('data').notNull(),
+  },
+  (table) => [
+    index('change_log_xid_seq_idx').on(table.xid, table.seq),
+    index('change_log_scheme_xid_seq_idx').on(table.schemeId, table.xid, table.seq),
+    index('change_log_state_xid_seq_idx').on(table.stateId, table.xid, table.seq),
+    index('change_log_entity_record_idx').on(table.entity, table.recordId),
+  ],
+);
+
+export const syncOp = coreSchema.table(
+  'sync_op',
+  {
+    opId: uuid('op_id').primaryKey(),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => device.id),
+    entity: text('entity').notNull(),
+    recordId: uuid('record_id').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    outcome: text('outcome').notNull(), // 'applied' | 'rejected' | 'conflict' | 'quarantined'
+    newVersion: integer('new_version'),
+    errors: jsonb('errors'),
+  },
+  (table) => [
+    index('sync_op_device_id_idx').on(table.deviceId),
+    index('sync_op_record_id_idx').on(table.recordId),
+  ],
+);
+
+export const syncConflict = coreSchema.table(
+  'sync_conflict',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    opId: uuid('op_id')
+      .notNull()
+      .references(() => syncOp.opId),
+    entity: text('entity').notNull(),
+    recordId: uuid('record_id').notNull(),
+    baseVersion: integer('base_version').notNull(),
+    serverVersion: integer('server_version').notNull(),
+    devicePayload: jsonb('device_payload').notNull(),
+    serverPayload: jsonb('server_payload').notNull(),
+    status: text('status').notNull().default('open'), // 'open' | 'resolved'
+    resolvedBy: uuid('resolved_by').references(() => appUser.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true, mode: 'string' }),
+    schemeId: uuid('scheme_id').references(() => organisation.id),
+  },
+  (table) => [
+    index('sync_conflict_op_id_idx').on(table.opId),
+    index('sync_conflict_scheme_status_idx').on(table.schemeId, table.status),
+    index('sync_conflict_record_id_idx').on(table.recordId),
+  ],
+);
+
+export const syncQuarantine = coreSchema.table(
+  'sync_quarantine',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => device.id),
+    opId: uuid('op_id').notNull(),
+    entity: text('entity').notNull(),
+    action: text('action').notNull(), // 'create' | 'update' | 'delete'
+    recordId: uuid('record_id').notNull(),
+    baseVersion: integer('base_version').notNull(),
+    payload: jsonb('payload').notNull(),
+    reason: text('reason').notNull(), // 'grant_expired' | 'device_revoked'
+    quarantinedAt: timestamp('quarantined_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true, mode: 'string' }),
+    resolvedBy: uuid('resolved_by').references(() => appUser.id),
+    resolution: text('resolution'), // 'applied' | 'discarded'
+    auditLogId: uuid('audit_log_id').references(() => auditLog.id),
+  },
+  (table) => [
+    index('sync_quarantine_device_id_idx').on(table.deviceId),
+    index('sync_quarantine_quarantined_at_idx').on(table.quarantinedAt),
+    index('sync_quarantine_resolved_at_idx').on(table.resolvedAt),
+  ],
 );

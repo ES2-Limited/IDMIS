@@ -64,6 +64,13 @@
       "when": 1793262600110,
       "tag": "0008_condemned_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793340960312,
+      "tag": "0009_marvelous_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

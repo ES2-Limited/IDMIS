@@ -63,12 +63,48 @@ export const BASE_LOOKUPS = [
     name: 'Identification Document Type',
     module: 'slis' as const,
     values: [
-      { code: 'nin', label: 'National Identity Number (NIN)', sortOrder: 1 },
-      { code: 'bvn', label: 'Bank Verification Number (BVN)', sortOrder: 2 },
-      { code: 'voters_card', label: "Voter's Card", sortOrder: 3 },
-      { code: 'national_id', label: 'National ID Card', sortOrder: 4 },
-      { code: 'passport', label: 'International Passport', sortOrder: 5 },
-      { code: 'drivers_license', label: "Driver's License", sortOrder: 6 },
+      {
+        code: 'nin',
+        label: 'National Identity Number (NIN)',
+        sortOrder: 1,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'bvn',
+        label: 'Bank Verification Number (BVN)',
+        sortOrder: 2,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'voters_card',
+        label: "Voter's Card",
+        sortOrder: 3,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'national_id',
+        label: 'National ID Card',
+        sortOrder: 4,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'passport',
+        label: 'International Passport',
+        sortOrder: 5,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'drivers_license',
+        label: "Driver's License",
+        sortOrder: 6,
+        metadata: { unique_per_person: true },
+      },
+      {
+        code: 'bank_account',
+        label: 'Bank Account Number',
+        sortOrder: 7,
+        metadata: { unique_per_person: false },
+      },
     ],
   },
   {
@@ -371,6 +407,7 @@ export async function seed() {
           label: val.label,
           sortOrder: val.sortOrder,
           isActive: true,
+          metadata: 'metadata' in val ? (val.metadata as Record<string, unknown>) : null,
         })
         .onConflictDoNothing();
     }
