@@ -43,8 +43,10 @@ export async function applyDatabaseGrants(sqlClient: postgres.Sql, schemas = APP
       GRANT USAGE ON SCHEMA "${schemaName}" TO idmis_app;
       GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "${schemaName}" TO idmis_app;
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${schemaName}" TO idmis_app;
+      GRANT EXECUTE ON ALL ROUTINES IN SCHEMA "${schemaName}" TO idmis_app;
       ALTER DEFAULT PRIVILEGES IN SCHEMA "${schemaName}" GRANT USAGE, SELECT ON SEQUENCES TO idmis_app;
       ALTER DEFAULT PRIVILEGES IN SCHEMA "${schemaName}" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO idmis_app;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA "${schemaName}" GRANT EXECUTE ON ROUTINES TO idmis_app;
     `);
   }
 

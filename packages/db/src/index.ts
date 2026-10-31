@@ -24,6 +24,7 @@ export * from './constants';
 export * from './schema/index';
 export * from 'drizzle-orm';
 export type { AnyPgColumn, PgColumn } from 'drizzle-orm/pg-core';
+export { alias } from 'drizzle-orm/pg-core';
 export { default as postgres } from 'postgres';
 export { drizzle } from 'drizzle-orm/postgres-js';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
