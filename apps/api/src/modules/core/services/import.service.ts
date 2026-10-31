@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
@@ -14,23 +16,10 @@ import {
   type ImportRowStatus,
   type ImportProgressMessage,
 } from '@idmis/contracts';
-import {
-  db,
-  wua,
-  wuaOfficer,
-  organisation,
-  organisationState,
-  ward,
-  lga,
-  file,
-  importRow,
-  outboxEvent,
-  eq,
-  and,
-  isNull,
-} from '@idmis/db';
+import { db, organisationState, file, importRow, outboxEvent, eq, and, isNull } from '@idmis/db';
 import { ImportRepository } from '../repositories/import.repository';
 import { ImportTemplateService } from './import-template.service';
+import { ImportHandlerRegistry } from '../imports/import-handler.registry';
 import { StorageService } from '../../../platform/storage/storage.service';
 import { EncryptionService } from '../../../platform/security/encryption.service';
 import { RedisService } from '../../../platform/redis/redis.service';
@@ -51,6 +40,8 @@ export class ImportService {
     private readonly storageService: StorageService,
     private readonly encryptionService: EncryptionService,
     private readonly redisService: RedisService,
+    @Inject(forwardRef(() => ImportHandlerRegistry))
+    private readonly registry: ImportHandlerRegistry,
   ) {}
 
   private getEmbeddedTemplateVersion(workbook: ExcelJS.Workbook): number | null {
@@ -91,7 +82,8 @@ export class ImportService {
   }
 
   async initiateImport(input: InitiateImportInput, authz: UserAuthz) {
-    if (input.dataset !== 'wua') {
+    const handler = this.registry.get(input.dataset);
+    if (!handler) {
       throw new BadRequestException(`Unsupported dataset: ${input.dataset}`);
     }
 
@@ -129,12 +121,16 @@ export class ImportService {
       derivedStateId = link?.stateId ?? null;
     }
 
-    const scope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
-    if (!scope.isNational) {
+    const scope = authz.scopeFor(handler.permission);
+    const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
+
+    if (!scope.isNational && !baseScope.isNational) {
       const hasStateAccess =
-        derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId);
+        (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
+        (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
       const hasSchemeAccess =
-        input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId);
+        (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
+        (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
       if (!hasStateAccess && !hasSchemeAccess) {
         throw new ForbiddenException('Target location is outside your assigned scope');
       }
@@ -202,10 +198,19 @@ export class ImportService {
       throw new NotFoundException(`Import batch ${batchId} not found`);
     }
 
-    const scope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
-    if (!scope.isNational) {
-      const matchState = batch.stateId && scope.stateIds?.includes(batch.stateId);
-      const matchScheme = batch.schemeId && scope.schemeIds?.includes(batch.schemeId);
+    const handler = this.registry.get(batch.dataset);
+    const scope = handler
+      ? authz.scopeFor(handler.permission)
+      : authz.scopeFor(permissions.CORE_IMPORT_RUN);
+    const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
+
+    if (!scope.isNational && !baseScope.isNational) {
+      const matchState =
+        (batch.stateId && scope.stateIds?.includes(batch.stateId)) ||
+        (batch.stateId && baseScope.stateIds?.includes(batch.stateId));
+      const matchScheme =
+        (batch.schemeId && scope.schemeIds?.includes(batch.schemeId)) ||
+        (batch.schemeId && baseScope.schemeIds?.includes(batch.schemeId));
       if (!matchState && !matchScheme) {
         throw new NotFoundException(`Import batch ${batchId} not found`);
       }
@@ -262,8 +267,17 @@ export class ImportService {
       throw new NotFoundException(`Import batch ${batchId} not found`);
     }
 
+    const handler = this.registry.get(batch.dataset);
+    if (!handler) {
+      await this.importRepo.updateBatch(batchId, {
+        status: 'validation_failed',
+        errorMessage: `Unsupported dataset handler: ${batch.dataset}`,
+      });
+      return;
+    }
+
     await this.importRepo.updateBatch(batchId, { status: 'validating' });
-    await this.publishProgress(batchId, 'validating', 10, 'Reading file contents');
+    await this.publishProgress(batchId, batch.dataset, 'validating', 10, 'Reading file contents');
 
     const [fileRow] = await db.select().from(file).where(eq(file.id, batch.fileId)).limit(1);
     if (!fileRow) {
@@ -280,7 +294,7 @@ export class ImportService {
         status: 'validation_failed',
         errorMessage,
       });
-      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage);
+      await this.publishProgress(batchId, batch.dataset, 'validation_failed', 100, errorMessage);
       return;
     }
 
@@ -308,16 +322,15 @@ export class ImportService {
       return;
     }
 
-    // 1. Template Version Gate: refuse workbooks whose embedded template version ≠ current definition version
-    const def = this.templateService.getDefinition(batch.dataset);
+    // 1. Template Version Gate: refuse workbooks whose embedded template version ≠ handler version
     const embeddedVersion = this.getEmbeddedTemplateVersion(workbook);
-    if (!embeddedVersion || embeddedVersion !== def.version) {
-      const errorMessage = `Workbook template version mismatch. Expected version ${def.version} but found ${embeddedVersion ?? 'none'}. Please download the latest template.`;
+    if (!embeddedVersion || embeddedVersion !== handler.version) {
+      const errorMessage = `Workbook template version mismatch. Expected version ${handler.version} but found ${embeddedVersion ?? 'none'}. Please download the latest template.`;
       await this.importRepo.updateBatch(batchId, {
         status: 'validation_failed',
         errorMessage,
       });
-      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage);
+      await this.publishProgress(batchId, batch.dataset, 'validation_failed', 100, errorMessage);
 
       await db.insert(outboxEvent).values({
         eventType: 'core.import.validated',
@@ -355,7 +368,7 @@ export class ImportService {
         status: 'validation_failed',
         errorMessage,
       });
-      await this.publishProgress(batchId, 'validation_failed', 100, errorMessage, {
+      await this.publishProgress(batchId, batch.dataset, 'validation_failed', 100, errorMessage, {
         totalRows: totalDataRows,
       });
 
@@ -385,7 +398,22 @@ export class ImportService {
         .trim()
         .toLowerCase()
         .replace(/\s*\*/g, '');
-      if (val.includes('name') && val.includes('wua')) colMap.set(colNumber, 'name');
+
+      // Match handler column definition
+      const matched = handler.columns.find((c) => {
+        const colNameLower = c.name.toLowerCase();
+        const colHeaderLower = c.header.toLowerCase().replace(/\s*\*/g, '');
+        return val === colNameLower || val === colHeaderLower;
+      });
+
+      if (matched) {
+        colMap.set(colNumber, matched.name);
+        return;
+      }
+
+      // Dataset-agnostic fallback heuristics
+      if (val.includes('name') && (val.includes('wua') || val.includes('group')))
+        colMap.set(colNumber, 'name');
       else if (val.includes('reg') || val.includes('registration')) colMap.set(colNumber, 'regNo');
       else if (val === 'level') colMap.set(colNumber, 'level');
       else if (val.includes('scheme')) colMap.set(colNumber, 'schemeCode');
@@ -408,157 +436,99 @@ export class ImportService {
     let validCount = 0;
     let errorCount = 0;
 
-    // Cache organisations & wards for fast lookup
-    const allSchemes = await db
-      .select({
-        id: organisation.id,
-        code: organisation.code,
-        stateId: organisationState.stateId,
-      })
-      .from(organisation)
-      .leftJoin(organisationState, eq(organisation.id, organisationState.organisationId))
-      .where(isNull(organisation.deletedAt));
-    const schemeMap = new Map(allSchemes.map((s) => [s.code.toUpperCase(), s]));
-
-    const allWards = await db
-      .select({ id: ward.id, code: ward.code, stateId: lga.stateId })
-      .from(ward)
-      .innerJoin(lga, eq(ward.lgaId, lga.id));
-    const wardMap = new Map(allWards.map((w) => [w.code.toUpperCase(), w]));
-
-    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-      const row = worksheet.getRow(rowNumber);
-      if (!row.hasValues) continue;
-
-      const rawData: Record<string, unknown> = {};
-      const errors: Array<{ column: string; message: string; code?: string }> = [];
-
-      colMap.forEach((fieldKey, colNumber) => {
-        const cell = row.getCell(colNumber);
-        let cellVal: unknown = cell.value;
-        const isFormula =
-          cell.type === ExcelJS.ValueType.Formula ||
-          Boolean(cell.formula) ||
-          (cellVal !== null && typeof cellVal === 'object' && 'formula' in cellVal);
-
-        if (cellVal !== null && typeof cellVal === 'object' && 'result' in cellVal) {
-          cellVal = (cellVal as { result: unknown }).result;
-        }
-
-        // On IMPORT: reject only real formula cells (cell.type === Formula / cell.formula)
-        // and string values starting with "=". Allow values starting with + - @ (phone numbers like +2348031234567, negative numbers).
-        const isStringFormula = typeof cellVal === 'string' && cellVal.startsWith('=');
-
-        // Reject formula cells with a per-cell error (don't prefix and store)
-        if (isFormula || isStringFormula) {
-          errors.push({
-            column: fieldKey,
-            message: 'Formula cells and values starting with = are forbidden',
-            code: 'FORMULA_FORBIDDEN',
-          });
-        }
-
-        rawData[fieldKey] = cellVal;
-      });
-
-      // Skip row if it looks completely empty
-      if (Object.keys(rawData).length === 0 || !rawData.name) continue;
-
-      const parsedData: Record<string, unknown> = { ...rawData };
-
-      // Field Validations
-      const name = String(rawData.name || '').trim();
-      if (!name) {
-        errors.push({ column: 'name', message: 'WUA Name is required' });
-      }
-
-      const level = String(rawData.level || '')
-        .trim()
-        .toLowerCase();
-      if (!['apex', 'sector', 'unit'].includes(level)) {
-        errors.push({
-          column: 'level',
-          message: "Level must be one of 'apex', 'sector', or 'unit'",
-        });
-      } else {
-        parsedData.level = level;
-      }
-
-      const schemeCode = String(rawData.schemeCode || '')
-        .trim()
-        .toUpperCase();
-      if (!schemeCode) {
-        errors.push({ column: 'schemeCode', message: 'Scheme Code is required' });
-      } else {
-        const foundScheme = schemeMap.get(schemeCode);
-        if (!foundScheme) {
-          errors.push({
-            column: 'schemeCode',
-            message: `Referenced Scheme Code '${schemeCode}' does not exist`,
-          });
-        } else {
-          parsedData.organisationId = foundScheme.id;
-          parsedData.stateId = foundScheme.stateId;
-        }
-      }
-
-      if (rawData.wardCode) {
-        const wardCode = String(rawData.wardCode).trim().toUpperCase();
-        const foundWard = wardMap.get(wardCode);
-        if (!foundWard) {
-          errors.push({
-            column: 'wardCode',
-            message: `Referenced Ward Code '${wardCode}' does not exist`,
-          });
-        } else {
-          parsedData.wardId = foundWard.id;
-        }
-      }
-
-      // Natural Key duplicate detection
-      const regNo = rawData.regNo ? String(rawData.regNo).trim() : null;
-      const naturalKey = regNo ? `${regNo}#${schemeCode}` : `${name}#${schemeCode}`;
-      if (seenNaturalKeys.has(naturalKey)) {
-        errors.push({
-          column: 'regNo',
-          message: `Duplicate natural key '${naturalKey}' found in the same file`,
-        });
-      } else {
-        seenNaturalKeys.add(naturalKey);
-      }
-
-      // Boolean parsing
-      if (rawData.isOperational !== undefined) {
-        parsedData.isOperational = Boolean(
-          rawData.isOperational === true ||
-          String(rawData.isOperational).toLowerCase() === 'true' ||
-          String(rawData.isOperational).toLowerCase() === 'yes',
-        );
-      }
-      if (rawData.hasMaintenanceFund !== undefined) {
-        parsedData.hasMaintenanceFund = Boolean(
-          rawData.hasMaintenanceFund === true ||
-          String(rawData.hasMaintenanceFund).toLowerCase() === 'true' ||
-          String(rawData.hasMaintenanceFund).toLowerCase() === 'yes',
-        );
-      }
-
-      const status: ImportRowStatus = errors.length === 0 ? 'valid' : 'error';
-      if (status === 'valid') validCount++;
-      else errorCount++;
-
-      rowsToInsert.push({
-        batchId,
-        rowNumber,
-        rawData,
-        parsedData,
-        status,
-        errors,
-        naturalKey,
-      });
-    }
+    // Scope for validation: National or batch state/scheme
+    const scope: import('@idmis/contracts').RequestScope = {
+      isNational: !batch.stateId && !batch.schemeId,
+      stateIds: batch.stateId ? [batch.stateId] : [],
+      rbdaIds: [],
+      schemeIds: batch.schemeId ? [batch.schemeId] : [],
+      sectorIds: [],
+    };
 
     await runInTransaction(async (txDb) => {
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        if (!row.hasValues) continue;
+
+        let rawData: Record<string, unknown> = {};
+        const errors: Array<{ column: string; message: string; code?: string }> = [];
+
+        colMap.forEach((fieldKey, colNumber) => {
+          const cell = row.getCell(colNumber);
+          let cellVal: unknown = cell.value;
+          const isFormula =
+            cell.type === ExcelJS.ValueType.Formula ||
+            Boolean(cell.formula) ||
+            (cellVal !== null && typeof cellVal === 'object' && 'formula' in cellVal);
+
+          if (cellVal !== null && typeof cellVal === 'object' && 'result' in cellVal) {
+            cellVal = (cellVal as { result: unknown }).result;
+          }
+
+          // On IMPORT: reject formula cells and strings starting with '='
+          const isStringFormula = typeof cellVal === 'string' && cellVal.startsWith('=');
+          if (isFormula || isStringFormula) {
+            errors.push({
+              column: fieldKey,
+              message: 'Formula cells and values starting with = are forbidden',
+              code: 'FORMULA_FORBIDDEN',
+            });
+          }
+
+          rawData[fieldKey] = cellVal;
+        });
+
+        // Skip completely empty rows
+        const hasAnyValue = Object.values(rawData).some(
+          (v) => v !== null && v !== undefined && String(v).trim() !== '',
+        );
+        if (!hasAnyValue) continue;
+
+        // Parse row through handler
+        const parseResult = await handler.parseRow(rawData, { batch });
+        rawData = parseResult.rawData;
+        const parsedData = parseResult.parsedData;
+        if (parseResult.errors) {
+          errors.push(...parseResult.errors);
+        }
+
+        // Natural key duplicate detection in same file
+        const naturalKey = handler.naturalKey(parsedData, rawData);
+        if (naturalKey) {
+          if (seenNaturalKeys.has(naturalKey)) {
+            errors.push({
+              column: handler.columns[0]?.name || 'naturalKey',
+              message: `Duplicate natural key '${naturalKey}' found in the same file`,
+              code: 'DUPLICATE_NATURAL_KEY',
+            });
+          } else {
+            seenNaturalKeys.add(naturalKey);
+          }
+        }
+
+        // Validate row through handler
+        const validationErrors = await handler.validateRow(
+          { rowNumber, rawData, parsedData },
+          scope,
+          txDb,
+        );
+        errors.push(...validationErrors);
+
+        const status: ImportRowStatus = errors.length === 0 ? 'valid' : 'error';
+        if (status === 'valid') validCount++;
+        else errorCount++;
+
+        rowsToInsert.push({
+          batchId,
+          rowNumber,
+          rawData,
+          parsedData,
+          status,
+          errors,
+          naturalKey,
+        });
+      }
+
       await txDb.delete(importRow).where(eq(importRow.batchId, batchId));
       await this.importRepo.createRows(rowsToInsert, txDb);
     });
@@ -576,6 +546,7 @@ export class ImportService {
 
     await this.publishProgress(
       batchId,
+      batch.dataset,
       finalStatus,
       100,
       `Validation complete. ${validCount} valid, ${errorCount} errors.`,
@@ -583,7 +554,7 @@ export class ImportService {
     );
 
     // Write outbox event
-    await db.insert((await import('@idmis/db')).outboxEvent).values({
+    await db.insert(outboxEvent).values({
       eventType: 'core.import.validated',
       eventVersion: 1,
       aggregateType: 'import_batch',
@@ -609,8 +580,45 @@ export class ImportService {
       );
     }
 
+    const handler = this.registry.get(batch.dataset);
+    if (!handler) {
+      throw new BadRequestException(`Unsupported dataset handler: ${batch.dataset}`);
+    }
+
+    // Gate 2: Commit Gate — verify current user's active scope covers all rows
+    const commitScope = authz.scopeFor(handler.permission);
+    if (!commitScope.isNational) {
+      const validRowsForCheck = await this.importRepo.listRows(batchId, {
+        status: 'valid',
+        limit: 10000,
+      });
+
+      for (const row of validRowsForCheck) {
+        const data = row.parsedData as Record<string, unknown>;
+        const rowStateId = (data.stateId as string | undefined) ?? batch.stateId ?? null;
+        const rowSchemeId =
+          (data.schemeId as string | undefined) ??
+          (data.organisationId as string | undefined) ??
+          batch.schemeId ??
+          null;
+
+        const stateMatch = Boolean(rowStateId && commitScope.stateIds?.includes(rowStateId));
+        const schemeMatch = Boolean(rowSchemeId && commitScope.schemeIds?.includes(rowSchemeId));
+
+        if (!stateMatch && !schemeMatch) {
+          throw new ForbiddenException('Target location is outside your assigned scope');
+        }
+      }
+    }
+
     await this.importRepo.updateBatch(batchId, { status: 'committing' });
-    await this.publishProgress(batchId, 'committing', 10, 'Starting commit transaction');
+    await this.publishProgress(
+      batchId,
+      batch.dataset,
+      'committing',
+      10,
+      'Starting commit transaction',
+    );
 
     const validRows = await this.importRepo.listRows(batchId, {
       status: 'valid',
@@ -622,91 +630,17 @@ export class ImportService {
         let committedCount = 0;
 
         for (const row of validRows) {
-          const data = row.parsedData as Record<string, unknown>;
-          const orgId = data.organisationId as string;
-          const regNo = data.regNo ? String(data.regNo) : null;
-          const name = String(data.name);
-
-          // Check for existing record
-          const existingQuery = regNo
-            ? and(eq(wua.organisationId, orgId), eq(wua.regNo, regNo), isNull(wua.deletedAt))
-            : and(eq(wua.organisationId, orgId), eq(wua.name, name), isNull(wua.deletedAt));
-
-          const [existing] = await txDb.select().from(wua).where(existingQuery).limit(1);
-
-          let targetEntityId: string;
-          let beforeImage: Record<string, unknown> | null = null;
-
-          if (existing) {
-            // Upsert: capture before-image
-            beforeImage = {
-              id: existing.id,
-              name: existing.name,
-              level: existing.level,
-              regNo: existing.regNo,
-              address: existing.address,
-              bankName: existing.bankName,
-              bankAccountEnc: existing.bankAccountEnc
-                ? Buffer.from(existing.bankAccountEnc).toString('base64')
-                : null,
-              isOperational: existing.isOperational,
-              hasMaintenanceFund: existing.hasMaintenanceFund,
-              version: existing.version,
-            };
-
-            const bankAccountEnc = data.bankAccountNumber
-              ? this.encryptionService.encrypt(String(data.bankAccountNumber))
-              : existing.bankAccountEnc;
-
-            const [updated] = await txDb
-              .update(wua)
-              .set({
-                name,
-                level: data.level as 'apex' | 'sector' | 'unit',
-                address: data.address ? String(data.address) : existing.address,
-                bankName: data.bankName ? String(data.bankName) : existing.bankName,
-                bankAccountEnc,
-                isOperational: (data.isOperational as boolean) ?? existing.isOperational,
-                hasMaintenanceFund:
-                  (data.hasMaintenanceFund as boolean) ?? existing.hasMaintenanceFund,
-                importBatchId: batchId,
-                updatedBy: authz.userId,
-                updatedAt: new Date().toISOString(),
-                version: existing.version + 1,
-              })
-              .where(eq(wua.id, existing.id))
-              .returning();
-
-            targetEntityId = updated!.id;
-          } else {
-            // Create new record
-            const bankAccountEnc = data.bankAccountNumber
-              ? this.encryptionService.encrypt(String(data.bankAccountNumber))
-              : null;
-
-            const [created] = await txDb
-              .insert(wua)
-              .values({
-                id: crypto.randomUUID(),
-                organisationId: orgId,
-                wardId: (data.wardId as string) || null,
-                stateId: (data.stateId as string) || null,
-                name,
-                level: data.level as 'apex' | 'sector' | 'unit',
-                regNo,
-                address: data.address ? String(data.address) : null,
-                bankName: data.bankName ? String(data.bankName) : null,
-                bankAccountEnc,
-                isOperational: Boolean(data.isOperational),
-                hasMaintenanceFund: Boolean(data.hasMaintenanceFund),
-                importBatchId: batchId,
-                createdBy: authz.userId,
-                updatedBy: authz.userId,
-              })
-              .returning();
-
-            targetEntityId = created!.id;
-          }
+          const { targetEntityId, beforeImage } = await handler.commitRow(
+            {
+              id: row.id,
+              rowNumber: row.rowNumber,
+              rawData: row.rawData as Record<string, unknown>,
+              parsedData: row.parsedData as Record<string, unknown>,
+              batchId,
+            },
+            authz,
+            txDb,
+          );
 
           await this.importRepo.updateRow(
             row.id,
@@ -761,6 +695,7 @@ export class ImportService {
 
     await this.publishProgress(
       batchId,
+      batch.dataset,
       'committed',
       100,
       `Successfully committed ${validRows.length} rows.`,
@@ -778,8 +713,13 @@ export class ImportService {
       );
     }
 
+    const handler = this.registry.get(batch.dataset);
+    if (!handler) {
+      throw new BadRequestException(`Unsupported dataset handler: ${batch.dataset}`);
+    }
+
     await this.importRepo.updateBatch(batchId, { status: 'undoing' });
-    await this.publishProgress(batchId, 'undoing', 10, 'Starting undo operation');
+    await this.publishProgress(batchId, batch.dataset, 'undoing', 10, 'Starting undo operation');
 
     const committedRows = await this.importRepo.listRows(batchId, {
       status: 'committed',
@@ -794,100 +734,25 @@ export class ImportService {
         for (const row of committedRows) {
           if (!row.targetEntityId) continue;
 
-          // Fetch current record state
-          const [current] = await txDb
-            .select()
-            .from(wua)
-            .where(and(eq(wua.id, row.targetEntityId), isNull(wua.deletedAt)))
-            .limit(1);
+          const res = await handler.undoRow(
+            {
+              id: row.id,
+              rowNumber: row.rowNumber,
+              targetEntityId: row.targetEntityId,
+              beforeImage: row.beforeImage as Record<string, unknown> | null,
+              parsedData: row.parsedData,
+            },
+            authz,
+            txDb,
+          );
 
-          if (!current) {
+          if (res.skipped) {
             skippedRows.push({
               rowNumber: row.rowNumber,
               entityId: row.targetEntityId,
-              reason: 'Record no longer exists or was already deleted',
+              reason: res.reason ?? 'Skipped by dataset handler',
             });
-            continue;
-          }
-
-          if (row.beforeImage) {
-            // Updated row: verify current version matches version written by import
-            const prev = row.beforeImage as Record<string, unknown>;
-            const expectedVersion = ((prev.version as number) || 1) + 1;
-
-            if (current.version !== expectedVersion) {
-              skippedRows.push({
-                rowNumber: row.rowNumber,
-                entityId: row.targetEntityId,
-                reason: `Record version mismatch: expected ${expectedVersion} but found ${current.version} (modified after import)`,
-              });
-              continue;
-            }
-
-            // Restore previous state
-            await txDb
-              .update(wua)
-              .set({
-                name: prev.name as string,
-                level: prev.level as 'apex' | 'sector' | 'unit',
-                regNo: prev.regNo ? String(prev.regNo) : null,
-                address: prev.address ? String(prev.address) : null,
-                bankName: prev.bankName ? String(prev.bankName) : null,
-                bankAccountEnc: prev.bankAccountEnc
-                  ? Buffer.from(prev.bankAccountEnc as string, 'base64')
-                  : null,
-                isOperational: Boolean(prev.isOperational),
-                hasMaintenanceFund: Boolean(prev.hasMaintenanceFund),
-                updatedBy: authz.userId,
-                updatedAt: new Date().toISOString(),
-                version: current.version + 1,
-              })
-              .where(eq(wua.id, row.targetEntityId));
-
-            undoneRowsCount++;
           } else {
-            // Inserted row: verify current version is 1 (the version written on insert)
-            const expectedVersion = 1;
-            if (current.version !== expectedVersion) {
-              skippedRows.push({
-                rowNumber: row.rowNumber,
-                entityId: row.targetEntityId,
-                reason: `Record version mismatch: expected ${expectedVersion} but found ${current.version} (modified after import)`,
-              });
-              continue;
-            }
-
-            // Check if inserted row is now referenced by other records
-            const [officerRef] = await txDb
-              .select({ id: wuaOfficer.id })
-              .from(wuaOfficer)
-              .where(and(eq(wuaOfficer.wuaId, row.targetEntityId), isNull(wuaOfficer.deletedAt)))
-              .limit(1);
-
-            const [childWuaRef] = await txDb
-              .select({ id: wua.id })
-              .from(wua)
-              .where(and(eq(wua.parentId, row.targetEntityId), isNull(wua.deletedAt)))
-              .limit(1);
-
-            if (officerRef || childWuaRef) {
-              skippedRows.push({
-                rowNumber: row.rowNumber,
-                entityId: row.targetEntityId,
-                reason: 'Inserted record is referenced by other records (officers or child WUAs)',
-              });
-              continue;
-            }
-
-            // Delete created record
-            await txDb
-              .update(wua)
-              .set({
-                deletedAt: new Date().toISOString(),
-                updatedBy: authz.userId,
-              })
-              .where(eq(wua.id, row.targetEntityId));
-
             undoneRowsCount++;
           }
         }
@@ -939,6 +804,7 @@ export class ImportService {
 
     await this.publishProgress(
       batchId,
+      batch.dataset,
       'undone',
       100,
       `Undo completed: ${undoneRowsCount} undone, ${skippedRows.length} skipped.`,
@@ -976,6 +842,7 @@ export class ImportService {
 
   private async publishProgress(
     batchId: string,
+    dataset: string,
     status: ImportProgressMessage['status'],
     progress: number,
     message?: string,
@@ -983,7 +850,7 @@ export class ImportService {
   ) {
     const payload: ImportProgressMessage = {
       batchId,
-      dataset: 'wua',
+      dataset,
       status,
       progress,
       totalRows: extra?.totalRows ?? 0,

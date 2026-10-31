@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import type { RequestScope, ListPlotsQuery, RecordStatus, ServiceType } from '@idmis/contracts';
 import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
+import { txStorage } from '../../../platform/database/transaction.helper';
 
 export interface CreatePlotData {
   id?: string;
@@ -22,6 +23,8 @@ export interface CreatePlotData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface UpdatePlotData {
@@ -41,11 +44,12 @@ export interface UpdatePlotData {
 
 @Injectable()
 export class PlotRepository {
-  async listPlots(
-    scope: RequestScope,
-    filters: Partial<ListPlotsQuery> = {},
-    txDb: DatabaseOrTx = db,
-  ) {
+  private getDb(txDb?: DatabaseOrTx): DatabaseOrTx {
+    return txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
+  }
+
+  async listPlots(scope: RequestScope, filters: Partial<ListPlotsQuery> = {}, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const limit = Math.min(filters.limit ?? 50, 100);
     const conditions: SQL[] = [];
 
@@ -87,7 +91,7 @@ export class PlotRepository {
       conditions.push(gt(plot.id, filters.cursor));
     }
 
-    const rows = await txDb
+    const rows = await client
       .select()
       .from(plot)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -101,7 +105,8 @@ export class PlotRepository {
     return { items, nextCursor };
   }
 
-  async findById(id: string, scope?: RequestScope, txDb: DatabaseOrTx = db) {
+  async findById(id: string, scope?: RequestScope, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const conditions: SQL[] = [eq(plot.id, id)];
     if (scope) {
       const scopeCond = applyScope(scope, {
@@ -111,7 +116,7 @@ export class PlotRepository {
       if (scopeCond) conditions.push(scopeCond);
     }
 
-    const rows = await txDb
+    const rows = await client
       .select()
       .from(plot)
       .where(and(...conditions))
@@ -120,9 +125,10 @@ export class PlotRepository {
     return rows[0] ?? null;
   }
 
-  async create(data: CreatePlotData, txDb: DatabaseOrTx = db) {
+  async create(data: CreatePlotData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const creator = data.createdBy ?? SYSTEM_USER_ID;
-    const rows = await txDb
+    const rows = await client
       .insert(plot)
       .values({
         ...data,
@@ -133,6 +139,9 @@ export class PlotRepository {
             ? String(data.gpsAccuracyM)
             : null,
         status: data.status ?? 'draft',
+        submittedBy: data.submittedBy ?? (data.status === 'submitted' ? creator : null),
+        submittedAt:
+          data.submittedAt ?? (data.status === 'submitted' ? new Date().toISOString() : null),
         version: 1,
         createdBy: creator,
         updatedBy: creator,
@@ -142,7 +151,8 @@ export class PlotRepository {
     return rows[0]!;
   }
 
-  async update(id: string, expectedVersion: number, data: UpdatePlotData, txDb: DatabaseOrTx = db) {
+  async update(id: string, expectedVersion: number, data: UpdatePlotData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
     const updatePayload: Record<string, unknown> = {
       updatedAt: new Date().toISOString(),
       version: sql`${plot.version} + 1`,
@@ -164,7 +174,7 @@ export class PlotRepository {
     if (data.updatedBy !== undefined && data.updatedBy !== null)
       updatePayload.updatedBy = data.updatedBy;
 
-    const rows = await txDb
+    const rows = await client
       .update(plot)
       .set(updatePayload)
       .where(and(eq(plot.id, id), eq(plot.version, expectedVersion)))

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type OnModuleInit, forwardRef } from '@nestjs/common';
 import { EncryptionService } from '../../platform/security/encryption.service';
 import { IdentityHashService } from '../../platform/security/identity-hash.service';
 import { FarmerRepository } from './repositories/farmer.repository';
@@ -34,9 +34,21 @@ import { ReviewController } from './controllers/review.controller';
 import { SyncRepository } from './repositories/sync.repository';
 import { SyncService } from './services/sync.service';
 import { SyncController } from './controllers/sync.controller';
+import { FeeRepository } from './repositories/fee.repository';
+import { FeeService } from './services/fee.service';
 import { BlisStationStubService } from '../blis/public';
+import { CoreModule } from '../core/core.module';
+import { ImportHandlerRegistry } from '../core/public';
+import { FarmerImportHandler } from './imports/farmer.handler';
+import { PlotImportHandler } from './imports/plot.handler';
+import { FeeBillingImportHandler } from './imports/fee-billing.handler';
+import { FeeCollectionImportHandler } from './imports/fee-collection.handler';
+import { WaterRequestImportHandler } from './imports/water-request.handler';
+import { TrainingImportHandler } from './imports/training.handler';
+import { CropProductionImportHandler } from './imports/crop-production.handler';
 
 @Module({
+  imports: [forwardRef(() => CoreModule)],
   controllers: [
     FarmerController,
     HouseholdController,
@@ -76,6 +88,15 @@ import { BlisStationStubService } from '../blis/public';
     ReviewService,
     SyncRepository,
     SyncService,
+    FeeRepository,
+    FeeService,
+    FarmerImportHandler,
+    PlotImportHandler,
+    FeeBillingImportHandler,
+    FeeCollectionImportHandler,
+    WaterRequestImportHandler,
+    TrainingImportHandler,
+    CropProductionImportHandler,
   ],
   exports: [
     EncryptionService,
@@ -103,6 +124,36 @@ import { BlisStationStubService } from '../blis/public';
     ReviewService,
     SyncRepository,
     SyncService,
+    FeeRepository,
+    FeeService,
+    FarmerImportHandler,
+    PlotImportHandler,
+    FeeBillingImportHandler,
+    FeeCollectionImportHandler,
+    WaterRequestImportHandler,
+    TrainingImportHandler,
+    CropProductionImportHandler,
   ],
 })
-export class SlisModule {}
+export class SlisModule implements OnModuleInit {
+  constructor(
+    private readonly registry: ImportHandlerRegistry,
+    private readonly farmerHandler: FarmerImportHandler,
+    private readonly plotHandler: PlotImportHandler,
+    private readonly feeBillingHandler: FeeBillingImportHandler,
+    private readonly feeCollectionHandler: FeeCollectionImportHandler,
+    private readonly waterRequestHandler: WaterRequestImportHandler,
+    private readonly trainingHandler: TrainingImportHandler,
+    private readonly cropProductionHandler: CropProductionImportHandler,
+  ) {}
+
+  onModuleInit() {
+    this.registry.register(this.farmerHandler);
+    this.registry.register(this.plotHandler);
+    this.registry.register(this.feeBillingHandler);
+    this.registry.register(this.feeCollectionHandler);
+    this.registry.register(this.waterRequestHandler);
+    this.registry.register(this.trainingHandler);
+    this.registry.register(this.cropProductionHandler);
+  }
+}

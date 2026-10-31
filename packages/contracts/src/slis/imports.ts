@@ -20,6 +20,7 @@ export type SlisImportDataset = z.infer<typeof SlisImportDatasetSchema>;
  */
 export const FarmerImportRowSchema = z.object({
   farmerCode: z.string().min(1).max(50),
+  schemeCode: z.string().optional(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   otherNames: z.string().optional(),
@@ -49,6 +50,9 @@ export const PlotImportRowSchema = z.object({
     .regex(/^\d+(\.\d{1,4})?$/)
     .optional(),
   wktGeometry: z.string().optional(),
+  farmerCode: z.string().optional(),
+  seasonName: z.string().optional(),
+  tenureKey: z.string().optional(),
 });
 export type PlotImportRow = z.infer<typeof PlotImportRowSchema>;
 
@@ -59,7 +63,12 @@ export const FeeBillingImportRowSchema = z.object({
   seasonName: z.string().min(1),
   targetType: z.enum(['wua', 'farmer']),
   targetCode: z.string().min(1), // WUA regNo or farmerCode
+  plotCode: z.string().optional(),
   amountNgn: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 export type FeeBillingImportRow = z.infer<typeof FeeBillingImportRowSchema>;
 
@@ -70,9 +79,10 @@ export const FeeCollectionImportRowSchema = z.object({
   seasonName: z.string().min(1),
   targetType: z.enum(['wua', 'farmer']),
   targetCode: z.string().min(1),
+  receiptNo: z.string().min(1).max(100).optional(),
   amountNgn: z.string().regex(/^\d+(\.\d{1,2})?$/),
   paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  fieldReceiptRef: z.string().min(1).max(100),
+  fieldReceiptRef: z.string().max(100).optional(),
 });
 export type FeeCollectionImportRow = z.infer<typeof FeeCollectionImportRowSchema>;
 
@@ -114,7 +124,21 @@ export const CropProductionImportRowSchema = z.object({
 export type CropProductionImportRow = z.infer<typeof CropProductionImportRowSchema>;
 
 /**
- * Column definitions catalogue for generating downloadable CSV templates.
+ * Training import row schema.
+ */
+export const TrainingImportRowSchema = z.object({
+  topic: z.string().min(1).max(200),
+  tags: z.string().optional(),
+  heldOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  venue: z.string().optional(),
+  farmerCode: z.string().optional(),
+  staffName: z.string().optional(),
+  gender: z.enum(['female', 'male']).optional(),
+});
+export type TrainingImportRow = z.infer<typeof TrainingImportRowSchema>;
+
+/**
+ * Column definitions catalogue for generating downloadable CSV/XLSX templates.
  */
 export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefinition[]> = {
   'slis.farmer': [
@@ -124,6 +148,13 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       required: true,
       type: 'string',
       example: 'KRIS-SEC1-001',
+    },
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: false,
+      type: 'string',
+      example: 'KRIS',
     },
     { name: 'firstName', header: 'First Name', required: true, type: 'string', example: 'Ibrahim' },
     { name: 'lastName', header: 'Last Name', required: true, type: 'string', example: 'Musa' },
@@ -210,7 +241,28 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       header: 'Boundary WKT',
       required: false,
       type: 'string',
-      example: 'POLYGON((...))',
+      example: 'POLYGON((8.50 11.80, 8.51 11.80, 8.51 11.81, 8.50 11.81, 8.50 11.80))',
+    },
+    {
+      name: 'farmerCode',
+      header: 'Allocated Farmer Code',
+      required: false,
+      type: 'string',
+      example: 'KRIS-SEC1-001',
+    },
+    {
+      name: 'seasonName',
+      header: 'Allocation Season Name',
+      required: false,
+      type: 'string',
+      example: 'Dry Season 2026',
+    },
+    {
+      name: 'tenureKey',
+      header: 'Tenure Type',
+      required: false,
+      type: 'string',
+      example: 'owner',
     },
   ],
   'slis.fee_billing': [
@@ -236,11 +288,25 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       example: 'KRIS-SEC1-001',
     },
     {
+      name: 'plotCode',
+      header: 'Plot Code',
+      required: false,
+      type: 'string',
+      example: 'P-SEC1-042',
+    },
+    {
       name: 'amountNgn',
       header: 'Amount NGN',
       required: true,
       type: 'string',
       example: '15000.00',
+    },
+    {
+      name: 'dueDate',
+      header: 'Due Date (YYYY-MM-DD)',
+      required: false,
+      type: 'string',
+      example: '2026-04-30',
     },
   ],
   'slis.fee_collection': [
@@ -266,6 +332,13 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       example: 'KRIS-SEC1-001',
     },
     {
+      name: 'receiptNo',
+      header: 'Receipt Number',
+      required: true,
+      type: 'string',
+      example: 'REC-2026-0001',
+    },
+    {
       name: 'amountNgn',
       header: 'Amount NGN',
       required: true,
@@ -282,7 +355,7 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
     {
       name: 'fieldReceiptRef',
       header: 'Field Receipt Ref',
-      required: true,
+      required: false,
       type: 'string',
       example: 'PB-4412',
     },
@@ -384,6 +457,27 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       required: false,
       type: 'string',
       example: 'Sector A Community Hall',
+    },
+    {
+      name: 'farmerCode',
+      header: 'Attendee Farmer Code',
+      required: false,
+      type: 'string',
+      example: 'KRIS-SEC1-001',
+    },
+    {
+      name: 'staffName',
+      header: 'Staff Attendee Name',
+      required: false,
+      type: 'string',
+      example: 'Musa Bello',
+    },
+    {
+      name: 'gender',
+      header: 'Gender',
+      required: false,
+      type: 'string',
+      example: 'male',
     },
   ],
 };

@@ -20,3 +20,5 @@ export * from '../services/review.service';
 export * from '../repositories/review.repository';
 export * from '../services/sync.service';
 export * from '../repositories/sync.repository';
+export * from '../services/fee.service';
+export * from '../repositories/fee.repository';

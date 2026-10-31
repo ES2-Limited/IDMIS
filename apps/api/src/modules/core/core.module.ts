@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type OnModuleInit } from '@nestjs/common';
 import { StorageModule } from '../../platform/storage/storage.module';
 import { EncryptionService } from '../../platform/security/encryption.service';
 import { FileRepository } from './repositories/file.repository';
@@ -41,6 +41,8 @@ import { ImportRepository } from './repositories/import.repository';
 import { ImportTemplateService } from './services/import-template.service';
 import { ImportService } from './services/import.service';
 import { ImportController } from './controllers/import.controller';
+import { ImportHandlerRegistry } from './imports/import-handler.registry';
+import { WuaImportHandler } from './imports/wua.handler';
 
 @Module({
   imports: [StorageModule],
@@ -79,6 +81,8 @@ import { ImportController } from './controllers/import.controller';
     ImportRepository,
     ImportTemplateService,
     ImportService,
+    ImportHandlerRegistry,
+    WuaImportHandler,
   ],
   exports: [
     EncryptionService,
@@ -103,7 +107,18 @@ import { ImportController } from './controllers/import.controller';
     ImportRepository,
     ImportTemplateService,
     ImportService,
+    ImportHandlerRegistry,
+    WuaImportHandler,
     StorageModule,
   ],
 })
-export class CoreModule {}
+export class CoreModule implements OnModuleInit {
+  constructor(
+    private readonly registry: ImportHandlerRegistry,
+    private readonly wuaHandler: WuaImportHandler,
+  ) {}
+
+  onModuleInit() {
+    this.registry.register(this.wuaHandler);
+  }
+}

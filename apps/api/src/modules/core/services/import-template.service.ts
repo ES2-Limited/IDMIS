@@ -1,15 +1,32 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { WUA_IMPORT_DEFINITION, type ImportDatasetDefinition } from '@idmis/contracts';
+import { ImportHandlerRegistry } from '../imports/import-handler.registry';
 
 @Injectable()
 export class ImportTemplateService {
-  private readonly definitions: Record<string, ImportDatasetDefinition> = {
+  private readonly fallbackDefinitions: Record<string, ImportDatasetDefinition> = {
     wua: WUA_IMPORT_DEFINITION,
   };
 
+  constructor(
+    @Inject(forwardRef(() => ImportHandlerRegistry))
+    private readonly registry: ImportHandlerRegistry,
+  ) {}
+
   getDefinition(dataset: string): ImportDatasetDefinition {
-    const def = this.definitions[dataset];
+    const handler = this.registry.get(dataset);
+    if (handler) {
+      return {
+        dataset: handler.dataset,
+        targetTable: handler.dataset,
+        version: handler.version,
+        naturalKeyColumns: [],
+        columns: handler.columns,
+      };
+    }
+
+    const def = this.fallbackDefinitions[dataset];
     if (!def) {
       throw new BadRequestException(`Unknown dataset template: '${dataset}'`);
     }
@@ -18,6 +35,7 @@ export class ImportTemplateService {
 
   async generateTemplateBuffer(dataset: string): Promise<Buffer> {
     const def = this.getDefinition(dataset);
+    const handler = this.registry.get(dataset);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'TRIMING IDMIS 2.0';
     workbook.created = new Date();
@@ -68,7 +86,10 @@ export class ImportTemplateService {
         exampleValues[col.name] = true;
       }
     }
-    if (dataset === 'wua') {
+
+    if (handler?.getExampleRow) {
+      Object.assign(exampleValues, handler.getExampleRow());
+    } else if (dataset === 'wua') {
       exampleValues.name = 'Kano Central WUA';
       exampleValues.regNo = 'WUA-KN-001';
       exampleValues.level = 'unit';
@@ -80,6 +101,7 @@ export class ImportTemplateService {
       exampleValues.isOperational = true;
       exampleValues.hasMaintenanceFund = true;
     }
+
     const row2 = dataSheet.addRow(exampleValues);
     row2.font = { italic: true, color: { argb: 'FF64748B' } };
 
