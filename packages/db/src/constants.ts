@@ -140,6 +140,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_SYNC_CONFLICT_RESOLVE,
     permissions.SLIS_IMPORT_RUN,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
   ],
 
@@ -171,6 +172,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_WATER_REQUEST_READ,
     permissions.SLIS_FEE_READ,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
   ],
 
@@ -214,6 +216,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_SYNC_CONFLICT_RESOLVE,
     permissions.SLIS_IMPORT_RUN,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
   ],
 
@@ -250,6 +253,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_SYNC_CONFLICT_RESOLVE,
     permissions.SLIS_IMPORT_RUN,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
   ],
 
   // 6. Field Officer: Mobile field data capture with offline support (cannot approve)
@@ -292,6 +296,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_FARMER_READ,
     permissions.SLIS_PLOT_READ,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
   ],
 
@@ -326,5 +331,6 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_WATER_REQUEST_READ,
     permissions.SLIS_FEE_READ,
     permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
   ],
 };

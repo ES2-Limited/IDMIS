@@ -36,6 +36,13 @@ import { SyncService } from './services/sync.service';
 import { SyncController } from './controllers/sync.controller';
 import { FeeRepository } from './repositories/fee.repository';
 import { FeeService } from './services/fee.service';
+import { ReportRepository } from './repositories/report.repository';
+import { ReportService } from './services/report.service';
+import { ReportController } from './controllers/report.controller';
+import { ExportRepository } from './repositories/export.repository';
+import { ExportService } from './services/export.service';
+import { ExportController } from './controllers/export.controller';
+import { StorageModule } from '../../platform/storage/storage.module';
 import { BlisStationStubService } from '../blis/public';
 import { CoreModule } from '../core/core.module';
 import { ImportHandlerRegistry } from '../core/public';
@@ -48,7 +55,7 @@ import { TrainingImportHandler } from './imports/training.handler';
 import { CropProductionImportHandler } from './imports/crop-production.handler';
 
 @Module({
-  imports: [forwardRef(() => CoreModule)],
+  imports: [forwardRef(() => CoreModule), StorageModule],
   controllers: [
     FarmerController,
     HouseholdController,
@@ -61,6 +68,8 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     StreamFlowController,
     ReviewController,
     SyncController,
+    ReportController,
+    ExportController,
   ],
   providers: [
     EncryptionService,
@@ -90,6 +99,10 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     SyncService,
     FeeRepository,
     FeeService,
+    ReportRepository,
+    ReportService,
+    ExportRepository,
+    ExportService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,
@@ -126,6 +139,10 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     SyncService,
     FeeRepository,
     FeeService,
+    ReportRepository,
+    ReportService,
+    ExportRepository,
+    ExportService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,

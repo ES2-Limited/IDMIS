@@ -31,6 +31,13 @@ import {
   SyncPullResponseSchema,
   SyncConflictResponseSchema,
   SyncQuarantineResponseSchema,
+  FarmersByScopeResponseSchema,
+  AreaByServiceResponseSchema,
+  CroppingResponseSchema,
+  FeeRecoveryResponseSchema,
+  WuaSummaryResponseSchema,
+  CreateExportInputSchema,
+  ExportStatusResponseSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -109,6 +116,13 @@ export const slisSchemas: Record<string, unknown> = {
   ReviewQueueItemResponse: toJsonSchema(ReviewQueueItemSchema),
   SyncConflictResponse: toJsonSchema(SyncConflictResponseSchema),
   SyncQuarantineResponse: toJsonSchema(SyncQuarantineResponseSchema),
+  FarmersByScopeResponse: toJsonSchema(FarmersByScopeResponseSchema),
+  AreaByServiceResponse: toJsonSchema(AreaByServiceResponseSchema),
+  CroppingResponse: toJsonSchema(CroppingResponseSchema),
+  FeeRecoveryResponse: toJsonSchema(FeeRecoveryResponseSchema),
+  WuaSummaryResponse: toJsonSchema(WuaSummaryResponseSchema),
+  CreateExportInput: toJsonSchema(CreateExportInputSchema),
+  ExportStatusResponse: toJsonSchema(ExportStatusResponseSchema),
   SyncPushResponse: toJsonSchema(SyncPushResponseSchema),
   SyncPullResponse: toJsonSchema(SyncPullResponseSchema),
   DeviceRegistrationResponse: { type: 'object' },
@@ -1323,6 +1337,243 @@ export const slisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/slis/reports/farmers-by-scope': {
+    get: {
+      summary: 'Get aggregated farmers by scope report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Farmers by scope report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FarmersByScopeResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/farmers-by-sector': {
+    get: {
+      summary: 'Get aggregated farmers by sector report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Farmers by sector report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FarmersByScopeResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/area-by-service': {
+    get: {
+      summary: 'Get aggregated area by service type report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Area by service report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AreaByServiceResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/cropping': {
+    get: {
+      summary: 'Get aggregated cropping and yield report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Cropping report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CroppingResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/fee-recovery': {
+    get: {
+      summary: 'Get fee collection vs billing recovery report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Fee recovery report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeRecoveryResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/fee-collection-vs-billing': {
+    get: {
+      summary: 'Get fee collection vs billing report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Fee collection vs billing report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeRecoveryResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/wua-summaries': {
+    get: {
+      summary: 'Get WUA summary report',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'WUA summaries report response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/WuaSummaryResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/reports/refresh': {
+    post: {
+      summary: 'On-demand refresh of SLIS materialized views',
+      tags: ['slis'],
+      security: SECURED,
+      responses: {
+        '200': {
+          description: 'Refresh outcome',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  refreshed: { type: 'boolean' },
+                  refreshedAt: { type: 'string', nullable: true },
+                },
+                required: ['refreshed'],
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403),
+      },
+    },
+  },
+
+  '/slis/exports': {
+    post: {
+      summary: 'Enqueue an asynchronous XLSX export job',
+      tags: ['slis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateExportInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Export job queued',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  exportId: { type: 'string', format: 'uuid' },
+                  status: { type: 'string', enum: ['queued'] },
+                  message: { type: 'string' },
+                },
+                required: ['exportId', 'status'],
+              },
+            },
+          },
+        },
+        '202': {
+          description: 'Export job queued',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  exportId: { type: 'string', format: 'uuid' },
+                  status: { type: 'string', enum: ['queued'] },
+                  message: { type: 'string' },
+                },
+                required: ['exportId', 'status'],
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/exports/{id}': {
+    get: {
+      summary: 'Get export job status and presigned download link',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Export job status response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ExportStatusResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
       },
     },
   },

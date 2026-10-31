@@ -1742,6 +1742,14 @@ export function buildOpenApiDocument(
       name: 'slis',
       description: 'Scheme Land Information System (farmers, plots, operations, sync)',
     },
+    {
+      name: 'slis-reports',
+      description: 'Scheme Land Information System aggregated reports and materialized views',
+    },
+    {
+      name: 'slis-exports',
+      description: 'Scheme Land Information System asynchronous tabular export processing',
+    },
   ];
 
   return {
