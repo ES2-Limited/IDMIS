@@ -2,13 +2,16 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import crypto from 'node:crypto';
+import { z } from 'zod';
 import {
   permissions,
+  validateExportFilters,
   type CreateExportInput,
   type CreateExportResponse,
   type ExportStatusResponse,
@@ -58,13 +61,29 @@ export class ExportService implements OnModuleDestroy {
     if (!authz.can(permissions.SLIS_EXPORT_GENERATE)) {
       throw new ForbiddenException('User lacks permission to generate exports');
     }
+
+    let validatedFilters: Record<string, unknown> = {};
+    if (input.filters && Object.keys(input.filters).length > 0) {
+      try {
+        validatedFilters = validateExportFilters(input.dataset, input.filters);
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          throw new BadRequestException({
+            message: 'Invalid export filters: unknown or invalid filter keys',
+            errors: err.issues,
+          });
+        }
+        throw new BadRequestException('Invalid export filters');
+      }
+    }
+
     const exportId = crypto.randomUUID();
 
     await this.exportRepo.createJob({
       id: exportId,
       userId: user.id,
       dataset: input.dataset,
-      filters: input.filters,
+      filters: validatedFilters,
     });
 
     try {
@@ -74,7 +93,7 @@ export class ExportService implements OnModuleDestroy {
           exportId,
           userId: user.id,
           dataset: input.dataset,
-          filters: input.filters ?? {},
+          filters: validatedFilters,
         },
         {
           jobId: exportId,
@@ -93,18 +112,15 @@ export class ExportService implements OnModuleDestroy {
     };
   }
 
-  async getExport(
-    exportId: string,
-    user: RequestUser,
-    authz: UserAuthz,
-  ): Promise<ExportStatusResponse> {
+  async getExport(exportId: string, user: RequestUser): Promise<ExportStatusResponse> {
     const job = await this.exportRepo.findById(exportId);
     if (!job) {
       throw new NotFoundException(`Export job ${exportId} not found`);
     }
 
-    if (job.userId !== user.id && !authz.can(permissions.SLIS_EXPORT_GENERATE)) {
-      throw new ForbiddenException('Cannot access export jobs created by another user');
+    if (job.userId !== user.id) {
+      // Must return 404 so export ids cannot be probed by other users
+      throw new NotFoundException(`Export job ${exportId} not found`);
     }
 
     let downloadUrl: string | null = null;
@@ -119,6 +135,9 @@ export class ExportService implements OnModuleDestroy {
           fileRow.originalName ?? `${job.dataset}_export.xlsx`,
         );
         expiresAt = new Date(Date.now() + 900 * 1000).toISOString();
+
+        // Audit download-link issuance
+        await this.exportRepo.recordDownloadAudit(user.id, exportId);
       }
     }
 

@@ -17,6 +17,8 @@ export const AuditActionSchema = z.enum([
   'totp_verify',
   'assign',
   'deassign',
+  'export',
+  'export.download',
 ]);
 
 export type AuditAction = z.infer<typeof AuditActionSchema>;

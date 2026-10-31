@@ -161,6 +161,8 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION "slis"."refresh_report_views"() FROM PUBLIC;
+
 -- Initialise report_refresh with now()
 INSERT INTO "slis"."report_refresh" ("id", "refreshed_at")
 VALUES (1, now())

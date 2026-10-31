@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { db, exportJob, file, eq } from '@idmis/db';
+import { db, exportJob, file, auditLog, eq } from '@idmis/db';
 
 export interface CreateExportJobData {
   id: string;
@@ -32,5 +32,16 @@ export class ExportRepository {
   async findFileById(fileId: string) {
     const [found] = await db.select().from(file).where(eq(file.id, fileId)).limit(1);
     return found ?? null;
+  }
+
+  async recordDownloadAudit(userId: string, exportId: string) {
+    await db.insert(auditLog).values({
+      actorType: 'user',
+      actorUserId: userId,
+      action: 'export.download',
+      entityType: 'slis.report',
+      entityId: exportId,
+      occurredAt: new Date().toISOString(),
+    });
   }
 }

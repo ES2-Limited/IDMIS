@@ -6,6 +6,18 @@ import { registerAuthzSubscribers } from './subscribers/authz.subscriber';
 import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY is required when NODE_ENV=production');
+  }
+  if (!process.env.S3_ACCESS_KEY_ID) {
+    throw new Error('S3_ACCESS_KEY_ID is required when NODE_ENV=production');
+  }
+  if (!process.env.S3_SECRET_ACCESS_KEY) {
+    throw new Error('S3_SECRET_ACCESS_KEY is required when NODE_ENV=production');
+  }
+}
+
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // 1. Placeholder queue connection read from REDIS_URL

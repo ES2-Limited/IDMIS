@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { BaseListQuerySchema } from '../core/common';
 import { HectaresSchema, MoneySchema, TonnageSchema } from './common';
 import { ServiceTypeSchema, SlisGenderSchema } from './enums';
+import { ListFarmersQuerySchema } from './farmer';
+import { ListPlotsQuerySchema } from './plot';
+import { ListWaterRequestsQuerySchema } from './water-request';
+import { ListCropProductionsQuerySchema } from './crop-production';
+import { ListTrainingsQuerySchema } from './training';
+import { ListFeeBillingsQuerySchema, ListFeeCollectionsQuerySchema } from './fee';
 
 // 1. Farmers by Scope Report
 export const FarmersByScopeItemSchema = z.object({
@@ -155,8 +161,11 @@ export const SLIS_EXPORT_DATASETS = [
   'plots',
   'water_requests',
   'crops',
+  'crop_productions',
   'trainings',
   'fees',
+  'fee_billings',
+  'fee_collections',
   'farmers_by_scope',
   'wua_summaries',
   'area_by_service',
@@ -165,6 +174,34 @@ export const SLIS_EXPORT_DATASETS = [
 ] as const;
 export type SlisExportDataset = (typeof SLIS_EXPORT_DATASETS)[number];
 export const SlisExportDatasetSchema = z.enum(SLIS_EXPORT_DATASETS);
+
+export const ExportFiltersMap: Record<string, z.ZodTypeAny> = {
+  farmers: ListFarmersQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  plots: ListPlotsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  water_requests: ListWaterRequestsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  crops: ListCropProductionsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  crop_productions: ListCropProductionsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  trainings: ListTrainingsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  fees: ListFeeBillingsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  fee_billings: ListFeeBillingsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  fee_collections: ListFeeCollectionsQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  farmers_by_scope: FarmersByScopeQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  wua_summaries: WuaSummaryQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  area_by_service: AreaByServiceQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  cropping: CroppingQuerySchema.omit({ cursor: true, limit: true }).strict(),
+  fee_recovery: FeeRecoveryQuerySchema.omit({ cursor: true, limit: true }).strict(),
+};
+
+export function validateExportFilters(dataset: string, filters?: unknown): Record<string, unknown> {
+  if (!filters || (typeof filters === 'object' && Object.keys(filters).length === 0)) {
+    return {};
+  }
+  const schema = ExportFiltersMap[dataset];
+  if (!schema) {
+    return {};
+  }
+  return schema.parse(filters) as Record<string, unknown>;
+}
 
 export const CreateExportInputSchema = z.object({
   dataset: SlisExportDatasetSchema,

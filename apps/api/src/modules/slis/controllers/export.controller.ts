@@ -22,11 +22,7 @@ export class ExportController {
 
   @Get(':id')
   @Can(permissions.SLIS_EXPORT_GENERATE)
-  async getExport(
-    @Param('id') id: string,
-    @CurrentUser() user: RequestUser,
-    @CurrentAuthz() authz: UserAuthz,
-  ) {
-    return this.exportService.getExport(id, user, authz);
+  async getExport(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.exportService.getExport(id, user);
   }
 }

@@ -5,9 +5,6 @@ import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import {
   db,
-  appUser,
-  assignment,
-  rolePermission,
   exportJob,
   file,
   auditLog,
@@ -27,12 +24,25 @@ import {
   and,
   eq,
   gt,
+  gte,
+  lte,
   isNull,
   type SQL,
 } from '@idmis/db';
-import { sanitizeFormulaSafety, type RequestScope } from '@idmis/contracts';
+import { resolveUserAuthz, applyScope } from '@idmis/db/authz';
+import { EncryptionService } from '@idmis/db/security';
+import {
+  permissions,
+  sanitizeFormulaSafety,
+  type Permission,
+  type RecordStatus,
+  type SlisGender,
+  type ServiceType,
+  type RequestLevel,
+  type WaterDecision,
+} from '@idmis/contracts';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { applyScope } from '../utils/apply-scope';
+import { getWorkerS3Config } from '../config/storage';
 
 export interface SlisExportJobOptions {
   exportId: string;
@@ -44,36 +54,41 @@ export interface SlisExportJobOptions {
   dbClient?: typeof db;
 }
 
-export function decryptIdentityNumber(hexCiphertext: string, encryptionKey?: string): string {
-  const rawKey =
-    encryptionKey || process.env.ENCRYPTION_KEY || 'development-test-encryption-key-32-chars';
-  const key = crypto.createHash('sha256').update(rawKey).digest();
-  const data = Buffer.from(hexCiphertext, 'hex');
-  if (data.length < 29) throw new Error('Invalid ciphertext length');
-  const iv = data.subarray(1, 13);
-  const tag = data.subarray(13, 29);
-  const ciphertext = data.subarray(29);
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(tag);
-  return decipher.update(ciphertext) + decipher.final('utf8');
+export function getDatasetViewPermission(dataset: string): Permission {
+  switch (dataset) {
+    case 'farmers':
+      return permissions.SLIS_FARMER_READ;
+    case 'plots':
+      return permissions.SLIS_PLOT_READ;
+    case 'water_requests':
+      return permissions.SLIS_WATER_REQUEST_READ;
+    case 'crops':
+    case 'crop_productions':
+      return permissions.SLIS_CROP_MANAGE;
+    case 'trainings':
+      return permissions.SLIS_TRAINING_MANAGE;
+    case 'fees':
+    case 'fee_billings':
+    case 'fee_collections':
+      return permissions.SLIS_FEE_READ;
+    case 'farmers_by_scope':
+    case 'wua_summaries':
+    case 'area_by_service':
+    case 'cropping':
+    case 'fee_recovery':
+      return permissions.SLIS_REPORT_VIEW;
+    default:
+      return permissions.SLIS_REPORT_VIEW;
+  }
 }
 
 export async function processSlisExportJob(options: SlisExportJobOptions) {
-  const { exportId, userId, dataset, filters: _filters = {} } = options;
+  const { exportId, userId, dataset, filters = {} } = options;
   const dbClient = options.dbClient ?? db;
-  const bucket = options.bucket ?? process.env.S3_BUCKET ?? 'idmis-files';
 
-  const s3Client =
-    options.s3Client ??
-    new S3Client({
-      region: process.env.S3_REGION || 'auto',
-      endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-      credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID || 'minioadmin',
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || 'minioadmin',
-      },
-      forcePathStyle: true,
-    });
+  const s3Config = getWorkerS3Config();
+  const bucket = options.bucket ?? s3Config.bucket;
+  const s3Client = options.s3Client ?? s3Config.s3Client;
 
   // 1. Mark job processing
   await dbClient
@@ -81,11 +96,13 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
     .set({ status: 'processing', updatedAt: new Date().toISOString() })
     .where(eq(exportJob.id, exportId));
 
-  // 2. Re-resolve user and check if active
-  const [user] = await dbClient.select().from(appUser).where(eq(appUser.id, userId)).limit(1);
+  // 2. Re-resolve user authz fresh at run time
+  const authz = await resolveUserAuthz(dbClient, userId);
 
-  if (!user || !user.isActive) {
-    const errorMsg = 'Requesting user is deactivated or does not exist';
+  if (!authz.isActive || !authz.can(permissions.SLIS_EXPORT_GENERATE)) {
+    const errorMsg = !authz.isActive
+      ? 'Requesting user is deactivated or does not exist'
+      : 'User lacks permission to generate exports';
     await dbClient
       .update(exportJob)
       .set({
@@ -97,22 +114,10 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
     return { status: 'failed', reason: errorMsg };
   }
 
-  // 3. Re-resolve user's CURRENT assignments & scope at run-time
-  const assignments = await dbClient
-    .select({
-      roleId: assignment.roleId,
-      module: assignment.module,
-      scopeType: assignment.scopeType,
-      scopeStateId: assignment.scopeStateId,
-      scopeOrgId: assignment.scopeOrgId,
-      permission: rolePermission.permission,
-    })
-    .from(assignment)
-    .innerJoin(rolePermission, eq(assignment.roleId, rolePermission.roleId))
-    .where(and(eq(assignment.userId, userId), isNull(assignment.deletedAt)));
-
-  if (assignments.length === 0) {
-    const errorMsg = 'User has no active assignments or scope has been revoked';
+  // 3. Resolve dataset view permission and user's scope
+  const viewPermission = getDatasetViewPermission(dataset);
+  if (!authz.can(viewPermission)) {
+    const errorMsg = `User lacks permission to view dataset: ${dataset}`;
     await dbClient
       .update(exportJob)
       .set({
@@ -124,28 +129,19 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
     return { status: 'failed', reason: errorMsg };
   }
 
-  const isNational = assignments.some((a) => a.scopeType === 'national');
-  const stateIds = Array.from(
-    new Set(assignments.map((a) => a.scopeStateId).filter((id): id is string => Boolean(id))),
-  );
-  const schemeIds = Array.from(
-    new Set(
-      assignments
-        .filter((a) => ['scheme', 'rbda', 'sector'].includes(a.scopeType))
-        .map((a) => a.scopeOrgId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
+  const scope = authz.scopeFor(viewPermission);
 
-  const scope: RequestScope = {
-    isNational,
-    stateIds,
-    rbdaIds: [],
-    schemeIds,
-    sectorIds: [],
+  // Identity view scope for per-row unmasking
+  const identityScope = authz.scopeFor(permissions.SLIS_IDENTITY_VIEW);
+  const canUnmaskRow = (schemeId?: string | null, stateId?: string | null): boolean => {
+    if (!authz.can(permissions.SLIS_IDENTITY_VIEW)) return false;
+    if (identityScope.isNational) return true;
+    if (schemeId && identityScope.schemeIds.includes(schemeId)) return true;
+    if (stateId && identityScope.stateIds.includes(stateId)) return true;
+    return false;
   };
 
-  const canViewIdentity = assignments.some((a) => a.permission === 'slis.identity.view');
+  const encryptionService = new EncryptionService();
 
   // 4. Set up streaming XLSX writer
   const tmpFilePath = path.join(os.tmpdir(), `export_${exportId}.xlsx`);
@@ -187,9 +183,23 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
         if (scopeCond) conds.push(scopeCond);
         if (lastSeenId) conds.push(gt(farmer.id, lastSeenId));
 
+        if (filters.schemeId) conds.push(eq(farmer.schemeId, filters.schemeId as string));
+        if (filters.sectorId) conds.push(eq(farmer.sectorId, filters.sectorId as string));
+        if (filters.stateId) conds.push(eq(farmer.stateId, filters.stateId as string));
+        if (filters.wardId) conds.push(eq(farmer.wardId, filters.wardId as string));
+        if (filters.status) conds.push(eq(farmer.status, filters.status as RecordStatus));
+        if (filters.gender) conds.push(eq(farmer.gender, filters.gender as SlisGender));
+        if (filters.householdId) conds.push(eq(farmer.householdId, filters.householdId as string));
+        if (filters.farmerGroupId)
+          conds.push(eq(farmer.farmerGroupId, filters.farmerGroupId as string));
+        if (filters.maritalStatusId)
+          conds.push(eq(farmer.maritalStatusId, filters.maritalStatusId as string));
+
         const batch = await dbClient
           .select({
             id: farmer.id,
+            schemeId: farmer.schemeId,
+            stateId: farmer.stateId,
             farmerCode: farmer.farmerCode,
             firstName: farmer.firstName,
             lastName: farmer.lastName,
@@ -217,9 +227,10 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
           totalRowCount++;
           let idDoc = '';
           if (f.docNumberLast4) {
-            if (canViewIdentity && f.docNumberEnc) {
+            const unmask = canUnmaskRow(f.schemeId, f.stateId);
+            if (unmask && f.docNumberEnc) {
               try {
-                idDoc = decryptIdentityNumber(f.docNumberEnc);
+                idDoc = encryptionService.decrypt(Buffer.from(f.docNumberEnc, 'hex'));
               } catch {
                 idDoc = `***${f.docNumberLast4}`;
               }
@@ -250,13 +261,22 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
           hasMore = false;
         }
 
-        const currentHeap = process.memoryUsage().heapUsed;
-        if (currentHeap > peakHeapUsed) peakHeapUsed = currentHeap;
+        const mem = process.memoryUsage().heapUsed;
+        if (mem > peakHeapUsed) peakHeapUsed = mem;
       }
     } else if (dataset === 'plots') {
       worksheet
-        .addRow(['ID', 'Plot Code', 'Scheme ID', 'Sector ID', 'Area Ha', 'Service Type', 'Status'])
+        .addRow([
+          'ID',
+          'Plot Code',
+          'Scheme ID',
+          'Sector ID',
+          'Service Type',
+          'Area (Ha)',
+          'Status',
+        ])
         .commit();
+
       let lastSeenId: string | null = null;
       let hasMore = true;
 
@@ -266,14 +286,23 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
         if (scopeCond) conds.push(scopeCond);
         if (lastSeenId) conds.push(gt(plot.id, lastSeenId));
 
+        if (filters.schemeId) conds.push(eq(plot.schemeId, filters.schemeId as string));
+        if (filters.farmId) conds.push(eq(plot.farmId, filters.farmId as string));
+        if (filters.sectorId) conds.push(eq(plot.sectorId, filters.sectorId as string));
+        if (filters.stateId) conds.push(eq(plot.stateId, filters.stateId as string));
+        if (filters.wardId) conds.push(eq(plot.wardId, filters.wardId as string));
+        if (filters.status) conds.push(eq(plot.status, filters.status as RecordStatus));
+        if (filters.serviceType)
+          conds.push(eq(plot.serviceType, filters.serviceType as ServiceType));
+
         const batch = await dbClient
           .select({
             id: plot.id,
             plotCode: plot.plotCode,
             schemeId: plot.schemeId,
             sectorId: plot.sectorId,
-            areaHa: plot.areaHa,
             serviceType: plot.serviceType,
+            areaHa: plot.areaHa,
             status: plot.status,
           })
           .from(plot)
@@ -281,7 +310,10 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
           .orderBy(plot.id)
           .limit(2000);
 
-        if (batch.length === 0) break;
+        if (batch.length === 0) {
+          hasMore = false;
+          break;
+        }
 
         for (const p of batch) {
           totalRowCount++;
@@ -291,8 +323,8 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
               sanitizeFormulaSafety(p.plotCode),
               p.schemeId,
               p.sectorId,
-              p.areaHa ?? '',
               p.serviceType ?? '',
+              p.areaHa ?? '',
               p.status,
             ])
             .commit();
@@ -300,6 +332,9 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
 
         lastSeenId = batch[batch.length - 1].id;
         if (batch.length < 2000) hasMore = false;
+
+        const mem = process.memoryUsage().heapUsed;
+        if (mem > peakHeapUsed) peakHeapUsed = mem;
       }
     } else if (dataset === 'water_requests') {
       worksheet
@@ -307,38 +342,85 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
           'ID',
           'Scheme ID',
           'Level',
-          'Requested Volume M3',
+          'WUA ID',
+          'Farmer ID',
+          'Season ID',
+          'Volume (m3)',
           'Period From',
           'Period To',
           'Decision',
+          'Status',
         ])
         .commit();
-      const conds: SQL[] = [isNull(waterRequest.deletedAt)];
-      const scopeCond = applyScope(scope, { scheme: waterRequest.schemeId });
-      if (scopeCond) conds.push(scopeCond);
 
-      const rows = await dbClient
-        .select()
-        .from(waterRequest)
-        .where(and(...conds))
-        .orderBy(waterRequest.id)
-        .limit(5000);
+      let lastSeenId: string | null = null;
+      let hasMore = true;
 
-      for (const w of rows) {
-        totalRowCount++;
-        worksheet
-          .addRow([
-            w.id,
-            w.schemeId,
-            w.level,
-            w.requestedVolumeM3 ?? '',
-            w.periodFromOn ?? '',
-            w.periodToOn ?? '',
-            w.decision,
-          ])
-          .commit();
+      while (hasMore) {
+        const conds: SQL[] = [isNull(waterRequest.deletedAt)];
+        const scopeCond = applyScope(scope, { scheme: waterRequest.schemeId });
+        if (scopeCond) conds.push(scopeCond);
+        if (lastSeenId) conds.push(gt(waterRequest.id, lastSeenId));
+
+        if (filters.schemeId) conds.push(eq(waterRequest.schemeId, filters.schemeId as string));
+        if (filters.level) conds.push(eq(waterRequest.level, filters.level as RequestLevel));
+        if (filters.wuaId) conds.push(eq(waterRequest.wuaId, filters.wuaId as string));
+        if (filters.farmerId) conds.push(eq(waterRequest.farmerId, filters.farmerId as string));
+        if (filters.seasonId) conds.push(eq(waterRequest.seasonId, filters.seasonId as string));
+        if (filters.decision)
+          conds.push(eq(waterRequest.decision, filters.decision as WaterDecision));
+        if (filters.status) conds.push(eq(waterRequest.status, filters.status as RecordStatus));
+
+        const batch = await dbClient
+          .select({
+            id: waterRequest.id,
+            schemeId: waterRequest.schemeId,
+            level: waterRequest.level,
+            wuaId: waterRequest.wuaId,
+            farmerId: waterRequest.farmerId,
+            seasonId: waterRequest.seasonId,
+            volumeM3: waterRequest.requestedVolumeM3,
+            periodFromOn: waterRequest.periodFromOn,
+            periodToOn: waterRequest.periodToOn,
+            decision: waterRequest.decision,
+            status: waterRequest.status,
+          })
+          .from(waterRequest)
+          .where(and(...conds))
+          .orderBy(waterRequest.id)
+          .limit(2000);
+
+        if (batch.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const w of batch) {
+          totalRowCount++;
+          worksheet
+            .addRow([
+              w.id,
+              w.schemeId,
+              w.level,
+              w.wuaId ?? '',
+              w.farmerId ?? '',
+              w.seasonId ?? '',
+              w.volumeM3 ?? '',
+              w.periodFromOn ?? '',
+              w.periodToOn ?? '',
+              w.decision,
+              w.status,
+            ])
+            .commit();
+        }
+
+        lastSeenId = batch[batch.length - 1].id;
+        if (batch.length < 2000) hasMore = false;
+
+        const mem = process.memoryUsage().heapUsed;
+        if (mem > peakHeapUsed) peakHeapUsed = mem;
       }
-    } else if (dataset === 'crops') {
+    } else if (dataset === 'crops' || dataset === 'crop_productions') {
       worksheet
         .addRow([
           'ID',
@@ -346,80 +428,157 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
           'Plot ID',
           'Season ID',
           'Crop Type ID',
-          'Area Ha',
-          'Yield T',
+          'Area (Ha)',
+          'Yield (t)',
           'Status',
         ])
         .commit();
-      const conds: SQL[] = [isNull(cropProduction.deletedAt)];
-      const scopeCond = applyScope(scope, { scheme: cropProduction.schemeId });
-      if (scopeCond) conds.push(scopeCond);
 
-      const rows = await dbClient
-        .select()
-        .from(cropProduction)
-        .where(and(...conds))
-        .orderBy(cropProduction.id)
-        .limit(5000);
+      let lastSeenId: string | null = null;
+      let hasMore = true;
 
-      for (const c of rows) {
-        totalRowCount++;
-        worksheet
-          .addRow([
-            c.id,
-            c.schemeId,
-            c.plotId,
-            c.seasonId,
-            c.cropTypeId,
-            c.areaHa,
-            c.yieldT ?? '',
-            c.status,
-          ])
-          .commit();
+      while (hasMore) {
+        const conds: SQL[] = [isNull(cropProduction.deletedAt)];
+        const scopeCond = applyScope(scope, { scheme: cropProduction.schemeId });
+        if (scopeCond) conds.push(scopeCond);
+        if (lastSeenId) conds.push(gt(cropProduction.id, lastSeenId));
+
+        if (filters.schemeId) conds.push(eq(cropProduction.schemeId, filters.schemeId as string));
+        if (filters.plotId) conds.push(eq(cropProduction.plotId, filters.plotId as string));
+        if (filters.seasonId) conds.push(eq(cropProduction.seasonId, filters.seasonId as string));
+        if (filters.cropTypeId)
+          conds.push(eq(cropProduction.cropTypeId, filters.cropTypeId as string));
+        if (filters.status) conds.push(eq(cropProduction.status, filters.status as RecordStatus));
+
+        const batch = await dbClient
+          .select({
+            id: cropProduction.id,
+            schemeId: cropProduction.schemeId,
+            plotId: cropProduction.plotId,
+            seasonId: cropProduction.seasonId,
+            cropTypeId: cropProduction.cropTypeId,
+            areaHa: cropProduction.areaHa,
+            yieldT: cropProduction.yieldT,
+            status: cropProduction.status,
+          })
+          .from(cropProduction)
+          .where(and(...conds))
+          .orderBy(cropProduction.id)
+          .limit(2000);
+
+        if (batch.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const c of batch) {
+          totalRowCount++;
+          worksheet
+            .addRow([
+              c.id,
+              c.schemeId,
+              c.plotId,
+              c.seasonId,
+              c.cropTypeId,
+              c.areaHa,
+              c.yieldT ?? '',
+              c.status,
+            ])
+            .commit();
+        }
+
+        lastSeenId = batch[batch.length - 1].id;
+        if (batch.length < 2000) hasMore = false;
+
+        const mem = process.memoryUsage().heapUsed;
+        if (mem > peakHeapUsed) peakHeapUsed = mem;
       }
     } else if (dataset === 'trainings') {
       worksheet.addRow(['ID', 'Scheme ID', 'Topic', 'Trainer Name', 'Held On', 'Venue']).commit();
-      const conds: SQL[] = [isNull(training.deletedAt)];
-      const scopeCond = applyScope(scope, { scheme: training.schemeId });
-      if (scopeCond) conds.push(scopeCond);
 
-      const rows = await dbClient
-        .select()
-        .from(training)
-        .where(and(...conds))
-        .orderBy(training.id)
-        .limit(5000);
+      let lastSeenId: string | null = null;
+      let hasMore = true;
 
-      for (const t of rows) {
-        totalRowCount++;
-        worksheet
-          .addRow([
-            t.id,
-            t.schemeId,
-            sanitizeFormulaSafety(t.topic),
-            sanitizeFormulaSafety(t.trainerName ?? ''),
-            t.heldOn,
-            sanitizeFormulaSafety(t.venue ?? ''),
-          ])
-          .commit();
+      while (hasMore) {
+        const conds: SQL[] = [isNull(training.deletedAt)];
+        const scopeCond = applyScope(scope, { scheme: training.schemeId });
+        if (scopeCond) conds.push(scopeCond);
+        if (lastSeenId) conds.push(gt(training.id, lastSeenId));
+
+        if (filters.schemeId) conds.push(eq(training.schemeId, filters.schemeId as string));
+        if (filters.topic) conds.push(eq(training.topic, filters.topic as string));
+        if (filters.fromHeldOn) conds.push(gte(training.heldOn, filters.fromHeldOn as string));
+        if (filters.toHeldOn) conds.push(lte(training.heldOn, filters.toHeldOn as string));
+
+        const batch = await dbClient
+          .select({
+            id: training.id,
+            schemeId: training.schemeId,
+            topic: training.topic,
+            trainerName: training.trainerName,
+            heldOn: training.heldOn,
+            venue: training.venue,
+          })
+          .from(training)
+          .where(and(...conds))
+          .orderBy(training.id)
+          .limit(2000);
+
+        if (batch.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const t of batch) {
+          totalRowCount++;
+          worksheet
+            .addRow([
+              t.id,
+              t.schemeId,
+              sanitizeFormulaSafety(t.topic),
+              sanitizeFormulaSafety(t.trainerName ?? ''),
+              t.heldOn,
+              sanitizeFormulaSafety(t.venue ?? ''),
+            ])
+            .commit();
+        }
+
+        lastSeenId = batch[batch.length - 1].id;
+        if (batch.length < 2000) hasMore = false;
+
+        const mem = process.memoryUsage().heapUsed;
+        if (mem > peakHeapUsed) peakHeapUsed = mem;
       }
-    } else if (dataset === 'fees') {
+    } else if (dataset === 'fees' || dataset === 'fee_billings') {
       worksheet
-        .addRow(['Type', 'ID', 'Scheme ID', 'Season ID', 'Amount NGN', 'Date', 'Receipt No'])
+        .addRow(['Type', 'ID', 'Scheme ID', 'Season ID', 'Amount NGN', 'Ref / Receipt', 'Status'])
         .commit();
+
       const bConds: SQL[] = [isNull(feeBilling.deletedAt)];
       const bScopeCond = applyScope(scope, { scheme: feeBilling.schemeId });
       if (bScopeCond) bConds.push(bScopeCond);
 
+      if (filters.schemeId) bConds.push(eq(feeBilling.schemeId, filters.schemeId as string));
+      if (filters.seasonId) bConds.push(eq(feeBilling.seasonId, filters.seasonId as string));
+      if (filters.wuaId) bConds.push(eq(feeBilling.wuaId, filters.wuaId as string));
+      if (filters.farmerId) bConds.push(eq(feeBilling.farmerId, filters.farmerId as string));
+
       const billings = await dbClient
-        .select()
+        .select({
+          id: feeBilling.id,
+          schemeId: feeBilling.schemeId,
+          seasonId: feeBilling.seasonId,
+          amountNgn: feeBilling.amountNgn,
+          status: feeBilling.status,
+        })
         .from(feeBilling)
         .where(and(...bConds))
-        .limit(5000);
+        .orderBy(feeBilling.id);
+
       for (const b of billings) {
         totalRowCount++;
         worksheet
-          .addRow(['billing', b.id, b.schemeId, b.seasonId, b.amountNgn, b.dueDate, ''])
+          .addRow(['Billing', b.id, b.schemeId, b.seasonId, b.amountNgn, '', b.status])
           .commit();
       }
 
@@ -427,27 +586,85 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
       const cScopeCond = applyScope(scope, { scheme: feeCollection.schemeId });
       if (cScopeCond) cConds.push(cScopeCond);
 
+      if (filters.schemeId) cConds.push(eq(feeCollection.schemeId, filters.schemeId as string));
+      if (filters.seasonId) cConds.push(eq(feeCollection.seasonId, filters.seasonId as string));
+      if (filters.wuaId) cConds.push(eq(feeCollection.wuaId, filters.wuaId as string));
+      if (filters.farmerId) cConds.push(eq(feeCollection.farmerId, filters.farmerId as string));
+      if (filters.status) cConds.push(eq(feeCollection.status, filters.status as RecordStatus));
+      if (filters.receiptNo) cConds.push(eq(feeCollection.receiptNo, filters.receiptNo as string));
+
       const collections = await dbClient
-        .select()
+        .select({
+          id: feeCollection.id,
+          schemeId: feeCollection.schemeId,
+          seasonId: feeCollection.seasonId,
+          amountNgn: feeCollection.amountNgn,
+          receiptNo: feeCollection.receiptNo,
+          status: feeCollection.status,
+        })
         .from(feeCollection)
         .where(and(...cConds))
-        .limit(5000);
+        .orderBy(feeCollection.id);
+
       for (const c of collections) {
         totalRowCount++;
         worksheet
           .addRow([
-            'collection',
+            'Collection',
             c.id,
             c.schemeId,
             c.seasonId,
             c.amountNgn,
-            c.paidOn,
             sanitizeFormulaSafety(c.receiptNo ?? ''),
+            c.status,
+          ])
+          .commit();
+      }
+    } else if (dataset === 'fee_collections') {
+      worksheet
+        .addRow(['ID', 'Scheme ID', 'Season ID', 'Amount NGN', 'Receipt No', 'Status'])
+        .commit();
+
+      const cConds: SQL[] = [isNull(feeCollection.deletedAt)];
+      const cScopeCond = applyScope(scope, { scheme: feeCollection.schemeId });
+      if (cScopeCond) cConds.push(cScopeCond);
+
+      if (filters.schemeId) cConds.push(eq(feeCollection.schemeId, filters.schemeId as string));
+      if (filters.seasonId) cConds.push(eq(feeCollection.seasonId, filters.seasonId as string));
+      if (filters.wuaId) cConds.push(eq(feeCollection.wuaId, filters.wuaId as string));
+      if (filters.farmerId) cConds.push(eq(feeCollection.farmerId, filters.farmerId as string));
+      if (filters.status) cConds.push(eq(feeCollection.status, filters.status as RecordStatus));
+      if (filters.receiptNo) cConds.push(eq(feeCollection.receiptNo, filters.receiptNo as string));
+
+      const collections = await dbClient
+        .select({
+          id: feeCollection.id,
+          schemeId: feeCollection.schemeId,
+          seasonId: feeCollection.seasonId,
+          amountNgn: feeCollection.amountNgn,
+          receiptNo: feeCollection.receiptNo,
+          status: feeCollection.status,
+        })
+        .from(feeCollection)
+        .where(and(...cConds))
+        .orderBy(feeCollection.id);
+
+      for (const c of collections) {
+        totalRowCount++;
+        worksheet
+          .addRow([
+            c.id,
+            c.schemeId,
+            c.seasonId,
+            c.amountNgn,
+            sanitizeFormulaSafety(c.receiptNo ?? ''),
+            c.status,
           ])
           .commit();
       }
     } else if (dataset === 'farmers_by_scope') {
-      worksheet.addRow(['Scheme ID', 'Sector ID', 'State ID', 'Gender', 'Farmer Count']).commit();
+      worksheet.addRow(['Scheme ID', 'Sector Key', 'State ID', 'Gender', 'Farmer Count']).commit();
+
       const conds: SQL[] = [];
       const scopeCond = applyScope(scope, {
         scheme: mvFarmersByScope.schemeId,
@@ -455,20 +672,25 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
       });
       if (scopeCond) conds.push(scopeCond);
 
+      if (filters.schemeId) conds.push(eq(mvFarmersByScope.schemeId, filters.schemeId as string));
+      if (filters.sectorId) conds.push(eq(mvFarmersByScope.sectorId, filters.sectorId as string));
+      if (filters.stateId) conds.push(eq(mvFarmersByScope.stateId, filters.stateId as string));
+      if (filters.gender) conds.push(eq(mvFarmersByScope.gender, filters.gender as SlisGender));
+
       const rows = await dbClient
         .select()
         .from(mvFarmersByScope)
-        .where(conds.length ? and(...conds) : undefined);
+        .where(conds.length > 0 ? and(...conds) : undefined);
+
       for (const r of rows) {
         totalRowCount++;
-        worksheet
-          .addRow([r.schemeId, r.sectorId ?? '', r.stateId ?? '', r.gender, r.farmerCount])
-          .commit();
+        worksheet.addRow([r.schemeId, r.sectorKey, r.stateId, r.gender, r.farmerCount]).commit();
       }
     } else if (dataset === 'area_by_service') {
       worksheet
-        .addRow(['Scheme ID', 'State ID', 'Service Type', 'Total Area Ha', 'Plot Count'])
+        .addRow(['Scheme ID', 'State ID', 'Service Type', 'Total Area (Ha)', 'Plot Count'])
         .commit();
+
       const conds: SQL[] = [];
       const scopeCond = applyScope(scope, {
         scheme: mvAreaByService.schemeId,
@@ -476,45 +698,50 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
       });
       if (scopeCond) conds.push(scopeCond);
 
+      if (filters.schemeId) conds.push(eq(mvAreaByService.schemeId, filters.schemeId as string));
+      if (filters.stateId) conds.push(eq(mvAreaByService.stateId, filters.stateId as string));
+      if (filters.serviceType)
+        conds.push(eq(mvAreaByService.serviceType, filters.serviceType as ServiceType));
+
       const rows = await dbClient
         .select()
         .from(mvAreaByService)
-        .where(conds.length ? and(...conds) : undefined);
+        .where(conds.length > 0 ? and(...conds) : undefined);
+
       for (const r of rows) {
         totalRowCount++;
-        worksheet
-          .addRow([r.schemeId, r.stateId ?? '', r.serviceType ?? '', r.totalHa, r.plotCount])
-          .commit();
+        worksheet.addRow([r.schemeId, r.stateId, r.serviceType, r.totalHa, r.plotCount]).commit();
       }
     } else if (dataset === 'cropping') {
       worksheet
         .addRow([
           'Scheme ID',
-          'State ID',
           'Season ID',
           'Crop Type ID',
-          'Total Area Ha',
-          'Total Yield T',
-          'Avg Yield T/Ha',
+          'Total Area (Ha)',
+          'Total Yield (t)',
+          'Avg Yield (t/ha)',
         ])
         .commit();
+
       const conds: SQL[] = [];
-      const scopeCond = applyScope(scope, {
-        scheme: mvCropping.schemeId,
-        state: mvCropping.stateId,
-      });
+      const scopeCond = applyScope(scope, { scheme: mvCropping.schemeId });
       if (scopeCond) conds.push(scopeCond);
+
+      if (filters.schemeId) conds.push(eq(mvCropping.schemeId, filters.schemeId as string));
+      if (filters.seasonId) conds.push(eq(mvCropping.seasonId, filters.seasonId as string));
+      if (filters.cropTypeId) conds.push(eq(mvCropping.cropTypeId, filters.cropTypeId as string));
 
       const rows = await dbClient
         .select()
         .from(mvCropping)
-        .where(conds.length ? and(...conds) : undefined);
+        .where(conds.length > 0 ? and(...conds) : undefined);
+
       for (const r of rows) {
         totalRowCount++;
         worksheet
           .addRow([
             r.schemeId,
-            r.stateId ?? '',
             r.seasonId,
             r.cropTypeId,
             r.totalAreaHa,
@@ -527,33 +754,34 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
       worksheet
         .addRow([
           'Scheme ID',
-          'State ID',
+          'WUA Key',
           'Season ID',
-          'WUA ID',
           'Billed NGN',
           'Collected NGN',
-          'Recovery Rate %',
+          'Recovery Rate (%)',
         ])
         .commit();
+
       const conds: SQL[] = [];
-      const scopeCond = applyScope(scope, {
-        scheme: mvFeeRecovery.schemeId,
-        state: mvFeeRecovery.stateId,
-      });
+      const scopeCond = applyScope(scope, { scheme: mvFeeRecovery.schemeId });
       if (scopeCond) conds.push(scopeCond);
+
+      if (filters.schemeId) conds.push(eq(mvFeeRecovery.schemeId, filters.schemeId as string));
+      if (filters.seasonId) conds.push(eq(mvFeeRecovery.seasonId, filters.seasonId as string));
+      if (filters.wuaId) conds.push(eq(mvFeeRecovery.wuaId, filters.wuaId as string));
 
       const rows = await dbClient
         .select()
         .from(mvFeeRecovery)
-        .where(conds.length ? and(...conds) : undefined);
+        .where(conds.length > 0 ? and(...conds) : undefined);
+
       for (const r of rows) {
         totalRowCount++;
         worksheet
           .addRow([
             r.schemeId,
-            r.stateId ?? '',
+            r.wuaKey,
             r.seasonId,
-            r.wuaId ?? '',
             r.billedNgn,
             r.collectedNgn,
             r.recoveryRatePct ?? '',
@@ -563,40 +791,56 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
     } else if (dataset === 'wua_summaries') {
       worksheet
         .addRow([
-          'WUA ID',
+          'ID',
           'Name',
           'Reg No',
           'Level',
           'Scheme ID',
+          'State ID',
           'Operational',
           'Maintenance Fund',
         ])
         .commit();
+
       const conds: SQL[] = [isNull(wua.deletedAt)];
       const scopeCond = applyScope(scope, { scheme: wua.organisationId, state: wua.stateId });
       if (scopeCond) conds.push(scopeCond);
 
+      if (filters.schemeId) conds.push(eq(wua.organisationId, filters.schemeId as string));
+      if (filters.stateId) conds.push(eq(wua.stateId, filters.stateId as string));
+
       const rows = await dbClient
-        .select()
+        .select({
+          id: wua.id,
+          name: wua.name,
+          registrationNumber: wua.regNo,
+          level: wua.level,
+          schemeId: wua.organisationId,
+          stateId: wua.stateId,
+          isOperational: wua.isOperational,
+          hasMaintenanceFund: wua.hasMaintenanceFund,
+        })
         .from(wua)
-        .where(and(...conds));
-      for (const r of rows) {
+        .where(and(...conds))
+        .orderBy(wua.id);
+
+      for (const w of rows) {
         totalRowCount++;
         worksheet
           .addRow([
-            r.id,
-            sanitizeFormulaSafety(r.name),
-            sanitizeFormulaSafety(r.regNo ?? ''),
-            r.level,
-            r.organisationId,
-            r.isOperational,
-            r.hasMaintenanceFund,
+            w.id,
+            sanitizeFormulaSafety(w.name),
+            sanitizeFormulaSafety(w.registrationNumber ?? ''),
+            w.level,
+            w.schemeId ?? '',
+            w.stateId ?? '',
+            w.isOperational ? 'Yes' : 'No',
+            w.hasMaintenanceFund ? 'Yes' : 'No',
           ])
           .commit();
       }
     }
 
-    worksheet.commit();
     await workbook.commit();
   } catch (err) {
     await dbClient
@@ -668,16 +912,11 @@ export async function processSlisExportJob(options: SlisExportJobOptions) {
       after: {
         dataset,
         rowCount: totalRowCount,
-        unmaskedIdentity: canViewIdentity,
-        filters: _filters,
+        filters,
       },
     },
     occurredAt: new Date().toISOString(),
   });
-
-  console.log(
-    `[ExportJob] Export ${exportId} completed with ${totalRowCount} rows. Peak heap: ${(peakHeapUsed / 1024 / 1024).toFixed(2)} MB`,
-  );
 
   return {
     status: 'completed',

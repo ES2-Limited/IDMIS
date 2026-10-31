@@ -28,12 +28,14 @@ import {
   feeCollection,
   file,
   exportJob,
+  auditLog,
   SYSTEM_USER_ID,
   postgres,
   drizzle,
   migrate,
   setDatabaseUrl,
   eq,
+  and,
 } from '@idmis/db';
 import * as schema from '@idmis/db';
 import { permissions } from '@idmis/contracts';
@@ -44,6 +46,7 @@ import { initAuditWriter } from '../../platform/audit/audit-writer';
 import { StorageService } from '../../platform/storage/storage.service';
 import { EncryptionService } from '../../platform/security/encryption.service';
 import { IdentityHashService } from '../../platform/security/identity-hash.service';
+import { AuthzService } from '../../platform/auth/authz.service';
 
 describe('SLIS Reports & Exports Specification (BE-2.8)', () => {
   const TEST_DB_NAME = `idmis_slis_reports_test_${Date.now()}`;
@@ -63,6 +66,7 @@ describe('SLIS Reports & Exports Specification (BE-2.8)', () => {
   let storageService: StorageService;
   let encryptionService: EncryptionService;
   let identityHashService: IdentityHashService;
+  let authzService: AuthzService;
 
   const mockStorageFiles = new Map<string, Buffer>();
 
@@ -129,6 +133,7 @@ describe('SLIS Reports & Exports Specification (BE-2.8)', () => {
     storageService = app.get(StorageService);
     encryptionService = app.get(EncryptionService);
     identityHashService = app.get(IdentityHashService);
+    authzService = app.get(AuthzService);
 
     // Mock storage upload & download
     const mockS3 = storageService.getClient() as unknown as {
@@ -1249,6 +1254,143 @@ describe('SLIS Reports & Exports Specification (BE-2.8)', () => {
       });
 
       expect(res.statusCode).toBe(403);
+    });
+
+    it("user B fetching user A's export -> 404; the owner gets the link; link issuance audited", async () => {
+      const userAId = crypto.randomUUID();
+      const userBId = crypto.randomUUID();
+      const sidA = crypto.randomUUID();
+      const sidB = crypto.randomUUID();
+      const dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$fake$fake';
+
+      await testDb.insert(appUser).values([
+        { id: userAId, email: 'usera@test.gov.ng', fullName: 'User A', passwordHash: dummyHash },
+        { id: userBId, email: 'userb@test.gov.ng', fullName: 'User B', passwordHash: dummyHash },
+      ]);
+
+      await testDb.insert(session).values([
+        {
+          id: sidA,
+          userId: userAId,
+          familyId: crypto.randomUUID(),
+          refreshTokenHash: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        },
+        {
+          id: sidB,
+          userId: userBId,
+          familyId: crypto.randomUUID(),
+          refreshTokenHash: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        },
+      ]);
+
+      const tokenA = (await tokenService.createAccessToken(userAId, sidA)).accessToken;
+      const tokenB = (await tokenService.createAccessToken(userBId, sidB)).accessToken;
+
+      const roleExport = crypto.randomUUID();
+      await testDb.insert(role).values({
+        id: roleExport,
+        key: 'exporter_role_' + Date.now(),
+        name: 'Exporter Role',
+        isSystem: false,
+      });
+      await testDb.insert(rolePermission).values({
+        roleId: roleExport,
+        permission: permissions.SLIS_EXPORT_GENERATE,
+      });
+      await testDb.insert(assignment).values([
+        {
+          id: crypto.randomUUID(),
+          userId: userAId,
+          roleId: roleExport,
+          module: 'slis',
+          scopeType: 'national',
+          createdBy: ADMIN_USER_ID,
+          updatedBy: ADMIN_USER_ID,
+        },
+        {
+          id: crypto.randomUUID(),
+          userId: userBId,
+          roleId: roleExport,
+          module: 'slis',
+          scopeType: 'national',
+          createdBy: ADMIN_USER_ID,
+          updatedBy: ADMIN_USER_ID,
+        },
+      ]);
+
+      await authzService.invalidateUser(userAId);
+      await authzService.invalidateUser(userBId);
+
+      const exportAId = crypto.randomUUID();
+      const fileAId = crypto.randomUUID();
+      await testDb.insert(file).values({
+        id: fileAId,
+        storageKey: `exports/${exportAId}.xlsx`,
+        originalName: 'export_a.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: 1024,
+        sha256: 'sha256_mock',
+        scanStatus: 'clean',
+        createdBy: userAId,
+        updatedBy: userAId,
+      });
+      await testDb.insert(exportJob).values({
+        id: exportAId,
+        userId: userAId,
+        dataset: 'farmers',
+        status: 'completed',
+        fileId: fileAId,
+        rowCount: 10,
+        completedAt: new Date().toISOString(),
+      });
+
+      // User B requests User A's export -> 404 (not 403, preventing ID enumeration)
+      const resB = await app.inject({
+        method: 'GET',
+        url: `/slis/exports/${exportAId}`,
+        headers: { authorization: `Bearer ${tokenB}` },
+      });
+      expect(resB.statusCode).toBe(404);
+
+      // User A (owner) requests export -> 200 + downloadUrl
+      const resA = await app.inject({
+        method: 'GET',
+        url: `/slis/exports/${exportAId}`,
+        headers: { authorization: `Bearer ${tokenA}` },
+      });
+      expect(resA.statusCode).toBe(200);
+      expect(resA.json().downloadUrl).toBeDefined();
+
+      // Verify link issuance is audited
+      const [audit] = await testDb
+        .select()
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.action, 'export.download'),
+            eq(auditLog.entityType, 'slis.report'),
+            eq(auditLog.entityId, exportAId),
+          ),
+        );
+      expect(audit).toBeDefined();
+      expect(audit.actorUserId).toBe(userAId);
+    });
+
+    it('POST /slis/exports returns 400 when filters contain unknown keys', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/slis/exports',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          dataset: 'farmers',
+          filters: {
+            unknownFilterKey: 'invalidValue',
+          },
+        },
+      });
+      expect(res.statusCode).toBe(400);
     });
   });
 });

@@ -8,6 +8,8 @@ export default defineConfig({
     'src/release.ts',
     'src/cli/migrate.ts',
     'src/cli/seed.ts',
+    'src/authz/index.ts',
+    'src/security/index.ts',
   ],
   format: ['esm'],
   target: 'node22',

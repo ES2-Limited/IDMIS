@@ -8,6 +8,7 @@ import {
   auditLog,
   farmer,
   farmerIdentity,
+  file,
   lookupType,
   lookupValue,
   organisation,
@@ -16,11 +17,13 @@ import {
   exportJob,
   state,
   eq,
+  and,
   postgres,
   drizzle,
   migrate,
 } from '@idmis/db';
 import * as schema from '@idmis/db';
+import { EncryptionService } from '@idmis/db/security';
 import { processSlisExportJob, type SlisExportJobOptions } from './slis-export.job';
 
 describe('Worker SLIS Export Job Specification (BE-2.8)', { timeout: 30000 }, () => {
@@ -199,15 +202,7 @@ describe('Worker SLIS Export Job Specification (BE-2.8)', { timeout: 30000 }, ()
     });
 
     const rawNin = '12345678901';
-    const key = crypto
-      .createHash('sha256')
-      .update(process.env.ENCRYPTION_KEY || 'development-test-encryption-key-32-chars')
-      .digest();
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const encrypted = Buffer.concat([cipher.update(rawNin, 'utf8'), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    const numEnc = Buffer.concat([Buffer.from([1]), iv, tag, encrypted]).toString('hex');
+    const numEnc = new EncryptionService().encrypt(rawNin).toString('hex');
 
     await testDb.insert(farmerIdentity).values({
       id: crypto.randomUUID(),
@@ -393,7 +388,7 @@ describe('Worker SLIS Export Job Specification (BE-2.8)', { timeout: 30000 }, ()
     expect(foundUnmasked).toBe(true);
   });
 
-  it('fails job when scope is revoked between enqueue and run', async () => {
+  it('scope revoked between enqueue and run -> job failed, no file, no core.file row', async () => {
     const exportId = crypto.randomUUID();
     await testDb.insert(exportJob).values({
       id: exportId,
@@ -418,5 +413,526 @@ describe('Worker SLIS Export Job Specification (BE-2.8)', { timeout: 30000 }, ()
     const [failedJob] = await testDb.select().from(exportJob).where(eq(exportJob.id, exportId));
     expect(failedJob.status).toBe('failed');
     expect(mockStorageFiles.has(`exports/${exportId}.xlsx`)).toBe(false);
+
+    const fileRows = await testDb.select().from(file).where(eq(file.ownerId, exportId));
+    expect(fileRows.length).toBe(0);
+  });
+
+  it('export permission removed between enqueue and run -> failed', async () => {
+    const exportId = crypto.randomUUID();
+    const testUserId = crypto.randomUUID();
+    const dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$fakeHash$fake';
+
+    await testDb.insert(appUser).values({
+      id: testUserId,
+      email: `perm_removed_${Date.now()}@idmis.gov.ng`,
+      fullName: 'Perm Removed User',
+      passwordHash: dummyHash,
+    });
+
+    const testRoleId = crypto.randomUUID();
+    await testDb.insert(role).values({
+      id: testRoleId,
+      key: `temp_exporter_${Date.now()}`,
+      name: 'Temp Exporter',
+      isSystem: false,
+    });
+    await testDb.insert(rolePermission).values([
+      { roleId: testRoleId, permission: 'slis.export.generate' },
+      { roleId: testRoleId, permission: 'slis.farmer.read' },
+    ]);
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: testUserId,
+      roleId: testRoleId,
+      module: 'slis',
+      scopeType: 'scheme',
+      scopeOrgId: KANO_SCHEME_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    await testDb.insert(exportJob).values({
+      id: exportId,
+      userId: testUserId,
+      dataset: 'farmers',
+      status: 'queued',
+      filters: {},
+    });
+
+    // Remove export permission
+    await testDb
+      .delete(rolePermission)
+      .where(
+        and(
+          eq(rolePermission.roleId, testRoleId),
+          eq(rolePermission.permission, 'slis.export.generate'),
+        ),
+      );
+
+    const result = await processSlisExportJob({
+      exportId,
+      userId: testUserId,
+      dataset: 'farmers',
+      dbClient: testDb as unknown as NonNullable<SlisExportJobOptions['dbClient']>,
+      s3Client: mockS3Client as unknown as NonNullable<SlisExportJobOptions['s3Client']>,
+    });
+
+    expect(result.status).toBe('failed');
+    const [failedJob] = await testDb.select().from(exportJob).where(eq(exportJob.id, exportId));
+    expect(failedJob.status).toBe('failed');
+    expect(mockStorageFiles.has(`exports/${exportId}.xlsx`)).toBe(false);
+  });
+
+  it('an rbda-scoped user exports only the schemes under their RBDA', async () => {
+    const rbdaUserId = crypto.randomUUID();
+    const rbdaAId = crypto.randomUUID();
+    const rbdaBId = crypto.randomUUID();
+    const schemeAId = crypto.randomUUID();
+    const schemeBId = crypto.randomUUID();
+    const dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$fakeHash$fake';
+
+    await testDb.insert(appUser).values({
+      id: rbdaUserId,
+      email: `rbda_${Date.now()}@idmis.gov.ng`,
+      fullName: 'RBDA User',
+      passwordHash: dummyHash,
+    });
+
+    await testDb.insert(organisation).values([
+      {
+        id: rbdaAId,
+        type: 'rbda',
+        code: `RBDA-A-${Date.now()}`,
+        name: 'RBDA A',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: rbdaBId,
+        type: 'rbda',
+        code: `RBDA-B-${Date.now()}`,
+        name: 'RBDA B',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: schemeAId,
+        parentId: rbdaAId,
+        type: 'scheme',
+        code: `SCH-A-${Date.now()}`,
+        name: 'Scheme A (under RBDA A)',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: schemeBId,
+        parentId: rbdaBId,
+        type: 'scheme',
+        code: `SCH-B-${Date.now()}`,
+        name: 'Scheme B (under RBDA B)',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const rbdaRoleId = crypto.randomUUID();
+    await testDb.insert(role).values({
+      id: rbdaRoleId,
+      key: `rbda_role_${Date.now()}`,
+      name: 'RBDA Role',
+      isSystem: false,
+    });
+    await testDb.insert(rolePermission).values([
+      { roleId: rbdaRoleId, permission: 'slis.export.generate' },
+      { roleId: rbdaRoleId, permission: 'slis.farmer.read' },
+    ]);
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: rbdaUserId,
+      roleId: rbdaRoleId,
+      module: 'slis',
+      scopeType: 'rbda',
+      scopeOrgId: rbdaAId,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    const farmerAId = crypto.randomUUID();
+    const farmerBId = crypto.randomUUID();
+    await testDb.insert(farmer).values([
+      {
+        id: farmerAId,
+        schemeId: schemeAId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `FA-${Date.now()}`,
+        firstName: 'FarmerA',
+        lastName: 'UnderRBDA-A',
+        gender: 'male',
+        status: 'approved',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: farmerBId,
+        schemeId: schemeBId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `FB-${Date.now()}`,
+        firstName: 'FarmerB',
+        lastName: 'UnderRBDA-B',
+        gender: 'female',
+        status: 'approved',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const exportId = crypto.randomUUID();
+    await testDb.insert(exportJob).values({
+      id: exportId,
+      userId: rbdaUserId,
+      dataset: 'farmers',
+      status: 'queued',
+      filters: {},
+    });
+
+    const result = await processSlisExportJob({
+      exportId,
+      userId: rbdaUserId,
+      dataset: 'farmers',
+      dbClient: testDb as unknown as NonNullable<SlisExportJobOptions['dbClient']>,
+      s3Client: mockS3Client as unknown as NonNullable<SlisExportJobOptions['s3Client']>,
+    });
+
+    expect(result.status).toBe('completed');
+
+    const fileBuf = mockStorageFiles.get(`exports/${exportId}.xlsx`)!;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(fileBuf as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+    const ws = wb.getWorksheet('Data')!;
+
+    let hasFarmerA = false;
+    let hasFarmerB = false;
+
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const code = ws.getRow(r).getCell(2).value;
+      if (code === `FA-${Date.now()}` || code?.toString().startsWith('FA-')) hasFarmerA = true;
+      if (code === `FB-${Date.now()}` || code?.toString().startsWith('FB-')) hasFarmerB = true;
+    }
+
+    expect(hasFarmerA).toBe(true);
+    expect(hasFarmerB).toBe(false);
+  });
+
+  it('a user with identity.view for scheme A only: scheme A rows unmasked, scheme B rows masked', async () => {
+    const officerId = crypto.randomUUID();
+    const schemeAId = crypto.randomUUID();
+    const schemeBId = crypto.randomUUID();
+    const dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$fakeHash$fake';
+
+    await testDb.insert(appUser).values({
+      id: officerId,
+      email: `id_view_${Date.now()}@idmis.gov.ng`,
+      fullName: 'ID View Officer',
+      passwordHash: dummyHash,
+    });
+
+    await testDb.insert(organisation).values([
+      {
+        id: schemeAId,
+        type: 'scheme',
+        code: `SCH-ID-A-${Date.now()}`,
+        name: 'Scheme ID A',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: schemeBId,
+        type: 'scheme',
+        code: `SCH-ID-B-${Date.now()}`,
+        name: 'Scheme ID B',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const readAndExportRole = crypto.randomUUID();
+    const identityRole = crypto.randomUUID();
+
+    await testDb.insert(role).values([
+      {
+        id: readAndExportRole,
+        key: `reader_exp_${Date.now()}`,
+        name: 'Reader Exp',
+        isSystem: false,
+      },
+      { id: identityRole, key: `id_viewer_${Date.now()}`, name: 'ID Viewer', isSystem: false },
+    ]);
+
+    await testDb.insert(rolePermission).values([
+      { roleId: readAndExportRole, permission: 'slis.export.generate' },
+      { roleId: readAndExportRole, permission: 'slis.farmer.read' },
+      { roleId: identityRole, permission: 'slis.identity.view' },
+    ]);
+
+    // National read & export, but identity.view ONLY on scheme A
+    await testDb.insert(assignment).values([
+      {
+        id: crypto.randomUUID(),
+        userId: officerId,
+        roleId: readAndExportRole,
+        module: 'slis',
+        scopeType: 'national',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: officerId,
+        roleId: identityRole,
+        module: 'slis',
+        scopeType: 'scheme',
+        scopeOrgId: schemeAId,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const encService = new EncryptionService();
+    const ninA = '11111111111';
+    const ninB = '22222222222';
+    const farmerAId = crypto.randomUUID();
+    const farmerBId = crypto.randomUUID();
+
+    await testDb.insert(farmer).values([
+      {
+        id: farmerAId,
+        schemeId: schemeAId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `F-IDA-${Date.now()}`,
+        firstName: 'AminaA',
+        lastName: 'SchemeA',
+        gender: 'female',
+        status: 'approved',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: farmerBId,
+        schemeId: schemeBId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `F-IDB-${Date.now()}`,
+        firstName: 'AminaB',
+        lastName: 'SchemeB',
+        gender: 'female',
+        status: 'approved',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    await testDb.insert(farmerIdentity).values([
+      {
+        id: crypto.randomUUID(),
+        farmerId: farmerAId,
+        documentTypeId: DOC_TYPE_NIN,
+        numberEnc: encService.encrypt(ninA).toString('hex'),
+        numberHash: crypto.createHash('sha256').update(ninA).digest('hex'),
+        numberLast4: '1111',
+        uniquePerPerson: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        farmerId: farmerBId,
+        documentTypeId: DOC_TYPE_NIN,
+        numberEnc: encService.encrypt(ninB).toString('hex'),
+        numberHash: crypto.createHash('sha256').update(ninB).digest('hex'),
+        numberLast4: '2222',
+        uniquePerPerson: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const exportId = crypto.randomUUID();
+    await testDb.insert(exportJob).values({
+      id: exportId,
+      userId: officerId,
+      dataset: 'farmers',
+      status: 'queued',
+      filters: {},
+    });
+
+    const result = await processSlisExportJob({
+      exportId,
+      userId: officerId,
+      dataset: 'farmers',
+      dbClient: testDb as unknown as NonNullable<SlisExportJobOptions['dbClient']>,
+      s3Client: mockS3Client as unknown as NonNullable<SlisExportJobOptions['s3Client']>,
+    });
+
+    expect(result.status).toBe('completed');
+
+    const fileBuf = mockStorageFiles.get(`exports/${exportId}.xlsx`)!;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(fileBuf as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+    const ws = wb.getWorksheet('Data')!;
+
+    let schemeAUnmasked = false;
+    let schemeBMasked = false;
+
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const code = ws.getRow(r).getCell(2).value?.toString();
+      const idDoc = ws.getRow(r).getCell(10).value?.toString();
+      if (code?.startsWith('F-IDA')) {
+        expect(idDoc).toBe('11111111111');
+        schemeAUnmasked = true;
+      }
+      if (code?.startsWith('F-IDB')) {
+        expect(idDoc).toBe('***2222');
+        schemeBMasked = true;
+      }
+    }
+
+    expect(schemeAUnmasked).toBe(true);
+    expect(schemeBMasked).toBe(true);
+  });
+
+  it('filters: export farmers with a status=approved filter -> only approved rows in the file', async () => {
+    const filterUserId = crypto.randomUUID();
+    const filterSchemeId = crypto.randomUUID();
+    const dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$fakeHash$fake';
+
+    await testDb.insert(appUser).values({
+      id: filterUserId,
+      email: `filter_${Date.now()}@idmis.gov.ng`,
+      fullName: 'Filter User',
+      passwordHash: dummyHash,
+    });
+
+    await testDb.insert(organisation).values({
+      id: filterSchemeId,
+      type: 'scheme',
+      code: `SCH-FLT-${Date.now()}`,
+      name: 'Filter Scheme',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    const filterRoleId = crypto.randomUUID();
+    await testDb.insert(role).values({
+      id: filterRoleId,
+      key: `filter_role_${Date.now()}`,
+      name: 'Filter Role',
+      isSystem: false,
+    });
+    await testDb.insert(rolePermission).values([
+      { roleId: filterRoleId, permission: 'slis.export.generate' },
+      { roleId: filterRoleId, permission: 'slis.farmer.read' },
+    ]);
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: filterUserId,
+      roleId: filterRoleId,
+      module: 'slis',
+      scopeType: 'scheme',
+      scopeOrgId: filterSchemeId,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    const approvedFarmerId = crypto.randomUUID();
+    const submittedFarmerId = crypto.randomUUID();
+
+    await testDb.insert(farmer).values([
+      {
+        id: approvedFarmerId,
+        schemeId: filterSchemeId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `FLT-APP-${Date.now()}`,
+        firstName: 'ApprovedFarmer',
+        lastName: 'Test',
+        gender: 'male',
+        status: 'approved',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: submittedFarmerId,
+        schemeId: filterSchemeId,
+        stateId: KANO_STATE_ID,
+        farmerCode: `FLT-SUB-${Date.now()}`,
+        firstName: 'SubmittedFarmer',
+        lastName: 'Test',
+        gender: 'female',
+        status: 'submitted',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    const exportId = crypto.randomUUID();
+    await testDb.insert(exportJob).values({
+      id: exportId,
+      userId: filterUserId,
+      dataset: 'farmers',
+      status: 'queued',
+      filters: { status: 'approved' },
+    });
+
+    const result = await processSlisExportJob({
+      exportId,
+      userId: filterUserId,
+      dataset: 'farmers',
+      filters: { status: 'approved' },
+      dbClient: testDb as unknown as NonNullable<SlisExportJobOptions['dbClient']>,
+      s3Client: mockS3Client as unknown as NonNullable<SlisExportJobOptions['s3Client']>,
+    });
+
+    expect(result.status).toBe('completed');
+
+    const fileBuf = mockStorageFiles.get(`exports/${exportId}.xlsx`)!;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(fileBuf as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0]);
+    const ws = wb.getWorksheet('Data')!;
+
+    let hasApproved = false;
+    let hasSubmitted = false;
+
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const code = ws.getRow(r).getCell(2).value?.toString();
+      if (code?.startsWith('FLT-APP')) hasApproved = true;
+      if (code?.startsWith('FLT-SUB')) hasSubmitted = true;
+    }
+
+    expect(hasApproved).toBe(true);
+    expect(hasSubmitted).toBe(false);
+  });
+
+  it('decrypt a value encrypted with an OLD key listed in ENCRYPTION_KEYS -> works', async () => {
+    const oldKey = 'old-secret-key-must-be-min-32-chars-long';
+    const newKey = 'new-secret-key-must-be-min-32-chars-long';
+
+    // 1. Encrypt with old service (primary key 1 = oldKey)
+    const oldService = new EncryptionService({
+      encryptionKey: oldKey,
+      nodeEnv: 'test',
+    });
+    const secretNIN = '98765432109';
+    const ciphertextOld = oldService.encrypt(secretNIN);
+    expect(ciphertextOld.readUInt8(0)).toBe(1);
+
+    // 2. Service configured with new primary and old key in ENCRYPTION_KEYS ("1:oldKey")
+    const rotatedService = new EncryptionService({
+      encryptionKey: newKey,
+      encryptionKeys: `1:${oldKey}`,
+      nodeEnv: 'test',
+    });
+
+    // Successfully decrypts old value
+    const decrypted = rotatedService.decrypt(ciphertextOld);
+    expect(decrypted).toBe(secretNIN);
   });
 });
