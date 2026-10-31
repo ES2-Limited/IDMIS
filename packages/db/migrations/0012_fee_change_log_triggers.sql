@@ -42,12 +42,6 @@ BEGIN
     WHERE t.id = (CASE WHEN TG_OP = 'DELETE' THEN OLD.training_id ELSE NEW.training_id END);
   END IF;
 
-  IF v_scheme_id IS NULL AND TG_TABLE_NAME IN ('fee_billing', 'fee_collection') AND (v_row ? 'plot_id') AND (v_row ->> 'plot_id') IS NOT NULL THEN
-    SELECT p.scheme_id, p.state_id INTO v_scheme_id, v_state_id
-    FROM "slis"."plot" p
-    WHERE p.id = (v_row ->> 'plot_id')::uuid;
-  END IF;
-
   IF v_state_id IS NULL AND (v_row ? 'ward_id') AND (v_row ->> 'ward_id') IS NOT NULL THEN
     SELECT l.state_id INTO v_state_id
     FROM "core"."ward" w
@@ -78,3 +72,4 @@ DROP TRIGGER IF EXISTS "trg_change_log_fee_collection" ON "slis"."fee_collection
 CREATE TRIGGER "trg_change_log_fee_collection"
 AFTER INSERT OR UPDATE OR DELETE ON "slis"."fee_collection"
 FOR EACH ROW EXECUTE FUNCTION "core"."trg_slis_change_log"();
+

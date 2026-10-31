@@ -17,6 +17,8 @@ import {
   trainingAttendance,
   streamFlowReading,
   household,
+  feeBilling,
+  feeCollection,
 } from '@idmis/db';
 import { Injectable, Logger } from '@nestjs/common';
 import type {
@@ -35,6 +37,21 @@ export function stripSensitiveData(obj: Record<string, unknown>): Record<string,
   delete stripped.bankAccountEnc;
   return stripped;
 }
+
+export const SYNC_SUPPORTED_ENTITIES = new Set<string>([
+  'farmer',
+  'plot',
+  'farm',
+  'plot_allocation',
+  'crop_production',
+  'water_request',
+  'training',
+  'training_attendance',
+  'stream_flow_reading',
+  'household',
+  'fee_billing',
+  'fee_collection',
+]);
 
 @Injectable()
 export class SyncRepository {
@@ -323,6 +340,37 @@ export class SyncRepository {
             Record<string, unknown>
           >;
           break;
+        case 'fee_billing': {
+          const res = (await txDb
+            .select()
+            .from(feeBilling)
+            .where(inArray(feeBilling.id, ids))) as Array<Record<string, unknown>>;
+          rows = res.map((r) => ({
+            ...r,
+            amountNgn:
+              typeof r.amountNgn === 'number'
+                ? Number(r.amountNgn).toFixed(2)
+                : String(r.amountNgn),
+          }));
+          break;
+        }
+        case 'fee_collection': {
+          const res = (await txDb
+            .select()
+            .from(feeCollection)
+            .where(inArray(feeCollection.id, ids))) as Array<Record<string, unknown>>;
+          rows = res.map((r) => ({
+            ...r,
+            amountNgn:
+              typeof r.amountNgn === 'number'
+                ? Number(r.amountNgn).toFixed(2)
+                : String(r.amountNgn),
+          }));
+          break;
+        }
+        default:
+          this.logger.error(`Unknown sync entity in fetchCurrentEntityRows: "${entity}"`);
+          break;
       }
 
       for (const row of rows) {
@@ -408,15 +456,25 @@ export class SyncRepository {
     const items = hasMore ? rows.slice(0, limit) : rows;
 
     // Dynamically fetch current records for upsert operations
-    const upsertItems = items.filter((r) => r.op === 'upsert');
+    const upsertItems = items.filter(
+      (r) => r.op === 'upsert' && SYNC_SUPPORTED_ENTITIES.has(r.entity),
+    );
     const entityRowMap = await this.fetchCurrentEntityRows(
       upsertItems.map((r) => ({ entity: r.entity, recordId: r.recordId })),
       txDb,
     );
 
-    const mappedItems: SyncPullChangeItem[] = items.map((r) => {
+    const mappedItems: SyncPullChangeItem[] = [];
+    for (const r of items) {
+      if (!SYNC_SUPPORTED_ENTITIES.has(r.entity)) {
+        this.logger.error(
+          `Unknown change_log entity "${r.entity}" for record "${r.recordId}" (op: ${r.op}); skipping item`,
+        );
+        continue;
+      }
+
       if (r.op === 'delete') {
-        return {
+        mappedItems.push({
           xid: String(r.xid),
           seq: Number(r.seq),
           entity: r.entity,
@@ -425,12 +483,13 @@ export class SyncRepository {
           deleted: true,
           schemeId: r.schemeId ?? null,
           stateId: r.stateId ?? null,
-        };
+        });
+        continue;
       }
 
       const currentRow = entityRowMap.get(`${r.entity}:${r.recordId}`);
       if (!currentRow || currentRow.deletedAt != null) {
-        return {
+        mappedItems.push({
           xid: String(r.xid),
           seq: Number(r.seq),
           entity: r.entity,
@@ -439,10 +498,11 @@ export class SyncRepository {
           deleted: true,
           schemeId: r.schemeId ?? null,
           stateId: r.stateId ?? null,
-        };
+        });
+        continue;
       }
 
-      return {
+      mappedItems.push({
         xid: String(r.xid),
         seq: Number(r.seq),
         entity: r.entity,
@@ -451,10 +511,10 @@ export class SyncRepository {
         schemeId: r.schemeId ?? null,
         stateId: r.stateId ?? null,
         data: stripSensitiveData(currentRow),
-      };
-    });
+      });
+    }
 
-    const last = mappedItems[mappedItems.length - 1];
+    const last = items[items.length - 1];
     const nextCursor = last
       ? `${last.xid}:${last.seq}`
       : cursor

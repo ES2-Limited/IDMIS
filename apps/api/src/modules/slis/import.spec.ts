@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { NestFactory } from '@nestjs/core';
 import crypto from 'node:crypto';
@@ -47,12 +47,14 @@ import {
   eq,
   and,
   isNull,
+  sql,
 } from '@idmis/db';
 import { AppModule } from '../../app.module';
 import { TokenService } from '../auth/token.service';
 import { StorageService } from '../../platform/storage/storage.service';
 import { AuthzService } from '../../platform/auth/authz.service';
 import { resetAuditWriter } from '../../platform/database/transaction.helper';
+import { SyncRepository, SYNC_SUPPORTED_ENTITIES } from './repositories/sync.repository';
 
 describe('SLIS Import Specification (BE-2.7)', () => {
   let app: NestFastifyApplication;
@@ -91,11 +93,17 @@ describe('SLIS Import Specification (BE-2.7)', () => {
 
   const SEASON_ID = crypto.randomUUID();
   const DEVICE_ID = crypto.randomUUID();
+  const KANO_FIELD_OFFICER_ID = crypto.randomUUID();
+  const LAGOS_FIELD_OFFICER_ID = crypto.randomUUID();
+  const KANO_FIELD_DEVICE_ID = crypto.randomUUID();
+  const LAGOS_FIELD_DEVICE_ID = crypto.randomUUID();
 
   let adminToken: string;
   let kanoAdminToken: string;
   let revokedUserToken: string;
   let revokedAssignmentId: string;
+  let kanoFieldOfficerToken: string;
+  let lagosFieldOfficerToken: string;
 
   const mockStorageFiles = new Map<string, Buffer>();
 
@@ -164,6 +172,18 @@ describe('SLIS Import Specification (BE-2.7)', () => {
         email: 'revoked.user@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'Revoked Officer',
+      },
+      {
+        id: KANO_FIELD_OFFICER_ID,
+        email: 'kano.field@idmis.gov.ng',
+        passwordHash: dummyHash,
+        fullName: 'Kano Field Officer',
+      },
+      {
+        id: LAGOS_FIELD_OFFICER_ID,
+        email: 'lagos.field@idmis.gov.ng',
+        passwordHash: dummyHash,
+        fullName: 'Lagos Field Officer',
       },
     ]);
 
@@ -283,15 +303,35 @@ describe('SLIS Import Specification (BE-2.7)', () => {
     ]);
 
     // 7. Seed Device for Sync Pull
-    await testDb.insert(device).values({
-      id: DEVICE_ID,
-      installationId: crypto.randomUUID(),
-      userId: ADMIN_USER_ID,
-      label: 'Test Tablet',
-      platform: 'android',
-      scopeFingerprint: 'national',
-      registeredAt: new Date().toISOString(),
-    });
+    await testDb.insert(device).values([
+      {
+        id: DEVICE_ID,
+        installationId: crypto.randomUUID(),
+        userId: ADMIN_USER_ID,
+        label: 'Test Tablet',
+        platform: 'android',
+        scopeFingerprint: 'national',
+        registeredAt: new Date().toISOString(),
+      },
+      {
+        id: KANO_FIELD_DEVICE_ID,
+        installationId: crypto.randomUUID(),
+        userId: KANO_FIELD_OFFICER_ID,
+        label: 'Kano Tablet',
+        platform: 'android',
+        scopeFingerprint: 'kano-scheme',
+        registeredAt: new Date().toISOString(),
+      },
+      {
+        id: LAGOS_FIELD_DEVICE_ID,
+        installationId: crypto.randomUUID(),
+        userId: LAGOS_FIELD_OFFICER_ID,
+        label: 'Lagos Tablet',
+        platform: 'android',
+        scopeFingerprint: 'lagos-scheme',
+        registeredAt: new Date().toISOString(),
+      },
+    ]);
 
     // 8. Seed Roles & Permissions
     await testDb.insert(role).values({
@@ -344,6 +384,30 @@ describe('SLIS Import Specification (BE-2.7)', () => {
       updatedBy: SYSTEM_USER_ID,
     });
 
+    // Kano Field Officer: Kano scheme scope
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: KANO_FIELD_OFFICER_ID,
+      roleId: SLIS_ADMIN_ROLE_ID,
+      module: 'slis',
+      scopeType: 'scheme',
+      scopeOrgId: KANO_SCHEME_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    // Lagos Field Officer: Lagos scheme scope
+    await testDb.insert(assignment).values({
+      id: crypto.randomUUID(),
+      userId: LAGOS_FIELD_OFFICER_ID,
+      roleId: SLIS_ADMIN_ROLE_ID,
+      module: 'slis',
+      scopeType: 'scheme',
+      scopeOrgId: LAGOS_SCHEME_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
     // 9. Generate Access Tokens
     const sidAdmin = crypto.randomUUID();
     await testDb.insert(session).values({
@@ -375,6 +439,30 @@ describe('SLIS Import Specification (BE-2.7)', () => {
     });
     revokedUserToken = (await tokenService.createAccessToken(REVOKED_USER_ID, sidRevoked))
       .accessToken;
+
+    const sidKanoField = crypto.randomUUID();
+    await testDb.insert(session).values({
+      id: sidKanoField,
+      familyId: crypto.randomUUID(),
+      userId: KANO_FIELD_OFFICER_ID,
+      refreshTokenHash: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+    kanoFieldOfficerToken = (
+      await tokenService.createAccessToken(KANO_FIELD_OFFICER_ID, sidKanoField)
+    ).accessToken;
+
+    const sidLagosField = crypto.randomUUID();
+    await testDb.insert(session).values({
+      id: sidLagosField,
+      familyId: crypto.randomUUID(),
+      userId: LAGOS_FIELD_OFFICER_ID,
+      refreshTokenHash: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+    lagosFieldOfficerToken = (
+      await tokenService.createAccessToken(LAGOS_FIELD_OFFICER_ID, sidLagosField)
+    ).accessToken;
   });
 
   afterAll(async () => {
@@ -1393,6 +1481,246 @@ describe('SLIS Import Specification (BE-2.7)', () => {
       const preview = JSON.parse(previewRes.body);
       const invalidRow = preview.rows.find((r: { rowNumber: number }) => r.rowNumber === 4);
       expect(invalidRow.errors[0].code).toBe('invalid_geometry');
+    });
+  });
+
+  // --- 9. Fee Import & Sync Pull Integration ---
+  describe('Fee Import & Sync Pull Integration', () => {
+    it('import fee_billing + fee_collection -> sync pull (field officer in the same scheme) returns both as op upsert with exact amountNgn; undo -> pull returns delete; other scheme officer receives nothing', async () => {
+      // 0. Create test farmer
+      await testDb.insert(farmer).values({
+        id: crypto.randomUUID(),
+        schemeId: KANO_SCHEME_ID,
+        sectorId: KANO_SECTOR_ID,
+        farmerCode: 'F-SYNC-FEE-01',
+        firstName: 'FeeSync',
+        lastName: 'Farmer',
+        gender: 'female',
+        status: 'submitted',
+        createdBy: ADMIN_USER_ID,
+        updatedBy: ADMIN_USER_ID,
+      });
+
+      // 1. Import fee_billing for Kano scheme
+      const billingRows = [
+        {
+          seasonName: 'Dry Season 2026',
+          targetType: 'farmer',
+          targetCode: 'F-SYNC-FEE-01',
+          amountNgn: '1234.50',
+          dueDate: '2026-06-30',
+        },
+      ];
+
+      const billingBatch = await uploadAndValidate('slis.fee_billing', billingRows);
+      expect(billingBatch.status).toBe('validated');
+
+      const commitBillingRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${billingBatch.id}/commit`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(commitBillingRes.statusCode).toBe(201);
+
+      const [bRow] = await testDb
+        .select()
+        .from(feeBilling)
+        .where(and(eq(feeBilling.importBatchId, billingBatch.id), isNull(feeBilling.deletedAt)));
+      expect(bRow).toBeDefined();
+
+      // 2. Import fee_collection for Kano scheme referencing the billing row
+      const collectionRows = [
+        {
+          seasonName: 'Dry Season 2026',
+          targetType: 'farmer',
+          targetCode: 'F-SYNC-FEE-01',
+          receiptNo: 'REC-SYNC-FEE-001',
+          amountNgn: '1234.50',
+          paidOn: '2026-05-20',
+        },
+      ];
+
+      const collectionBatch = await uploadAndValidate('slis.fee_collection', collectionRows);
+      expect(collectionBatch.status).toBe('validated');
+
+      const commitCollRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${collectionBatch.id}/commit`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(commitCollRes.statusCode).toBe(201);
+
+      const [cRow] = await testDb
+        .select()
+        .from(feeCollection)
+        .where(
+          and(eq(feeCollection.receiptNo, 'REC-SYNC-FEE-001'), isNull(feeCollection.deletedAt)),
+        );
+      expect(cRow).toBeDefined();
+
+      // 3. Sync pull by Kano Field Officer (same scheme) -> returns both as upsert with exact amountNgn
+      const kanoPullRes = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${kanoFieldOfficerToken}`,
+          'x-device-id': KANO_FIELD_DEVICE_ID,
+        },
+      });
+      expect(kanoPullRes.statusCode).toBe(200);
+      const kanoPull = JSON.parse(kanoPullRes.body);
+
+      const billingOp = kanoPull.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_billing' && op.recordId === bRow!.id,
+      );
+      expect(billingOp).toBeDefined();
+      expect(billingOp.op).toBe('upsert');
+      expect(billingOp.data.amountNgn).toBe('1234.50');
+
+      const collectionOp = kanoPull.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_collection' && op.recordId === cRow!.id,
+      );
+      expect(collectionOp).toBeDefined();
+      expect(collectionOp.op).toBe('upsert');
+      expect(collectionOp.data.amountNgn).toBe('1234.50');
+
+      // 4. Sync pull by Lagos Field Officer (different scheme) -> does NOT receive them
+      const lagosPullRes = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${lagosFieldOfficerToken}`,
+          'x-device-id': LAGOS_FIELD_DEVICE_ID,
+        },
+      });
+      expect(lagosPullRes.statusCode).toBe(200);
+      const lagosPull = JSON.parse(lagosPullRes.body);
+
+      const lagosBillingOp = lagosPull.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_billing' && op.recordId === bRow!.id,
+      );
+      expect(lagosBillingOp).toBeUndefined();
+
+      const lagosCollectionOp = lagosPull.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_collection' && op.recordId === cRow!.id,
+      );
+      expect(lagosCollectionOp).toBeUndefined();
+
+      // 5. Undo both imports
+      const undoCollRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${collectionBatch.id}/undo`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(undoCollRes.statusCode).toBe(201);
+
+      const undoBillRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${billingBatch.id}/undo`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(undoBillRes.statusCode).toBe(201);
+      // 6. Sync pull after undo by Kano Field Officer -> returns both as op 'delete'
+      const kanoPullAfterUndoRes = await app.inject({
+        method: 'GET',
+        url: `/slis/sync/pull?cursor=${kanoPull.nextCursor}`,
+        headers: {
+          authorization: `Bearer ${kanoFieldOfficerToken}`,
+          'x-device-id': KANO_FIELD_DEVICE_ID,
+        },
+      });
+      expect(kanoPullAfterUndoRes.statusCode).toBe(200);
+      const kanoPullAfterUndo = JSON.parse(kanoPullAfterUndoRes.body);
+
+      const delBillingOp = kanoPullAfterUndo.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_billing' && op.recordId === bRow!.id,
+      );
+      expect(delBillingOp).toBeDefined();
+      expect(delBillingOp.op).toBe('delete');
+
+      const delCollOp = kanoPullAfterUndo.items.find(
+        (op: { entity: string; recordId: string }) =>
+          op.entity === 'fee_collection' && op.recordId === cRow!.id,
+      );
+      expect(delCollOp).toBeDefined();
+      expect(delCollOp.op).toBe('delete');
+    });
+
+    it('unknown entity in change_log fails loudly and is skipped instead of becoming delete', async () => {
+      const syncRepo = app.get(SyncRepository);
+      const loggerSpy = vi.spyOn(
+        (syncRepo as unknown as { logger: { error: (msg: string) => void } }).logger,
+        'error',
+      );
+
+      const fakeRecordId = crypto.randomUUID();
+      // Insert an unknown entity row directly into change_log
+      await testDb.execute(sql`
+        INSERT INTO "core"."change_log" (xid, entity, record_id, op, scheme_id, state_id)
+        VALUES (pg_current_xact_id(), 'mystery_entity', ${fakeRecordId}::uuid, 'upsert', ${KANO_SCHEME_ID}::uuid, ${KANO_STATE_ID}::uuid);
+      `);
+
+      const pullRes = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${kanoFieldOfficerToken}`,
+          'x-device-id': KANO_FIELD_DEVICE_ID,
+        },
+      });
+      expect(pullRes.statusCode).toBe(200);
+      const pull = JSON.parse(pullRes.body);
+
+      // Must be skipped: NOT emitted as 'upsert' and NOT emitted as 'delete'
+      const mysteryItem = pull.items.find(
+        (item: { entity: string; recordId: string }) => item.recordId === fakeRecordId,
+      );
+      expect(mysteryItem).toBeUndefined();
+
+      // Must log an error loudly
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown change_log entity "mystery_entity"'),
+      );
+      loggerSpy.mockRestore();
+    });
+
+    it('guard: every table with a trg_change_log_* trigger has a case in fetchCurrentEntityRows', async () => {
+      const syncRepo = app.get(SyncRepository);
+
+      // Query pg_trigger for all user-defined trg_change_log_* triggers
+      const triggers = (await testDb.execute<{ table_name: string; trigger_name: string }>(sql`
+        SELECT c.relname as table_name, t.tgname as trigger_name
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        WHERE t.tgname LIKE 'trg_change_log_%' AND t.tgisinternal = false;
+      `)) as unknown as Array<{ table_name: string; trigger_name: string }>;
+
+      expect(triggers.length).toBeGreaterThan(0);
+
+      const missingCases: string[] = [];
+      for (const row of triggers) {
+        if (!SYNC_SUPPORTED_ENTITIES.has(row.table_name)) {
+          missingCases.push(row.table_name);
+        }
+      }
+
+      expect(
+        missingCases,
+        `The following tables have a trg_change_log_* trigger but are missing from SyncRepository.fetchCurrentEntityRows / SYNC_SUPPORTED_ENTITIES: ${missingCases.join(', ')}`,
+      ).toEqual([]);
+
+      // Verify fetchCurrentEntityRows does not throw for any of the tables
+      const sampleItems = triggers.map((t) => ({
+        entity: t.table_name,
+        recordId: crypto.randomUUID(),
+      }));
+      const rowMap = await syncRepo.fetchCurrentEntityRows(sampleItems);
+      expect(rowMap).toBeInstanceOf(Map);
     });
   });
 });
