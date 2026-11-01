@@ -7,11 +7,8 @@ import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const isLoopbackDb =
-  process.env.DATABASE_URL?.includes('127.0.0.1') ||
-  process.env.DATABASE_URL?.includes('localhost');
 
-if (isProduction && !isLoopbackDb) {
+if (isProduction) {
   if (!process.env.ENCRYPTION_KEY) {
     throw new Error('ENCRYPTION_KEY is required when NODE_ENV=production');
   }

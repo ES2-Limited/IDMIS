@@ -8,11 +8,7 @@ export function getWorkerS3Config(): { s3Client: S3Client; bucket: string } {
   const accessKeyId = process.env.S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
 
-  const isLoopbackDb =
-    process.env.DATABASE_URL?.includes('127.0.0.1') ||
-    process.env.DATABASE_URL?.includes('localhost');
-
-  if (isProduction && !isLoopbackDb) {
+  if (isProduction) {
     if (!accessKeyId) {
       throw new Error('S3_ACCESS_KEY_ID is required when NODE_ENV=production');
     }
