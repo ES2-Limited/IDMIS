@@ -10,6 +10,7 @@ import {
   check,
   index,
   uniqueIndex,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -493,5 +494,124 @@ export const streamFlowReading = slisSchema.table(
     index('stream_flow_station_id_idx').on(table.stationId),
     index('stream_flow_read_at_idx').on(table.readAt),
     index('stream_flow_status_idx').on(table.status),
+  ],
+);
+
+// 16. Report Refresh Log
+export const reportRefresh = slisSchema.table('report_refresh', {
+  id: integer('id').primaryKey().default(1),
+  refreshedAt: timestamp('refreshed_at', { withTimezone: true, mode: 'string' })
+    .notNull()
+    .defaultNow(),
+});
+
+// 17. Asynchronous Export Job
+export const exportJob = slisSchema.table(
+  'export_job',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    dataset: text('dataset').notNull(),
+    filters: jsonb('filters').$type<Record<string, unknown>>().default({}),
+    status: text('status').notNull().default('queued'),
+    fileId: uuid('file_id').references(() => file.id),
+    rowCount: integer('row_count'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    index('export_job_user_id_idx').on(table.userId),
+    index('export_job_status_idx').on(table.status),
+  ],
+);
+
+// 18. Materialised Views (tables/views mapping in Drizzle)
+export const mvFarmersByScope = slisSchema.table(
+  'mv_farmers_by_scope',
+  {
+    schemeId: uuid('scheme_id').notNull(),
+    sectorId: uuid('sector_id'),
+    sectorKey: uuid('sector_key').notNull(),
+    stateId: uuid('state_id'),
+    stateKey: uuid('state_key').notNull(),
+    gender: text('gender').notNull(),
+    farmerCount: integer('farmer_count').notNull(),
+  },
+  (table) => [
+    uniqueIndex('mv_farmers_by_scope_unique').on(
+      table.schemeId,
+      table.sectorKey,
+      table.stateKey,
+      table.gender,
+    ),
+  ],
+);
+
+export const mvAreaByService = slisSchema.table(
+  'mv_area_by_service',
+  {
+    schemeId: uuid('scheme_id').notNull(),
+    stateId: uuid('state_id'),
+    stateKey: uuid('state_key').notNull(),
+    serviceType: text('service_type'),
+    serviceKey: text('service_key').notNull(),
+    totalHa: numeric('total_ha', { precision: 14, scale: 4 }).notNull(),
+    plotCount: integer('plot_count').notNull(),
+  },
+  (table) => [
+    uniqueIndex('mv_area_by_service_unique').on(table.schemeId, table.stateKey, table.serviceKey),
+  ],
+);
+
+export const mvCropping = slisSchema.table(
+  'mv_cropping',
+  {
+    schemeId: uuid('scheme_id').notNull(),
+    stateId: uuid('state_id'),
+    stateKey: uuid('state_key').notNull(),
+    seasonId: uuid('season_id').notNull(),
+    cropTypeId: uuid('crop_type_id').notNull(),
+    totalAreaHa: numeric('total_area_ha', { precision: 14, scale: 4 }).notNull(),
+    totalYieldT: numeric('total_yield_t', { precision: 14, scale: 3 }),
+    avgYieldTHa: numeric('avg_yield_t_ha', { precision: 14, scale: 4 }),
+  },
+  (table) => [
+    uniqueIndex('mv_cropping_unique').on(
+      table.schemeId,
+      table.stateKey,
+      table.seasonId,
+      table.cropTypeId,
+    ),
+  ],
+);
+
+export const mvFeeRecovery = slisSchema.table(
+  'mv_fee_recovery',
+  {
+    schemeId: uuid('scheme_id').notNull(),
+    stateId: uuid('state_id'),
+    stateKey: uuid('state_key').notNull(),
+    seasonId: uuid('season_id').notNull(),
+    wuaId: uuid('wua_id'),
+    wuaKey: uuid('wua_key').notNull(),
+    billedNgn: numeric('billed_ngn', { precision: 14, scale: 2 }).notNull(),
+    collectedNgn: numeric('collected_ngn', { precision: 14, scale: 2 }).notNull(),
+    recoveryRatePct: numeric('recovery_rate_pct', { precision: 7, scale: 2 }),
+  },
+  (table) => [
+    uniqueIndex('mv_fee_recovery_unique').on(
+      table.schemeId,
+      table.stateKey,
+      table.seasonId,
+      table.wuaKey,
+    ),
   ],
 );
