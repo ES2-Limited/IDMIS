@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@idmis/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-router": "^1.170.46",
     "react": "^19.0.0",
