@@ -41,14 +41,14 @@ function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string })
   return (
     <Link
       to={item.path}
-      className={`flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium transition-colors min-h-[40px] ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all min-h-[40px] ${
         isActive
-          ? 'bg-primary-50 text-primary-700 font-semibold'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          ? 'bg-teal-50 text-teal-800 shadow-2xs font-bold'
+          : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
       }`}
     >
       <Icon
-        className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary-700' : 'text-slate-400'}`}
+        className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-teal-700' : 'text-slate-400'}`}
         aria-hidden="true"
       />
       <span>{item.label}</span>
@@ -155,18 +155,25 @@ export function SideNav() {
   }
 
   return (
-    <aside className="w-64 border-r border-slate-200 bg-white flex flex-col shrink-0 min-h-[calc(100vh-4rem)]">
-      <div className="p-4 border-b border-slate-100">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <aside className="w-64 border-r border-slate-200/80 bg-white/70 backdrop-blur-md flex flex-col shrink-0 min-h-[calc(100vh-4rem)]">
+      <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {moduleName}
         </h2>
+        <span className="h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
       </div>
 
-      <nav aria-label="Module sub navigation" className="p-3 space-y-1 flex-1">
+      <nav aria-label="Module sub navigation" className="p-3 space-y-1.5 flex-1">
         {navItems.map((item) => (
           <NavEntry key={item.path} item={item} currentPath={currentPath} />
         ))}
       </nav>
+
+      {/* Footer / Quick Info */}
+      <div className="p-4 border-t border-slate-100 text-[11px] text-slate-400">
+        <p className="font-semibold text-slate-600">IDMIS v2.0</p>
+        <p className="text-[10px]">National Irrigation Registry</p>
+      </div>
     </aside>
   );
 }

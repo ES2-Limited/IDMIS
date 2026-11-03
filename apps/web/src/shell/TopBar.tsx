@@ -24,29 +24,36 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 shadow-2xs sm:px-6">
-      <div className="flex items-center gap-3 md:gap-6">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-3.5 sm:px-6 shadow-xs">
+      <div className="flex items-center gap-2.5 sm:gap-4 md:gap-6">
         <IconButton
           variant="ghost"
           size="sm"
           aria-label="Toggle navigation menu"
-          className="md:hidden"
+          className="md:hidden text-slate-600 hover:text-slate-900"
           onClick={onToggleSidebar}
         >
           <Menu className="h-5 w-5" />
         </IconButton>
 
-        <Link to="/" className="flex items-center gap-2 font-bold text-slate-900 tracking-tight">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-700 text-white font-black text-sm">
+        <Link to="/" className="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-900 text-white font-black text-sm shadow-sm ring-1 ring-teal-800/20">
             ID
           </span>
-          <span className="hidden font-bold sm:inline text-base">TRIMING IDMIS</span>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-sm sm:text-base leading-tight tracking-tight text-slate-900">
+              TRIMING <span className="text-teal-700 font-bold">IDMIS</span>
+            </span>
+            <span className="hidden sm:inline text-[10px] text-slate-400 font-medium leading-none">
+              Federal Ministry of Water Resources
+            </span>
+          </div>
         </Link>
 
-        {/* Module Switcher */}
+        {/* Module Switcher (Desktop) */}
         <nav
           aria-label="Modules"
-          className="hidden lg:flex items-center gap-1 border-l border-slate-200 pl-4"
+          className="hidden lg:flex items-center gap-1.5 border-l border-slate-200/80 pl-4 ml-1"
         >
           {modules.map((m) => {
             const isActive = currentPath.startsWith(m.path);
@@ -54,10 +61,10 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
               <Link
                 key={m.id}
                 to={m.path}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors min-h-[36px] flex items-center ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all min-h-[34px] flex items-center ${
                   isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-teal-50 text-teal-800 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                 }`}
               >
                 {m.label}
@@ -67,29 +74,33 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Offline Sync Status & Manual Trigger */}
         <button
           type="button"
           onClick={() => triggerSync()}
           aria-label="Synchronize data with server"
           title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}`}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
             syncState === 'error'
-              ? 'border-red-200 bg-red-50 text-red-700'
+              ? 'border-red-200 bg-red-50 text-red-700 shadow-2xs'
               : syncState === 'pushing' || syncState === 'pulling'
-                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                ? 'border-amber-200 bg-amber-50 text-amber-800 shadow-2xs'
+                : pendingOpsCount > 0
+                  ? 'border-amber-200 bg-amber-50/80 text-amber-800 shadow-2xs'
+                  : 'border-slate-200/80 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
           <RefreshCw
             className={`h-3.5 w-3.5 ${
               syncState === 'pushing' || syncState === 'pulling'
                 ? 'animate-spin text-amber-600'
-                : ''
+                : pendingOpsCount > 0
+                  ? 'text-amber-600'
+                  : 'text-slate-400'
             }`}
           />
-          <span className="hidden sm:inline">
+          <span className="hidden sm:inline font-medium">
             {syncState === 'pushing'
               ? 'Syncing...'
               : syncState === 'pulling'
@@ -102,8 +113,8 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           </span>
         </button>
 
-        {/* Scope Picker */}
-        <div className="hidden sm:block">
+        {/* Scope Picker (Scheme / National) */}
+        <div>
           <ScopePicker />
         </div>
 
@@ -114,7 +125,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
             type="search"
             placeholder="Search records..."
             aria-label="Global search"
-            className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-700"
+            className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/80 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700 focus:border-teal-700 transition-all"
           />
         </div>
 
@@ -123,25 +134,29 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Notifications"
-          className="text-slate-600 hover:text-slate-900"
+          className="text-slate-500 hover:text-slate-900 rounded-lg hidden sm:flex"
         >
           <Bell className="h-4 w-4" />
         </IconButton>
 
         {/* Profile menu */}
-        <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-          <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs">
-            <User className="h-4 w-4" aria-hidden="true" />
+        <div className="flex items-center gap-2 border-l border-slate-200/80 pl-2 sm:pl-3">
+          <div className="h-8 w-8 rounded-full bg-teal-100/70 border border-teal-200 text-teal-800 flex items-center justify-center font-bold text-xs shadow-2xs">
+            {user?.fullName ? (
+              user.fullName.charAt(0)
+            ) : (
+              <User className="h-4 w-4" aria-hidden="true" />
+            )}
           </div>
-          <span className="hidden md:inline text-xs font-medium text-slate-700">
-            {user?.fullName ?? 'Guest User'}
+          <span className="hidden lg:inline text-xs font-semibold text-slate-800 max-w-[120px] truncate">
+            {user?.fullName ?? 'Admin User'}
           </span>
           <IconButton
             variant="ghost"
             size="sm"
             aria-label="Sign out"
             title="Sign out"
-            className="text-slate-500 hover:text-red-600 ml-1"
+            className="text-slate-400 hover:text-red-600 rounded-lg p-1"
             onClick={() => signOut()}
           >
             <LogOut className="h-4 w-4" />

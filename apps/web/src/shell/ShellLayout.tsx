@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Outlet, useNavigate } from '@tanstack/react-router';
 import { TopBar } from './TopBar';
 import { SideNav } from './SideNav';
+import { BottomNav } from './BottomNav';
 import { ScopeProvider } from './ScopeContext';
 import { SyncProvider } from '../sync';
 import { Sheet, SheetContent, Spinner } from '@idmis/ui';
@@ -52,10 +53,13 @@ export function ShellLayout() {
             </Sheet>
 
             {/* Main Content Area */}
-            <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto max-w-7xl">
+            <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full pb-20 md:pb-8">
               <Outlet />
             </main>
           </div>
+
+          {/* Mobile Bottom Navigation */}
+          <BottomNav />
         </div>
       </SyncProvider>
     </ScopeProvider>

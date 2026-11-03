@@ -7,8 +7,7 @@ export function ScopePicker() {
   const { currentScope, setScope, availableScopes } = useScope();
 
   return (
-    <div className="flex items-center gap-2">
-      <MapPin className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
+    <div className="flex items-center gap-1.5">
       <Select
         value={currentScope.id}
         onValueChange={(val: string) => {
@@ -18,13 +17,16 @@ export function ScopePicker() {
       >
         <SelectTrigger
           aria-label="Filter scope"
-          className="h-9 min-h-[36px] w-[220px] bg-white border-slate-300 text-xs font-medium"
+          className="h-8.5 min-h-[34px] w-[140px] sm:w-[180px] md:w-[220px] bg-slate-50 border-slate-200 text-xs font-semibold rounded-lg hover:bg-white hover:border-teal-600 transition-all shadow-2xs"
         >
-          <SelectValue placeholder="Select Scope" />
+          <div className="flex items-center gap-1.5 truncate">
+            <MapPin className="h-3.5 w-3.5 text-teal-700 shrink-0" aria-hidden="true" />
+            <SelectValue placeholder="Select Scope" />
+          </div>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl shadow-xl border-slate-200">
           {availableScopes.map((scope) => (
-            <SelectItem key={scope.id} value={scope.id}>
+            <SelectItem key={scope.id} value={scope.id} className="text-xs font-medium py-2">
               {scope.name}
             </SelectItem>
           ))}
