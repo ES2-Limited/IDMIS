@@ -1,0 +1,228 @@
+import React, { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { Button, Input } from '@idmis/ui';
+import { useAuth } from '../../auth';
+import { ShieldCheck, Lock, Mail, ArrowRight, KeyRound, Sparkles } from 'lucide-react';
+
+export function SignInPage() {
+  const navigate = useNavigate();
+  const { signIn, verifyTotp } = useAuth();
+
+  const [email, setEmail] = useState('admin@idmis.gov.ng');
+  const [password, setPassword] = useState('AdminSecret123!');
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (tempToken) {
+        // Step 2: TOTP Verification
+        const res = await verifyTotp({
+          tempToken,
+          totpCode,
+        });
+        if (res.status === 'authenticated') {
+          navigate({ to: '/' });
+        }
+      } else {
+        // Step 1: Sign In
+        const res = await signIn({
+          email,
+          password,
+        });
+
+        if (res.status === 'authenticated') {
+          navigate({ to: '/' });
+        } else if (res.status === 'totp_required') {
+          setTempToken(res.tempToken);
+        } else if (res.status === 'password_change_required') {
+          setError('Password reset is required. Please contact administrator.');
+        } else {
+          setError('Two-factor setup is required. Please check your authenticator.');
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Sign-in failed. Please check your credentials.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Background ambient lighting matching the hero palette */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-teal-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Brand Header */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-800 text-white font-extrabold text-xl mb-3 shadow-lg ring-1 ring-teal-400/30">
+            ID
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            TRIMING <span className="text-teal-400 font-bold">IDMIS 2.0</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Federal Ministry of Water Resources and Sanitation
+          </p>
+        </div>
+
+        {/* Glassmorphic Auth Card */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+          <div className="mb-6">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 text-[11px] font-bold mb-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
+              {tempToken ? 'Two-Factor Authentication' : 'Secure Official Portal'}
+            </div>
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              {tempToken ? 'Enter 6-Digit TOTP Code' : 'Sign In with Credentials'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              {tempToken
+                ? 'Enter the verification code from your authenticator app.'
+                : 'Access scheme registries, farmer parcels, and water allocations.'}
+            </p>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700"
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!tempToken ? (
+              <>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="signin-email"
+                    className="block text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                  >
+                    Official Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="user@idmis.gov.ng"
+                      className="w-full pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white text-xs h-10.5 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="signin-password"
+                    className="block text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white text-xs h-10.5 font-medium"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <label
+                  htmlFor="signin-totp"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center"
+                >
+                  Authenticator Code
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-3.5 h-4 w-4 text-teal-700" />
+                  <Input
+                    id="signin-totp"
+                    type="text"
+                    required
+                    maxLength={6}
+                    pattern="\d{6}"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value)}
+                    placeholder="123456"
+                    className="w-full text-center text-xl tracking-widest font-mono font-bold h-12 rounded-xl bg-teal-50/50 border-teal-200 focus:bg-white"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-center text-[11px] text-slate-400">
+                  Development code is{' '}
+                  <span className="font-mono font-bold text-slate-700">123456</span>
+                </p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11.5 mt-2 rounded-xl font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-md cursor-pointer"
+            >
+              {loading ? (
+                'Processing...'
+              ) : tempToken ? (
+                'Verify & Proceed'
+              ) : (
+                <span className="flex items-center justify-center gap-1.5">
+                  Sign In to Workspace <ArrowRight className="h-4 w-4" />
+                </span>
+              )}
+            </Button>
+
+            {tempToken && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setTempToken(null);
+                  setTotpCode('');
+                  setError(null);
+                }}
+                className="w-full h-10 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Back to Sign In
+              </Button>
+            )}
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-amber-500" /> End-to-end encrypted
+            </span>
+            <span>Version 2.0.0</span>
+          </div>
+        </div>
+
+        <p className="text-center text-[11px] text-slate-500 mt-6 font-medium">
+          National Irrigation Schemes Registry • All rights reserved
+        </p>
+      </div>
+    </div>
+  );
+}
