@@ -17,5 +17,10 @@
   "devDependencies": {
     "@idmis/config": "workspace:*",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@idmis/api-client": "workspace:*",
+    "@idmis/contracts": "workspace:*",
+    "dexie": "^4.4.7"
   }
 }
