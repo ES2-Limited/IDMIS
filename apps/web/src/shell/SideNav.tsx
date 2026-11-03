@@ -155,7 +155,7 @@ export function SideNav() {
   }
 
   return (
-    <aside className="w-64 border-r border-slate-200/80 bg-white/70 backdrop-blur-md flex flex-col shrink-0 min-h-[calc(100vh-4rem)]">
+    <aside className="w-64 border-r border-slate-200/80 bg-white/70 backdrop-blur-md flex flex-col shrink-0 h-full">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
         <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {moduleName}
@@ -163,14 +163,14 @@ export function SideNav() {
         <span className="h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
       </div>
 
-      <nav aria-label="Module sub navigation" className="p-3 space-y-1.5 flex-1">
+      <nav aria-label="Module sub navigation" className="p-3 space-y-1.5 flex-1 overflow-y-auto">
         {navItems.map((item) => (
           <NavEntry key={item.path} item={item} currentPath={currentPath} />
         ))}
       </nav>
 
       {/* Footer / Quick Info */}
-      <div className="p-4 border-t border-slate-100 text-[11px] text-slate-400">
+      <div className="p-4 border-t border-slate-100 text-[11px] text-slate-400 shrink-0">
         <p className="font-semibold text-slate-600">IDMIS v2.0</p>
         <p className="text-[10px]">National Irrigation Registry</p>
       </div>

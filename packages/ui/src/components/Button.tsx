@@ -4,23 +4,26 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../utils';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: 'bg-primary-700 text-white hover:bg-primary-800 active:bg-primary-900',
-        destructive: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+        default:
+          'bg-teal-700 text-white shadow-xs hover:bg-teal-800 hover:shadow-sm active:bg-teal-900 border border-teal-800/30',
+        destructive:
+          'bg-rose-600 text-white shadow-xs hover:bg-rose-700 hover:shadow-sm active:bg-rose-800 border border-rose-700/30',
         outline:
-          'border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 dark:border-slate-700',
-        secondary: 'bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800',
-        ghost: 'hover:bg-slate-100 text-slate-700',
-        link: 'text-primary-700 underline-offset-4 hover:underline p-0 h-auto',
+          'border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 shadow-2xs hover:text-slate-900',
+        secondary:
+          'bg-amber-500 text-white shadow-xs hover:bg-amber-600 hover:shadow-sm active:bg-amber-700 border border-amber-600/30',
+        ghost: 'hover:bg-slate-100/80 text-slate-600 hover:text-slate-900',
+        link: 'text-teal-700 underline-offset-4 hover:underline p-0 h-auto cursor-pointer font-medium',
       },
       size: {
-        default: 'h-11 px-4 py-2 min-h-[44px] sm:min-h-[40px]',
-        sm: 'h-9 px-3 text-xs',
-        lg: 'h-12 px-8 text-base min-h-[48px]',
-        icon: 'h-11 w-11 min-h-[48px] min-w-[48px] p-0',
+        default: 'h-10 px-4 py-2 min-h-[40px]',
+        sm: 'h-8.5 px-3 text-xs min-h-[34px] rounded-lg',
+        lg: 'h-11.5 px-6 text-base min-h-[46px] rounded-xl font-bold',
+        icon: 'h-10 w-10 min-h-[40px] min-w-[40px] p-0 rounded-xl',
       },
     },
     defaultVariants: {

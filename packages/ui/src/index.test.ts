@@ -40,13 +40,13 @@ describe('UI Design System Tokens & Variants', () => {
 
   it('provides button variant class generator', () => {
     const defaultBtn = buttonVariants({ variant: 'default' });
-    expect(defaultBtn).toContain('bg-primary-700');
+    expect(defaultBtn).toContain('bg-teal-700');
 
     const secBtn = buttonVariants({ variant: 'secondary' });
-    expect(secBtn).toContain('bg-accent-600');
+    expect(secBtn).toContain('bg-amber-500');
 
     const iconBtn = buttonVariants({ size: 'icon' });
-    expect(iconBtn).toContain('min-h-[48px]');
+    expect(iconBtn).toContain('min-h-[40px]');
   });
 
   it('provides badge and status chip variant generators', () => {
@@ -54,6 +54,6 @@ describe('UI Design System Tokens & Variants', () => {
     expect(goodChip).toContain('bg-emerald-50');
 
     const critBadge = badgeVariants({ variant: 'destructive' });
-    expect(critBadge).toContain('bg-red-600');
+    expect(critBadge).toContain('bg-rose-600');
   });
 });

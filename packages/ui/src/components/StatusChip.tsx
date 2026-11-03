@@ -4,14 +4,14 @@ import { cn } from '../utils';
 import { statusChipMap, type RecordStatusType } from '../tokens';
 
 export const statusChipVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border select-none',
+  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border select-none shadow-2xs tracking-tight',
   {
     variants: {
       variant: {
-        good: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        warning: 'bg-amber-50 text-amber-800 border-amber-200',
-        critical: 'bg-rose-50 text-rose-800 border-rose-200',
-        neutral: 'bg-slate-100 text-slate-700 border-slate-300',
+        good: 'bg-emerald-50 text-emerald-800 border-emerald-200/90',
+        warning: 'bg-amber-50 text-amber-800 border-amber-200/90',
+        critical: 'bg-rose-50 text-rose-800 border-rose-200/90',
+        neutral: 'bg-slate-100/80 text-slate-700 border-slate-200',
       },
     },
     defaultVariants: {

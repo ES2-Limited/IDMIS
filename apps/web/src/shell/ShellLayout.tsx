@@ -34,12 +34,12 @@ export function ShellLayout() {
   return (
     <ScopeProvider>
       <SyncProvider>
-        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+        <div className="h-screen flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden">
           <TopBar onToggleSidebar={() => setMobileNavOpen((prev) => !prev)} />
 
-          <div className="flex flex-1">
-            {/* Desktop Sidebar */}
-            <div className="hidden md:block">
+          <div className="flex flex-1 overflow-hidden">
+            {/* Desktop Fixed Sidebar */}
+            <div className="hidden md:block shrink-0 h-full overflow-y-auto">
               <SideNav />
             </div>
 
@@ -52,7 +52,7 @@ export function ShellLayout() {
               </SheetContent>
             </Sheet>
 
-            {/* Main Content Area */}
+            {/* Main Content Area (Scrolls Independently) */}
             <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full pb-20 md:pb-8">
               <Outlet />
             </main>

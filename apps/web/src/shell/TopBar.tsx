@@ -30,13 +30,16 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Toggle navigation menu"
-          className="md:hidden text-slate-600 hover:text-slate-900"
+          className="hidden sm:inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
           onClick={onToggleSidebar}
         >
           <Menu className="h-5 w-5" />
         </IconButton>
 
-        <Link to="/" className="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight">
+        <Link
+          to="/"
+          className="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight cursor-pointer"
+        >
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-900 text-white font-black text-sm shadow-sm ring-1 ring-teal-800/20">
             ID
           </span>
@@ -81,7 +84,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           onClick={() => triggerSync()}
           aria-label="Synchronize data with server"
           title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}`}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
             syncState === 'error'
               ? 'border-red-200 bg-red-50 text-red-700 shadow-2xs'
               : syncState === 'pushing' || syncState === 'pulling'
@@ -134,7 +137,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Notifications"
-          className="text-slate-500 hover:text-slate-900 rounded-lg hidden sm:flex"
+          className="text-slate-500 hover:text-slate-900 rounded-lg hidden sm:flex cursor-pointer"
         >
           <Bell className="h-4 w-4" />
         </IconButton>
@@ -156,7 +159,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
             size="sm"
             aria-label="Sign out"
             title="Sign out"
-            className="text-slate-400 hover:text-red-600 rounded-lg p-1"
+            className="text-slate-400 hover:text-red-600 rounded-lg p-1 cursor-pointer"
             onClick={() => signOut()}
           >
             <LogOut className="h-4 w-4" />
