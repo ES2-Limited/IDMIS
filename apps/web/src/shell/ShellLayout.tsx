@@ -1,12 +1,33 @@
 import * as React from 'react';
-import { Outlet } from '@tanstack/react-router';
+import { Outlet, useNavigate } from '@tanstack/react-router';
 import { TopBar } from './TopBar';
 import { SideNav } from './SideNav';
 import { ScopeProvider } from './ScopeContext';
-import { Sheet, SheetContent } from '@idmis/ui';
+import { Sheet, SheetContent, Spinner } from '@idmis/ui';
+import { useAuth } from '../auth';
 
 export function ShellLayout() {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate({ to: '/sign-in' });
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Spinner size="lg" className="text-teal-700" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <ScopeProvider>

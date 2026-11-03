@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { router, queryClient } from './app';
+import { AuthProvider } from './auth';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -11,7 +12,9 @@ if (rootElement && !rootElement.innerHTML) {
   root.render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
       </QueryClientProvider>
     </React.StrictMode>,
   );

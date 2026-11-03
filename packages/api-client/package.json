@@ -14,6 +14,9 @@
     "lint": "eslint .",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@idmis/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@idmis/config": "workspace:*",
     "typescript": "^5.9.3"

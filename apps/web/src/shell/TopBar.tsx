@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { ScopePicker } from './ScopePicker';
 import { IconButton } from '@idmis/ui';
-import { Search, Bell, User, Menu } from 'lucide-react';
+import { Search, Bell, User, Menu, LogOut } from 'lucide-react';
+import { useAuth } from '../auth';
 
 interface TopBarProps {
   onToggleSidebar?: () => void;
@@ -11,6 +12,7 @@ interface TopBarProps {
 export function TopBar({ onToggleSidebar }: TopBarProps) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
+  const { user, signOut } = useAuth();
 
   const modules = [
     { id: 'core', label: 'Core Admin', path: '/core' },
@@ -95,7 +97,19 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs">
             <User className="h-4 w-4" aria-hidden="true" />
           </div>
-          <span className="hidden md:inline text-xs font-medium text-slate-700">Admin User</span>
+          <span className="hidden md:inline text-xs font-medium text-slate-700">
+            {user?.fullName ?? 'Guest User'}
+          </span>
+          <IconButton
+            variant="ghost"
+            size="sm"
+            aria-label="Sign out"
+            title="Sign out"
+            className="text-slate-500 hover:text-red-600 ml-1"
+            onClick={() => signOut()}
+          >
+            <LogOut className="h-4 w-4" />
+          </IconButton>
         </div>
       </div>
     </header>
