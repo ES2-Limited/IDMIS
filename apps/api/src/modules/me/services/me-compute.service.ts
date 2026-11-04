@@ -50,6 +50,7 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MeComputeService.name);
   private computeQueue: Queue;
   private computeWorker: Worker | null = null;
+  private lastTriggered: { schemeId?: string; year?: number; quarter?: number } | null = null;
   private recomputeListener:
     ((ev: { schemeId?: string | null; year?: number; quarter?: number }) => void) | null = null;
 
@@ -77,6 +78,10 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
 
   getQueue(): Queue {
     return this.computeQueue;
+  }
+
+  getLastTriggered() {
+    return this.lastTriggered;
   }
 
   async onModuleInit() {
@@ -166,6 +171,7 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
    * Debounced recompute trigger (5 min debounce per scheme).
    */
   async triggerRecompute(schemeId?: string, year?: number, quarter?: number) {
+    this.lastTriggered = { schemeId, year, quarter };
     const jobId = schemeId ? `debounce-scheme-${schemeId}` : 'debounce-global';
     try {
       await this.computeQueue.add(
