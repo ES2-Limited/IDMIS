@@ -19,6 +19,12 @@ export function geoJsonToWkt(geom: unknown): string | null {
         return null;
       }
     }
+    if (/^[0-9A-Fa-f]{10,}$/.test(trimmed)) {
+      const parsed = parseWkb(Buffer.from(trimmed, 'hex'));
+      if (parsed) {
+        return geoJsonToWkt(parsed);
+      }
+    }
     return trimmed;
   }
   if (typeof geom === 'object' && geom !== null) {
@@ -50,7 +56,87 @@ export function toGeometrySql(geom: unknown): SQL | null {
   if (!wkt) {
     return null;
   }
-  return sql`${wkt}::geometry`;
+  return sql`ST_SetSRID(${wkt}::geometry, 4326)`;
+}
+
+/**
+ * Parses Well-Known Binary (WKB) buffer (standard PostGIS output) into a GeoJSON object.
+ */
+export function parseWkb(buffer: Buffer): unknown {
+  let offset = 0;
+
+  function readGeometry(): unknown {
+    if (offset >= buffer.length) return null;
+    const byteOrder = buffer.readUInt8(offset);
+    offset += 1;
+    const littleEndian = byteOrder === 1;
+
+    let type = littleEndian ? buffer.readUInt32LE(offset) : buffer.readUInt32BE(offset);
+    offset += 4;
+
+    const hasSrid = (type & 0x20000000) !== 0;
+    type = type & 0x1fffffff;
+    if (hasSrid) {
+      offset += 4; // skip 4-byte SRID
+    }
+
+    if (type === 1) {
+      // Point
+      const x = littleEndian ? buffer.readDoubleLE(offset) : buffer.readDoubleBE(offset);
+      offset += 8;
+      const y = littleEndian ? buffer.readDoubleLE(offset) : buffer.readDoubleBE(offset);
+      offset += 8;
+      return {
+        type: 'Point',
+        coordinates: [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6],
+      };
+    }
+
+    if (type === 3) {
+      // Polygon
+      const numRings = littleEndian ? buffer.readUInt32LE(offset) : buffer.readUInt32BE(offset);
+      offset += 4;
+      const rings: number[][][] = [];
+      for (let r = 0; r < numRings; r++) {
+        const numPoints = littleEndian ? buffer.readUInt32LE(offset) : buffer.readUInt32BE(offset);
+        offset += 4;
+        const pts: number[][] = [];
+        for (let p = 0; p < numPoints; p++) {
+          const x = littleEndian ? buffer.readDoubleLE(offset) : buffer.readDoubleBE(offset);
+          offset += 8;
+          const y = littleEndian ? buffer.readDoubleLE(offset) : buffer.readDoubleBE(offset);
+          offset += 8;
+          pts.push([Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6]);
+        }
+        rings.push(pts);
+      }
+      return {
+        type: 'Polygon',
+        coordinates: rings,
+      };
+    }
+
+    if (type === 6) {
+      // MultiPolygon
+      const numPolys = littleEndian ? buffer.readUInt32LE(offset) : buffer.readUInt32BE(offset);
+      offset += 4;
+      const polys: number[][][][] = [];
+      for (let i = 0; i < numPolys; i++) {
+        const sub = readGeometry() as { type?: string; coordinates?: number[][][] } | null;
+        if (sub && sub.coordinates) {
+          polys.push(sub.coordinates);
+        }
+      }
+      return {
+        type: 'MultiPolygon',
+        coordinates: polys,
+      };
+    }
+
+    return null;
+  }
+
+  return readGeometry();
 }
 
 /**
@@ -64,6 +150,11 @@ export function wktToGeoJson(wktStr: string): unknown {
     } catch {
       return null;
     }
+  }
+
+  if (/^[0-9A-Fa-f]{10,}$/.test(trimmed)) {
+    const wkbParsed = parseWkb(Buffer.from(trimmed, 'hex'));
+    if (wkbParsed) return wkbParsed;
   }
 
   const pointMatch = trimmed.match(/^POINT\s*\(\s*([^\s]+)\s+([^\s)]+)\s*\)/i);
