@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Users, Building, ShieldCheck, KeyRound } from 'lucide-react';
+import { Users, Building, UploadCloud, ShieldCheck, KeyRound } from 'lucide-react';
 import { StatusChip, Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { UserManagementView } from './UserManagementView';
 import { OrganisationsTreeView } from './OrganisationsTreeView';
+import { ImportCenterView } from '../../imports/ImportCenterView';
 
 export function CoreHome() {
   const { currentScope } = useScope();
@@ -12,7 +13,7 @@ export function CoreHome() {
   const quickStats = [
     { label: 'System RBAC Roles', value: '14 Roles', sub: 'Deny-by-default' },
     { label: 'Active Schemes', value: '5 Schemes', sub: 'Kano, Bakolori...' },
-    { label: 'Outbox Event Queue', value: 'Healthy', sub: 'Zero backlog' },
+    { label: 'Import Batches', value: '48 Batches', sub: 'Undo capable' },
     { label: 'Audit Trail', value: '100% Logged', sub: 'Immutable' },
   ];
 
@@ -52,7 +53,7 @@ export function CoreHome() {
         </div>
       </div>
 
-      {/* Quick Metrics Bar - 2 cols on mobile, 4 on desktop */}
+      {/* Quick Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
         {quickStats.map((stat, i) => (
           <div
@@ -74,7 +75,7 @@ export function CoreHome() {
         ))}
       </div>
 
-      {/* Admin Module Tabs - Full width, horizontally scrollable on small mobile */}
+      {/* Admin Module Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5 w-full">
         <div className="w-full overflow-x-auto pb-1 scrollbar-none">
           <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200 inline-flex w-full sm:w-auto min-w-max">
@@ -92,6 +93,13 @@ export function CoreHome() {
               <Building className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Organisations & WUAs</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="imports"
+              className="rounded-lg px-3 sm:px-4 py-2 text-xs font-extrabold data-[state=active]:bg-white data-[state=active]:text-teal-800 data-[state=active]:shadow-xs flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer flex-1 sm:flex-initial"
+            >
+              <UploadCloud className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Batch Import Center</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -101,6 +109,10 @@ export function CoreHome() {
 
         <TabsContent value="organisations">
           <OrganisationsTreeView />
+        </TabsContent>
+
+        <TabsContent value="imports">
+          <ImportCenterView />
         </TabsContent>
       </Tabs>
     </div>

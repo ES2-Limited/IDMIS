@@ -9,6 +9,7 @@ import { WorkspaceDashboard } from '../modules/dashboard/WorkspaceDashboard';
 import { CoreHome } from '../modules/core/CoreHome';
 import { UserManagementView } from '../modules/core/UserManagementView';
 import { OrganisationsTreeView } from '../modules/core/OrganisationsTreeView';
+import { ImportCenterView } from '../imports/ImportCenterView';
 import { SlisHome } from '../modules/slis/SlisHome';
 import { MeHome } from '../modules/me/MeHome';
 import { BlisHome } from '../modules/blis/BlisHome';
@@ -91,6 +92,21 @@ const coreOrganisationsRoute = createRoute({
   ),
 });
 
+const coreImportsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/core/imports',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>Core Administration</span>
+        <span>/</span>
+        <span className="text-teal-700 font-bold">Batch Import Center</span>
+      </div>
+      <ImportCenterView />
+    </div>
+  ),
+});
+
 // Module routes: SLIS
 const slisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -147,6 +163,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   coreRoute,
   coreUsersRoute,
   coreOrganisationsRoute,
+  coreImportsRoute,
   slisRoute,
   slisFarmersRoute,
   slisPlotsRoute,
