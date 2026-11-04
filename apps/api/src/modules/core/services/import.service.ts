@@ -17,6 +17,7 @@ import {
   type ImportProgressMessage,
 } from '@idmis/contracts';
 import { db, organisationState, file, importRow, outboxEvent, eq, and, isNull } from '@idmis/db';
+import { resolveUserAuthz } from '@idmis/db/authz';
 import { ImportRepository } from '../repositories/import.repository';
 import { ImportTemplateService } from './import-template.service';
 import { ImportHandlerRegistry } from '../imports/import-handler.registry';
@@ -125,13 +126,16 @@ export class ImportService {
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
 
     if (!scope.isNational && !baseScope.isNational) {
+      const hasRbdaAccess =
+        (scope.rbdaIds && scope.rbdaIds.length > 0) ||
+        (baseScope.rbdaIds && baseScope.rbdaIds.length > 0);
       const hasStateAccess =
         (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
         (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
       const hasSchemeAccess =
         (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
         (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
-      if (!hasStateAccess && !hasSchemeAccess) {
+      if (!hasRbdaAccess && !hasStateAccess && !hasSchemeAccess) {
         throw new ForbiddenException('Target location is outside your assigned scope');
       }
     }
@@ -205,13 +209,16 @@ export class ImportService {
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
 
     if (!scope.isNational && !baseScope.isNational) {
+      const matchRbda =
+        (scope.rbdaIds && scope.rbdaIds.length > 0) ||
+        (baseScope.rbdaIds && baseScope.rbdaIds.length > 0);
       const matchState =
         (batch.stateId && scope.stateIds?.includes(batch.stateId)) ||
         (batch.stateId && baseScope.stateIds?.includes(batch.stateId));
       const matchScheme =
         (batch.schemeId && scope.schemeIds?.includes(batch.schemeId)) ||
         (batch.schemeId && baseScope.schemeIds?.includes(batch.schemeId));
-      if (!matchState && !matchScheme) {
+      if (!matchRbda && !matchState && !matchScheme) {
         throw new NotFoundException(`Import batch ${batchId} not found`);
       }
     }
@@ -436,14 +443,23 @@ export class ImportService {
     let validCount = 0;
     let errorCount = 0;
 
-    // Scope for validation: National or batch state/scheme
-    const scope: import('@idmis/contracts').RequestScope = {
-      isNational: !batch.stateId && !batch.schemeId,
-      stateIds: batch.stateId ? [batch.stateId] : [],
-      rbdaIds: [],
-      schemeIds: batch.schemeId ? [batch.schemeId] : [],
-      sectorIds: [],
-    };
+    // Scope for validation: uploader authz scope or fallback
+    let scope: import('@idmis/contracts').RequestScope;
+    if (batch.createdBy) {
+      const uploaderAuthz = await resolveUserAuthz(db, batch.createdBy);
+      const handler = this.registry.get(batch.dataset);
+      scope = handler
+        ? uploaderAuthz.scopeFor(handler.permission)
+        : uploaderAuthz.scopeFor(permissions.CORE_IMPORT_RUN);
+    } else {
+      scope = {
+        isNational: !batch.stateId && !batch.schemeId,
+        stateIds: batch.stateId ? [batch.stateId] : [],
+        rbdaIds: [],
+        schemeIds: batch.schemeId ? [batch.schemeId] : [],
+        sectorIds: [],
+      };
+    }
 
     await runInTransaction(async (txDb) => {
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
@@ -602,10 +618,13 @@ export class ImportService {
           batch.schemeId ??
           null;
 
+        const rowRbdaId = (data.rbdaId as string | undefined) ?? null;
+
+        const rbdaMatch = Boolean(rowRbdaId && commitScope.rbdaIds?.includes(rowRbdaId));
         const stateMatch = Boolean(rowStateId && commitScope.stateIds?.includes(rowStateId));
         const schemeMatch = Boolean(rowSchemeId && commitScope.schemeIds?.includes(rowSchemeId));
 
-        if (!stateMatch && !schemeMatch) {
+        if (!rbdaMatch && !stateMatch && !schemeMatch) {
           throw new ForbiddenException('Target location is outside your assigned scope');
         }
       }

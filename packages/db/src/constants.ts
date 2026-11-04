@@ -383,6 +383,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
     // BLIS
     permissions.BLIS_BASIN_READ,
+    permissions.BLIS_BASIN_MANAGE,
     permissions.BLIS_MEASUREMENT_READ,
     permissions.BLIS_MEASUREMENT_IMPORT,
     permissions.BLIS_STATION_MANAGE,

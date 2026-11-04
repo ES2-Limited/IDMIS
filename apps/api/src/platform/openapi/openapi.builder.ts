@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { slisSchemas, slisPaths } from './slis.openapi';
 import { meSchemas, mePaths } from './me.openapi';
+import { blisSchemas, blisPaths } from './blis.openapi';
 import {
   ProblemDetailsSchema,
   ConflictProblemSchema,
@@ -339,6 +340,9 @@ export function buildOpenApiDocument(
 
     // M&E
     ...meSchemas,
+
+    // BLIS
+    ...blisSchemas,
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -1731,6 +1735,9 @@ export function buildOpenApiDocument(
   // M&E endpoints
   Object.assign(paths, mePaths);
 
+  // BLIS endpoints
+  Object.assign(paths, blisPaths);
+
   const tags = [
     { name: 'auth', description: 'Authentication, TOTP MFA, sessions, and passwords' },
     { name: 'users', description: 'User account provisioning, profiles, and status' },
@@ -1760,6 +1767,10 @@ export function buildOpenApiDocument(
     {
       name: 'me',
       description: 'Monitoring and Evaluation (indicators, targets, values, evidence)',
+    },
+    {
+      name: 'blis',
+      description: 'Basin Land Information System (basins, stations, reservoirs, dams)',
     },
   ];
 
