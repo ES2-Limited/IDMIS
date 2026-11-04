@@ -17,6 +17,7 @@ import type {
 import type { UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
+import { assertMeScope } from '../utils/assert-me-scope';
 import { SurveyRepository } from '../repositories/survey.repository';
 import { SurveyResponseRepository } from '../repositories/survey-response.repository';
 
@@ -78,9 +79,15 @@ export class SurveyService {
       throw new ForbiddenException('Missing required permission: me.survey.manage');
     }
 
-    const scope = authz.scopeFor(permissions.ME_SURVEY_MANAGE);
-    if (input.schemeId && !scope.isNational && !scope.schemeIds.includes(input.schemeId)) {
-      throw new ForbiddenException('Target scheme is outside your assigned scope');
+    if (input.schemeId) {
+      await assertMeScope(authz, permissions.ME_SURVEY_MANAGE, {
+        scopeType: 'scheme',
+        scopeOrgId: input.schemeId,
+      });
+    } else {
+      await assertMeScope(authz, permissions.ME_SURVEY_MANAGE, {
+        scopeType: 'national',
+      });
     }
 
     return runInTransaction(
@@ -513,13 +520,34 @@ export class SurveyService {
     }
 
     const scope = authz.scopeFor(permissions.ME_SURVEY_RESPOND);
-    if (input.schemeId && !scope.isNational && !scope.schemeIds.includes(input.schemeId)) {
-      throw new ForbiddenException('Target scheme is outside your assigned scope');
+
+    // Scoped (non-national) users MUST give a schemeId for a response; only national users may create scheme-less ones.
+    if (!scope.isNational && !input.schemeId) {
+      throw new BadRequestException('schemeId is required for survey responses by scoped users');
     }
 
     const survey = await this.surveyRepo.findById(input.surveyId);
     if (!survey) {
       throw new NotFoundException(`Survey with ID '${input.surveyId}' not found`);
+    }
+
+    // If the survey has a scheme_id, the response's scheme must equal it (400 otherwise).
+    if (survey.schemeId && input.schemeId !== survey.schemeId) {
+      throw new BadRequestException(
+        `Survey belongs to scheme '${survey.schemeId}', response scheme must match`,
+      );
+    }
+
+    // Shared scope assertion (scheme -> server-derived state, scheme OR state scope)
+    if (input.schemeId) {
+      await assertMeScope(authz, permissions.ME_SURVEY_RESPOND, {
+        scopeType: 'scheme',
+        scopeOrgId: input.schemeId,
+      });
+    } else {
+      await assertMeScope(authz, permissions.ME_SURVEY_RESPOND, {
+        scopeType: 'national',
+      });
     }
 
     const questions = await this.surveyRepo.findQuestionsBySurveyId(input.surveyId);

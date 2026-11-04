@@ -7,12 +7,13 @@ import {
   eq,
   and,
   isNull,
+  inArray,
+  or,
   sql,
   type SQL,
   desc,
 } from '@idmis/db';
 import type { RequestScope, ListSurveyResponsesQuery } from '@idmis/contracts';
-import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 
@@ -50,9 +51,23 @@ export class SurveyResponseRepository {
     const conditions: SQL[] = [eq(surveyResponse.id, id), isNull(surveyResponse.deletedAt)];
 
     if (scope && !scope.isNational) {
-      const scopeCond = applyScope(scope, { scheme: surveyResponse.schemeId });
-      if (scopeCond) {
-        conditions.push(scopeCond);
+      const scopeParts: SQL[] = [];
+      if (scope.schemeIds.length > 0) {
+        scopeParts.push(inArray(surveyResponse.schemeId, scope.schemeIds));
+      }
+      if (scope.stateIds.length > 0) {
+        scopeParts.push(
+          sql`EXISTS (
+            SELECT 1 FROM "core"."organisation_state" "os"
+            WHERE "os"."organisation_id" = ${surveyResponse.schemeId}
+              AND "os"."state_id" IN ${scope.stateIds}
+          )`,
+        );
+      }
+      if (scopeParts.length > 0) {
+        conditions.push(or(...scopeParts)!);
+      } else {
+        conditions.push(sql`1 = 0`);
       }
     }
 
@@ -77,9 +92,23 @@ export class SurveyResponseRepository {
     }
 
     if (scope && !scope.isNational) {
-      const scopeCond = applyScope(scope, { scheme: surveyResponse.schemeId });
-      if (scopeCond) {
-        conditions.push(scopeCond);
+      const scopeParts: SQL[] = [];
+      if (scope.schemeIds.length > 0) {
+        scopeParts.push(inArray(surveyResponse.schemeId, scope.schemeIds));
+      }
+      if (scope.stateIds.length > 0) {
+        scopeParts.push(
+          sql`EXISTS (
+            SELECT 1 FROM "core"."organisation_state" "os"
+            WHERE "os"."organisation_id" = ${surveyResponse.schemeId}
+              AND "os"."state_id" IN ${scope.stateIds}
+          )`,
+        );
+      }
+      if (scopeParts.length > 0) {
+        conditions.push(or(...scopeParts)!);
+      } else {
+        conditions.push(sql`1 = 0`);
       }
     }
 

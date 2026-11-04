@@ -8,13 +8,14 @@ import {
   eq,
   and,
   isNull,
+  inArray,
+  or,
   sql,
   type SQL,
   asc,
   desc,
 } from '@idmis/db';
 import type { RequestScope, ListSurveysQuery } from '@idmis/contracts';
-import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
@@ -68,10 +69,21 @@ export class SurveyRepository {
     const conditions: SQL[] = [eq(survey.id, id), isNull(survey.deletedAt)];
 
     if (scope && !scope.isNational) {
-      const scopeCond = applyScope(scope, { scheme: survey.schemeId });
-      if (scopeCond) {
-        conditions.push(scopeCond);
+      const scopeParts: SQL[] = [];
+      if (scope.schemeIds.length > 0) {
+        scopeParts.push(inArray(survey.schemeId, scope.schemeIds));
       }
+      if (scope.stateIds.length > 0) {
+        scopeParts.push(
+          sql`EXISTS (
+            SELECT 1 FROM "core"."organisation_state" "os"
+            WHERE "os"."organisation_id" = ${survey.schemeId}
+              AND "os"."state_id" IN ${scope.stateIds}
+          )`,
+        );
+      }
+      scopeParts.push(isNull(survey.schemeId));
+      conditions.push(or(...scopeParts)!);
     }
 
     const [row] = await client
@@ -104,10 +116,21 @@ export class SurveyRepository {
     }
 
     if (scope && !scope.isNational) {
-      const scopeCond = applyScope(scope, { scheme: survey.schemeId });
-      if (scopeCond) {
-        conditions.push(scopeCond);
+      const scopeParts: SQL[] = [];
+      if (scope.schemeIds.length > 0) {
+        scopeParts.push(inArray(survey.schemeId, scope.schemeIds));
       }
+      if (scope.stateIds.length > 0) {
+        scopeParts.push(
+          sql`EXISTS (
+            SELECT 1 FROM "core"."organisation_state" "os"
+            WHERE "os"."organisation_id" = ${survey.schemeId}
+              AND "os"."state_id" IN ${scope.stateIds}
+          )`,
+        );
+      }
+      scopeParts.push(isNull(survey.schemeId));
+      conditions.push(or(...scopeParts)!);
     }
 
     const limit = query.limit ?? 50;

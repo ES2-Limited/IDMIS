@@ -27,6 +27,7 @@ import type {
   UndoRowResult,
 } from '../../core/imports/import-handler.interface';
 import { SurveyService } from '../services/survey.service';
+import { isMeInScope } from '../utils/assert-me-scope';
 
 @Injectable()
 export class SurveyResponseImportHandler implements ImportDatasetHandler {
@@ -119,6 +120,7 @@ export class SurveyResponseImportHandler implements ImportDatasetHandler {
 
     // 1. Resolve survey
     let resolvedSurveyId = data.surveyId as string | undefined;
+    let foundSurvey: { id: string; schemeId: string | null } | undefined;
     if (!resolvedSurveyId && data.surveyName) {
       const [found] = await tx
         .select({ id: survey.id, schemeId: survey.schemeId })
@@ -128,11 +130,9 @@ export class SurveyResponseImportHandler implements ImportDatasetHandler {
         .limit(1);
 
       if (found) {
+        foundSurvey = found;
         resolvedSurveyId = found.id;
         data.surveyId = found.id;
-        if (!data.schemeId && found.schemeId) {
-          data.schemeId = found.schemeId;
-        }
       } else {
         errors.push({
           column: 'surveyName',
@@ -151,8 +151,8 @@ export class SurveyResponseImportHandler implements ImportDatasetHandler {
           column: 'surveyId',
           message: `Referenced survey ID '${resolvedSurveyId}' does not exist`,
         });
-      } else if (!data.schemeId && found.schemeId) {
-        data.schemeId = found.schemeId;
+      } else {
+        foundSurvey = found;
       }
     } else {
       errors.push({
@@ -161,9 +161,19 @@ export class SurveyResponseImportHandler implements ImportDatasetHandler {
       });
     }
 
-    // 2. Resolve scheme and check authorization scope
+    // 2. Scoped (non-national) users MUST give a schemeId / schemeCode
+    if (!scope.isNational && !data.schemeCode && !data.schemeId) {
+      errors.push({
+        column: 'schemeCode',
+        message: 'schemeId is required for survey responses by scoped users',
+        code: 'scheme_required',
+      });
+    }
+
+    // Resolve scheme if provided
+    let foundScheme: { id: string; stateId: string | null } | undefined;
     if (data.schemeCode) {
-      const [foundScheme] = await tx
+      const [fs] = await tx
         .select({ id: organisation.id, stateId: organisationState.stateId })
         .from(organisation)
         .leftJoin(organisationState, eq(organisation.id, organisationState.organisationId))
@@ -176,33 +186,60 @@ export class SurveyResponseImportHandler implements ImportDatasetHandler {
         )
         .limit(1);
 
-      if (!foundScheme) {
+      if (!fs) {
         errors.push({
           column: 'schemeCode',
           message: `Referenced scheme code '${data.schemeCode}' does not exist`,
         });
       } else {
-        data.schemeId = foundScheme.id;
-
-        if (!scope.isNational) {
-          const schemeMatch = scope.schemeIds?.includes(foundScheme.id);
-          const stateMatch = foundScheme.stateId && scope.stateIds?.includes(foundScheme.stateId);
-          if (!schemeMatch && !stateMatch) {
-            errors.push({
-              column: 'schemeCode',
-              message: 'Target scheme is outside your assigned scope',
-              code: 'out_of_scope',
-            });
-          }
-        }
+        foundScheme = fs;
+        data.schemeId = fs.id;
       }
-    } else if (data.schemeId && !scope.isNational) {
-      const schemeId = String(data.schemeId);
-      const schemeMatch = scope.schemeIds?.includes(schemeId);
-      if (!schemeMatch) {
+    } else if (data.schemeId) {
+      const [fs] = await tx
+        .select({ id: organisation.id, stateId: organisationState.stateId })
+        .from(organisation)
+        .leftJoin(organisationState, eq(organisation.id, organisationState.organisationId))
+        .where(
+          and(
+            eq(organisation.id, String(data.schemeId)),
+            eq(organisation.type, 'scheme'),
+            isNull(organisation.deletedAt),
+          ),
+        )
+        .limit(1);
+
+      if (!fs) {
         errors.push({
           column: 'schemeCode',
-          message: 'Survey target scheme is outside your assigned scope',
+          message: `Referenced scheme ID '${data.schemeId}' does not exist`,
+        });
+      } else {
+        foundScheme = fs;
+      }
+    }
+
+    // If the survey has a scheme_id, the response's scheme must equal it (400 otherwise)
+    if (foundSurvey?.schemeId && data.schemeId && data.schemeId !== foundSurvey.schemeId) {
+      errors.push({
+        column: 'schemeCode',
+        message: `Survey belongs to scheme '${foundSurvey.schemeId}', response scheme must match`,
+        code: 'scheme_mismatch',
+      });
+    }
+
+    // Check scope if scheme is specified and user is scoped
+    if (foundScheme && !scope.isNational) {
+      const inScope = isMeInScope(scope, {
+        scopeType: 'scheme',
+        scopeOrgId: foundScheme.id,
+        scopeStateId: foundScheme.stateId,
+      });
+
+      if (!inScope) {
+        errors.push({
+          column: 'schemeCode',
+          message: 'Target scheme is outside your assigned scope',
           code: 'out_of_scope',
         });
       }

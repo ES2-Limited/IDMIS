@@ -51,6 +51,7 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
   // Test User IDs
   const NATIONAL_ADMIN_ID = crypto.randomUUID();
   const KANO_ME_OFFICER_ID = crypto.randomUUID();
+  const KANO_STATE_OFFICER_ID = crypto.randomUUID();
   const FIELD_OFFICER_ID = crypto.randomUUID();
   const LAGOS_ME_OFFICER_ID = crypto.randomUUID();
   const SYSTEM_USER_ID = crypto.randomUUID();
@@ -68,10 +69,12 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
 
   // Device ID for offline sync
   const FIELD_DEVICE_ID = crypto.randomUUID();
+  const STATE_DEVICE_ID = crypto.randomUUID();
 
   // Tokens
   let nationalToken: string;
   let kanoOfficerToken: string;
+  let kanoStateOfficerToken: string;
   let fieldOfficerToken: string;
   let lagosOfficerToken: string;
 
@@ -143,6 +146,16 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
         id: KANO_ME_OFFICER_ID,
         email: 'kano.me@idmis.gov.ng',
         fullName: 'Kano MEOfficer',
+        passwordHash: 'dummy',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: KANO_STATE_OFFICER_ID,
+        email: 'kano.state@idmis.gov.ng',
+        fullName: 'Kano State Officer',
         passwordHash: 'dummy',
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
@@ -244,6 +257,8 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
       permissions.ME_SURVEY_MANAGE,
       permissions.ME_SURVEY_RESPOND,
       permissions.CORE_IMPORT_RUN,
+      permissions.SLIS_SYNC_PUSH,
+      permissions.SLIS_SYNC_PULL,
     ];
     const fieldPerms = [
       permissions.ME_SURVEY_RESPOND,
@@ -284,6 +299,27 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
       },
       {
         id: crypto.randomUUID(),
+        userId: KANO_STATE_OFFICER_ID,
+        roleId: ME_OFFICER_ROLE_ID,
+        module: 'me',
+        scopeType: 'state',
+        scopeStateId: KANO_STATE_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_STATE_OFFICER_ID,
+        roleId: FIELD_OFFICER_ROLE_ID,
+        module: 'slis',
+        scopeType: 'state',
+        scopeStateId: KANO_STATE_ID,
+        canCaptureOffline: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
         userId: FIELD_OFFICER_ID,
         roleId: FIELD_OFFICER_ROLE_ID,
         module: 'slis',
@@ -305,17 +341,29 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
       },
     ]);
 
-    // Field Device for Field Officer
-    await testDb.insert(device).values({
-      id: FIELD_DEVICE_ID,
-      installationId: crypto.randomUUID(),
-      userId: FIELD_OFFICER_ID,
-      label: 'Field Officer Pixel',
-      platform: 'android',
-      registeredAt: now,
-      lastSeenAt: now,
-      offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
-    });
+    // Field Devices
+    await testDb.insert(device).values([
+      {
+        id: FIELD_DEVICE_ID,
+        installationId: crypto.randomUUID(),
+        userId: FIELD_OFFICER_ID,
+        label: 'Field Officer Pixel',
+        platform: 'android',
+        registeredAt: now,
+        lastSeenAt: now,
+        offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
+      },
+      {
+        id: STATE_DEVICE_ID,
+        installationId: crypto.randomUUID(),
+        userId: KANO_STATE_OFFICER_ID,
+        label: 'State Officer Tablet',
+        platform: 'android',
+        registeredAt: now,
+        lastSeenAt: now,
+        offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
+      },
+    ]);
 
     // Generate Sessions & Tokens
     const makeToken = async (userId: string) => {
@@ -332,6 +380,7 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
 
     nationalToken = await makeToken(NATIONAL_ADMIN_ID);
     kanoOfficerToken = await makeToken(KANO_ME_OFFICER_ID);
+    kanoStateOfficerToken = await makeToken(KANO_STATE_OFFICER_ID);
     fieldOfficerToken = await makeToken(FIELD_OFFICER_ID);
     lagosOfficerToken = await makeToken(LAGOS_ME_OFFICER_ID);
   });
@@ -813,6 +862,50 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
       expect(res.statusCode).toBe(400);
       expect(res.json().detail || res.json().message).toContain('was not answered');
     });
+
+    it('rejects field officer response without schemeId with 400', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/surveys/${surveyId}/responses`,
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          surveyId,
+          // schemeId omitted
+          answers: baseValidAnswers,
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().detail || res.json().message).toContain('schemeId is required');
+    });
+
+    it('allows a state-scope user to respond for a scheme in their state', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/surveys/${surveyId}/responses`,
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+        payload: {
+          surveyId,
+          schemeId: KANO_SCHEME_ID,
+          answers: baseValidAnswers,
+        },
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    it('rejects a response for scheme B on a scheme-A survey with 400', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/surveys/${surveyId}/responses`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+        payload: {
+          surveyId, // surveyId is tied to KANO_SCHEME_ID
+          schemeId: LAGOS_SCHEME_ID, // mismatch
+          answers: baseValidAnswers,
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().detail || res.json().message).toContain('response scheme must match');
+    });
   });
 
   describe('Offline Sync Push & Pull for Survey Responses (BE-3.4)', () => {
@@ -920,6 +1013,91 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
       );
       expect(responseChange).toBeDefined();
       expect(responseChange.op).toBe('upsert');
+    });
+
+    it('rejects offline survey_response push without schemeId for scoped field officer', async () => {
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: FIELD_DEVICE_ID,
+          ops: [
+            {
+              opId: crypto.randomUUID(),
+              entity: 'survey_response',
+              action: 'create',
+              recordId: crypto.randomUUID(),
+              baseVersion: 1,
+              data: {
+                surveyId: syncSurveyId,
+                // missing schemeId
+                answers: [{ questionId: syncQId, value: 'Observations' }],
+              },
+            },
+          ],
+        },
+      });
+      expect(pushRes.statusCode).toBe(201);
+      const pushData = pushRes.json();
+      expect(pushData.results[0].outcome).toBe('rejected');
+    });
+
+    it('rejects offline survey_response push for scheme B on scheme-A survey', async () => {
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: FIELD_DEVICE_ID,
+          ops: [
+            {
+              opId: crypto.randomUUID(),
+              entity: 'survey_response',
+              action: 'create',
+              recordId: crypto.randomUUID(),
+              baseVersion: 1,
+              data: {
+                surveyId: syncSurveyId,
+                schemeId: LAGOS_SCHEME_ID, // mismatch
+                answers: [{ questionId: syncQId, value: 'Observations' }],
+              },
+            },
+          ],
+        },
+      });
+      expect(pushRes.statusCode).toBe(201);
+      const pushData = pushRes.json();
+      expect(pushData.results[0].outcome).toBe('rejected');
+    });
+
+    it('applies offline survey_response push for state-scope user on a scheme in their state', async () => {
+      const stateResponseId = crypto.randomUUID();
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+        payload: {
+          deviceId: STATE_DEVICE_ID,
+          ops: [
+            {
+              opId: crypto.randomUUID(),
+              entity: 'survey_response',
+              action: 'create',
+              recordId: stateResponseId,
+              baseVersion: 1,
+              data: {
+                surveyId: syncSurveyId,
+                schemeId: KANO_SCHEME_ID,
+                answers: [{ questionId: syncQId, value: 'State Officer Inspection' }],
+              },
+            },
+          ],
+        },
+      });
+      expect(pushRes.statusCode).toBe(201);
+      const pushData = pushRes.json();
+      expect(pushData.results[0].outcome).toBe('applied');
     });
   });
 
@@ -1129,6 +1307,70 @@ describe('M&E Surveys, Typed Answers, Question Freeze, Sync & Imports (BE-3.4)',
         .from(surveyResponse)
         .where(and(eq(surveyResponse.surveyId, importSurveyId), isNull(surveyResponse.deletedAt)));
       expect(srAfter).toBeUndefined();
+    });
+
+    it('fails validation when scoped user omits schemeCode in import row', async () => {
+      const answersJson = JSON.stringify({ SATISFACTION: 'High', ACRES: 15 });
+      const batch = await uploadAndValidate(
+        [
+          {
+            surveyName: 'Annual Beneficiary Survey',
+            surveyId: importSurveyId,
+            // schemeCode omitted!
+            respondentId: 'RESP-NO-SCHEME',
+            period: '2026-Q1',
+            answers: answersJson,
+          },
+        ],
+        kanoOfficerToken,
+      );
+      expect(batch.status).toBe('validation_failed');
+      expect(batch.errorRows).toBeGreaterThan(0);
+    });
+
+    it('fails validation when import row specifies scheme B for a scheme-A survey', async () => {
+      const answersJson = JSON.stringify({ SATISFACTION: 'High', ACRES: 15 });
+      const batch = await uploadAndValidate(
+        [
+          {
+            surveyName: 'Annual Beneficiary Survey',
+            surveyId: importSurveyId,
+            schemeCode: 'LRIS', // Lagos scheme on Kano survey
+            respondentId: 'RESP-MISMATCH',
+            period: '2026-Q1',
+            answers: answersJson,
+          },
+        ],
+        kanoOfficerToken,
+      );
+      expect(batch.status).toBe('validation_failed');
+      expect(batch.errorRows).toBeGreaterThan(0);
+    });
+
+    it('succeeds validation and commit when state-scope user imports for a scheme in their state', async () => {
+      const answersJson = JSON.stringify({ SATISFACTION: 'Low', ACRES: 25 });
+      const batch = await uploadAndValidate(
+        [
+          {
+            surveyName: 'Annual Beneficiary Survey',
+            surveyId: importSurveyId,
+            schemeCode: 'KRIS', // Kano scheme in Kano state
+            respondentId: 'RESP-STATE-OK',
+            period: '2026-Q1',
+            answers: answersJson,
+          },
+        ],
+        kanoStateOfficerToken,
+      );
+      expect(batch.status).toBe('validated');
+      expect(batch.errorRows).toBe(0);
+
+      const commitRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${batch.id}/commit`,
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+      });
+      expect(commitRes.statusCode).toBe(201);
     });
   });
 });
