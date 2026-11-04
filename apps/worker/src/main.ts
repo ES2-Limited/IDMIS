@@ -6,6 +6,7 @@ import { registerAuthzSubscribers } from './subscribers/authz.subscriber';
 import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 import { processBlisPartitionJob } from './jobs/blis-partition.job';
+import { processMeasurementCommitJob } from './jobs/blis-measurement-commit.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -154,7 +155,37 @@ void processBlisPartitionJob().catch((err) => {
   console.warn('[BlisPartition] Startup partition check failed:', err.message);
 });
 
-// 5. Initialize outbox dispatcher & subscribers
+// 5. BLIS Measurement Commit Queue & Worker
+const measurementCommitQueueName =
+  process.env.BLIS_MEASUREMENT_COMMIT_QUEUE || 'blis-measurement-commit';
+const measurementCommitQueue = new Queue(measurementCommitQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const measurementCommitWorker = new Worker(
+  measurementCommitQueueName,
+  async (job) => {
+    return processMeasurementCommitJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: 2,
+  },
+);
+
+measurementCommitWorker.on('error', (err) => {
+  console.warn('[MeasurementCommitWorker] Error:', err.message);
+});
+
+// 6. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
 
 let isRunning = true;
@@ -183,6 +214,8 @@ const shutdown = async () => {
   isRunning = false;
   if (pollTimeout) clearTimeout(pollTimeout);
   try {
+    await measurementCommitWorker.close();
+    await measurementCommitQueue.close();
     await blisPartitionWorker.close();
     await blisPartitionQueue.close();
     await exportWorker.close();

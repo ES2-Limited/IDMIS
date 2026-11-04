@@ -6,7 +6,9 @@ import {
   Logger,
   Inject,
   forwardRef,
+  type OnModuleDestroy,
 } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import {
@@ -16,7 +18,17 @@ import {
   type ImportRowStatus,
   type ImportProgressMessage,
 } from '@idmis/contracts';
-import { db, organisationState, file, importRow, outboxEvent, eq, and, isNull } from '@idmis/db';
+import {
+  db,
+  organisationState,
+  file,
+  importRow,
+  outboxEvent,
+  eq,
+  and,
+  isNull,
+  sql,
+} from '@idmis/db';
 import { resolveUserAuthz } from '@idmis/db/authz';
 import { ImportRepository } from '../repositories/import.repository';
 import { ImportTemplateService } from './import-template.service';
@@ -31,9 +43,10 @@ export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 export const MAX_IMPORT_ROWS = 50000;
 
 @Injectable()
-export class ImportService {
+export class ImportService implements OnModuleDestroy {
   private readonly logger = new Logger(ImportService.name);
   private readonly runningValidations = new Map<string, Promise<unknown>>();
+  private readonly measurementCommitQueue: Queue;
 
   constructor(
     private readonly importRepo: ImportRepository,
@@ -43,7 +56,33 @@ export class ImportService {
     private readonly redisService: RedisService,
     @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,
-  ) {}
+  ) {
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const queueName = process.env.BLIS_MEASUREMENT_COMMIT_QUEUE || 'blis-measurement-commit';
+    this.measurementCommitQueue = new Queue(queueName, {
+      connection: {
+        url: redisUrl,
+        family: 0,
+        lazyConnect: true,
+      },
+    });
+
+    this.measurementCommitQueue.on('error', (err) => {
+      this.logger.warn(`BullMQ measurement commit queue error: ${err.message}`);
+    });
+  }
+
+  async onModuleDestroy() {
+    try {
+      await this.measurementCommitQueue.close();
+    } catch {
+      // ignore clean exit
+    }
+  }
+
+  getMeasurementCommitQueue(): Queue {
+    return this.measurementCommitQueue;
+  }
 
   private getEmbeddedTemplateVersion(workbook: ExcelJS.Workbook): number | null {
     // 1. Check hidden _metadata worksheet
@@ -660,6 +699,22 @@ export class ImportService {
       'Starting commit transaction',
     );
 
+    // If handler uses async commit (e.g. blis.measurement):
+    if (handler.isAsyncCommit) {
+      try {
+        await this.measurementCommitQueue.add(
+          'commit',
+          { batchId, userId: authz.userId },
+          { jobId: batchId },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Failed to enqueue BullMQ commit job for batch ${batchId}: ${(err as Error).message}`,
+        );
+      }
+      return this.importRepo.getBatchById(batchId);
+    }
+
     const validRows = await this.importRepo.listRows(batchId, {
       status: 'valid',
       limit: 10000,
@@ -760,6 +815,64 @@ export class ImportService {
 
     await this.importRepo.updateBatch(batchId, { status: 'undoing' });
     await this.publishProgress(batchId, batch.dataset, 'undoing', 10, 'Starting undo operation');
+
+    if (handler.undoBatch) {
+      await runInTransaction(
+        async (txDb) => {
+          await handler.undoBatch!(batchId, authz, txDb);
+
+          await txDb.execute(sql`
+            UPDATE core.import_row
+            SET status = 'valid'
+            WHERE batch_id = ${batchId}::uuid AND status = 'committed';
+          `);
+
+          // Write outbox event
+          await txDb.insert(outboxEvent).values({
+            eventType: 'core.import.undone',
+            eventVersion: 1,
+            aggregateType: 'import_batch',
+            aggregateId: batchId,
+            payload: {
+              batchId,
+              dataset: batch.dataset,
+              status: 'undone',
+              undoneBy: authz.userId,
+            },
+          });
+
+          await this.importRepo.updateBatch(
+            batchId,
+            {
+              status: 'undone',
+              undoneAt: new Date().toISOString(),
+            },
+            batch.version,
+            txDb,
+          );
+        },
+        {
+          audit: {
+            action: 'revert',
+            entity: 'core.import_batch',
+            entityId: batchId,
+            stateId: batch.stateId ?? undefined,
+            actorType: 'user',
+            actorUserId: authz.userId,
+          },
+        },
+      );
+
+      await this.publishProgress(
+        batchId,
+        batch.dataset,
+        'undone',
+        100,
+        `Successfully undone batch`,
+      );
+
+      return this.importRepo.getBatchById(batchId);
+    }
 
     const committedRows = await this.importRepo.listRows(batchId, {
       status: 'committed',

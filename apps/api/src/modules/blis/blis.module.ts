@@ -16,6 +16,7 @@ import { BasinMorphometryRepository } from './repositories/basin-morphometry.rep
 import { StationRepository } from './repositories/station.repository';
 import { ReservoirRepository } from './repositories/reservoir.repository';
 import { DamRepository } from './repositories/dam.repository';
+import { ReadingRepository } from './repositories/reading.repository';
 
 // Services
 import { BlisAssetService } from './services/blis-asset.service';
@@ -25,6 +26,7 @@ import { BlisStationStubService } from './public';
 import { BasinImportHandler } from './imports/basin.handler';
 import { StationImportHandler } from './imports/station.handler';
 import { DamImportHandler } from './imports/dam.handler';
+import { MeasurementImportHandler } from './imports/measurement.handler';
 
 @Module({
   imports: [CoreModule, AuditModule],
@@ -41,11 +43,13 @@ import { DamImportHandler } from './imports/dam.handler';
     StationRepository,
     ReservoirRepository,
     DamRepository,
+    ReadingRepository,
     BlisAssetService,
     BlisStationStubService,
     BasinImportHandler,
     StationImportHandler,
     DamImportHandler,
+    MeasurementImportHandler,
   ],
   exports: [
     BasinRepository,
@@ -53,6 +57,7 @@ import { DamImportHandler } from './imports/dam.handler';
     StationRepository,
     ReservoirRepository,
     DamRepository,
+    ReadingRepository,
     BlisAssetService,
     BlisStationStubService,
   ],
@@ -63,11 +68,13 @@ export class BlisModule implements OnModuleInit {
     private readonly basinImportHandler: BasinImportHandler,
     private readonly stationImportHandler: StationImportHandler,
     private readonly damImportHandler: DamImportHandler,
+    private readonly measurementImportHandler: MeasurementImportHandler,
   ) {}
 
   onModuleInit() {
     this.importRegistry.register(this.basinImportHandler);
     this.importRegistry.register(this.stationImportHandler);
     this.importRegistry.register(this.damImportHandler);
+    this.importRegistry.register(this.measurementImportHandler);
   }
 }

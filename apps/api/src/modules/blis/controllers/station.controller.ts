@@ -4,9 +4,11 @@ import {
   CreateStationInputSchema,
   UpdateStationInputSchema,
   ListStationsQuerySchema,
+  GetStationReadingsQuerySchema,
   type CreateStationInput,
   type UpdateStationInput,
   type ListStationsQuery,
+  type GetStationReadingsQuery,
 } from '@idmis/contracts';
 import { Can, CurrentAuthz, CurrentUser } from '../../../platform/auth';
 import type { UserAuthz } from '../../../platform/auth';
@@ -41,6 +43,16 @@ export class StationController {
   @Can(permissions.BLIS_BASIN_READ)
   async getStation(@Param('id') id: string, @CurrentAuthz() authz: UserAuthz) {
     return this.assetService.getStation(id, authz);
+  }
+
+  @Get(':id/readings')
+  @Can(permissions.BLIS_MEASUREMENT_READ)
+  async getReadings(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(GetStationReadingsQuerySchema)) query: GetStationReadingsQuery,
+    @CurrentAuthz() authz: UserAuthz,
+  ) {
+    return this.assetService.getStationReadings(id, query, authz);
   }
 
   @Put(':id')

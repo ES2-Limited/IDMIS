@@ -11,6 +11,7 @@ import {
   jsonb,
   check,
   unique,
+  uniqueIndex,
   primaryKey,
   index,
 } from 'drizzle-orm/pg-core';
@@ -383,4 +384,18 @@ export const mapFeature = blisSchema.table(
     index('map_feature_geom_gist_idx').using('gist', table.geom),
     index('map_feature_layer_id_idx').on(table.layerId),
   ],
+);
+
+// 16. Materialised View: blis.mv_latest_reading
+export const mvLatestReading = blisSchema.table(
+  'mv_latest_reading',
+  {
+    stationId: uuid('station_id').notNull(),
+    parameterId: uuid('parameter_id').notNull(),
+    observedAt: timestamp('observed_at', { withTimezone: true, mode: 'string' }).notNull(),
+    value: numeric('value', { precision: 16, scale: 4 }).notNull(),
+    unit: text('unit').notNull(),
+    quality: text('quality').notNull(),
+  },
+  (table) => [uniqueIndex('mv_latest_reading_unique').on(table.stationId, table.parameterId)],
 );

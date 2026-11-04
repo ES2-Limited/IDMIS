@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import {
   permissions,
   type CreateBasinInput,
@@ -16,12 +21,14 @@ import {
   type CreateDamInput,
   type UpdateDamInput,
   type ListDamsQuery,
+  type GetStationReadingsQuery,
 } from '@idmis/contracts';
 import { BasinRepository } from '../repositories/basin.repository';
 import { BasinMorphometryRepository } from '../repositories/basin-morphometry.repository';
 import { StationRepository } from '../repositories/station.repository';
 import { ReservoirRepository } from '../repositories/reservoir.repository';
 import { DamRepository } from '../repositories/dam.repository';
+import { ReadingRepository } from '../repositories/reading.repository';
 import { assertBlisScope } from '../utils/assert-blis-scope';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import type { UserAuthz } from '../../../platform/auth';
@@ -34,6 +41,7 @@ export class BlisAssetService {
     private readonly stationRepo: StationRepository,
     private readonly reservoirRepo: ReservoirRepository,
     private readonly damRepo: DamRepository,
+    private readonly readingRepo: ReadingRepository,
   ) {}
 
   // =========================================================================
@@ -631,6 +639,51 @@ export class BlisAssetService {
           actorUserId,
         },
       },
+    );
+  }
+
+  // =========================================================================
+  // 6. Station Readings (BE-4.3)
+  // =========================================================================
+
+  async getStationReadings(stationId: string, query: GetStationReadingsQuery, authz: UserAuthz) {
+    const scope = authz.scopeFor(permissions.BLIS_MEASUREMENT_READ);
+    const station = await this.stationRepo.findById(stationId, scope);
+    if (!station) {
+      throw new NotFoundException('Station not found');
+    }
+
+    // Validate max range per request
+    if (query.from && query.to) {
+      const fromTime = new Date(query.from).getTime();
+      const toTime = new Date(query.to).getTime();
+      if (toTime < fromTime) {
+        throw new BadRequestException("'to' date must be greater than or equal to 'from' date");
+      }
+      const diffMs = toTime - fromTime;
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+      if (query.interval === 'raw' && diffDays > 31) {
+        throw new BadRequestException('Max range for raw readings is 31 days');
+      }
+      if (query.interval === 'day' && diffDays > 5 * 365.25) {
+        throw new BadRequestException('Max range for daily readings is 5 years');
+      }
+    }
+
+    const param = await this.readingRepo.resolveParameter(query.parameter);
+
+    if (query.interval === 'raw') {
+      return this.readingRepo.getRawReadings(stationId, param.id, param.code, query);
+    }
+
+    return this.readingRepo.getAggregatedReadings(
+      stationId,
+      param.id,
+      param.code,
+      param.defaultUnit,
+      query,
+      query.interval,
     );
   }
 }

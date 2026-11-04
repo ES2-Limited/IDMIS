@@ -96,8 +96,13 @@ export class ImportController {
   async commitBatch(
     @Param('batchId', new ParseUUIDPipe()) batchId: string,
     @CurrentAuthz() authz: UserAuthz,
+    @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    return this.importService.commitBatch(batchId, authz);
+    const result = await this.importService.commitBatch(batchId, authz);
+    if (result.status === 'committing') {
+      res.status(202);
+    }
+    return result;
   }
 
   @Post(':batchId/undo')
