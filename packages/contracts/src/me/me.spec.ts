@@ -86,8 +86,8 @@ describe('M&E Contracts & Disaggregation Normalisation (BE-3.1)', () => {
 
   it('includes known compute keys', () => {
     expect(KNOWN_COMPUTE_KEYS.has('slis.beneficiaries')).toBe(true);
-    expect(KNOWN_COMPUTE_KEYS.has('slis.fee_recovery')).toBe(true);
-    expect(KNOWN_COMPUTE_KEYS.has('me.tech_adoption')).toBe(true);
+    expect(KNOWN_COMPUTE_KEYS.has('slis.fee_recovery_rate')).toBe(true);
+    expect(KNOWN_COMPUTE_KEYS.has('me.tech_adopters')).toBe(true);
     expect(KNOWN_COMPUTE_KEYS.has('non_existent_key' as KnownComputeKey)).toBe(false);
   });
 });

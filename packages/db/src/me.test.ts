@@ -73,12 +73,12 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
       })
       .onConflictDoNothing();
 
-    // Create a base Results Framework
+    // Create a base Results Framework for test suite
     await testDb.insert(resultsFramework).values({
       id: TEST_FRAMEWORK_ID,
-      name: 'TRIMING Results Framework 2026',
-      version: '1.0',
-      isCurrent: true,
+      name: 'TRIMING Results Framework Test',
+      version: 'test-1.0',
+      isCurrent: false,
       createdBy: TEST_USER_ID,
       updatedBy: TEST_USER_ID,
     });
@@ -467,17 +467,94 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
           },
         ]),
       ).toThrow(/unknown computeKey/i);
+
+      // 6. Method 'survey' with unknown computeKey
+      expect(() =>
+        validateIndicatorDefinitions([
+          {
+            code: '4b',
+            name: 'Survey Bad Key',
+            level: 'intermediate',
+            unit: '%',
+            method: 'survey',
+            computeKey: 'unknown.survey_key',
+          },
+        ]),
+      ).toThrow(/unknown computeKey/i);
+
+      // 7. Method 'manual' with computeKey is rejected
+      expect(() =>
+        validateIndicatorDefinitions([
+          {
+            code: '4c',
+            name: 'Manual With Key',
+            level: 'intermediate',
+            unit: 'Number',
+            method: 'manual',
+            computeKey: 'slis.beneficiaries',
+          },
+        ]),
+      ).toThrow(/manual.*must not have a computeKey/i);
     });
 
-    it('loadMeIndicators upserts valid definitions by (framework_id, code)', async () => {
+    it('loadMeIndicators loads all 22 indicators from provisional framework, is idempotent, and preserves data', async () => {
+      // 1. Initial seed load
+      const res1 = await loadMeIndicators(undefined, undefined, testDb);
+      expect(res1.loaded).toBe(22);
+
+      const [fw] = await testDb
+        .select()
+        .from(resultsFramework)
+        .where(eq(resultsFramework.isCurrent, true));
+      expect(fw).toBeDefined();
+      expect(fw.name).toBe('TRIMING Results Framework');
+      expect(fw.version).toBe('2.0-provisional');
+
+      const allRows = await testDb.select().from(indicator).where(eq(indicator.frameworkId, fw.id));
+      expect(allRows.length).toBe(22);
+
+      // Check specific indicators
+      const ind1a = allRows.find((r) => r.code === '1a');
+      expect(ind1a).toBeDefined();
+      expect(ind1a?.name).toBe('Direct project beneficiaries');
+      expect(ind1a?.computeKey).toBe('slis.beneficiaries');
+      expect(ind1a?.endTarget).toBe('10000000.0000');
+      expect(ind1a?.endTargetNote).toBe('legacy figure, to be confirmed');
+      expect(ind1a?.frequency).toBe('quarterly');
+
+      const ind11 = allRows.find((r) => r.code === '11');
+      expect(ind11).toBeDefined();
+      expect(ind11?.method).toBe('survey');
+      expect(ind11?.computeKey).toBe('me.survey.wua_participation');
+      expect(ind11?.endTarget).toBe('90.0000');
+
+      const ind5 = allRows.find((r) => r.code === '5');
+      expect(ind5).toBeDefined();
+      expect(ind5?.method).toBe('manual');
+      expect(ind5?.computeKey).toBeNull();
+      expect(ind5?.endTarget).toBe('8.0000');
+
+      // 2. Re-running changes nothing and produces no duplicates
+      const res2 = await loadMeIndicators(undefined, undefined, testDb);
+      expect(res2.loaded).toBe(22);
+
+      const allRowsAfter = await testDb
+        .select()
+        .from(indicator)
+        .where(eq(indicator.frameworkId, fw.id));
+      expect(allRowsAfter.length).toBe(22);
+    });
+
+    it('loadMeIndicators upserts custom definitions by (framework_id, code)', async () => {
       const validDefinitions: IndicatorSeedDefinition[] = [
         {
           code: '10a',
           name: 'WUAs with Maintenance Funds',
           level: 'intermediate',
           unit: '%',
+          frequency: 'quarterly',
           method: 'computed',
-          computeKey: 'slis.wuas_operational',
+          computeKey: 'core.wua_operational',
           disaggregations: ['scheme'],
           baseline: '12.5000',
           baselineYear: 2020,
@@ -487,7 +564,9 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
           name: 'Farmer Household Satisfaction Rate',
           level: 'pdo',
           unit: '%',
+          frequency: 'quarterly',
           method: 'survey',
+          computeKey: 'me.survey.wua_participation',
           disaggregations: ['gender', 'scheme'],
         },
       ];

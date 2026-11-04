@@ -51,6 +51,8 @@ export const IndicatorSchema = z
     disaggregations: z.array(z.string()).default([]),
     baseline: z.string().nullable().optional(),
     baselineYear: z.number().int().nullable().optional(),
+    endTarget: z.string().nullable().optional(),
+    endTargetNote: z.string().nullable().optional(),
     dataSource: z.string().nullable().optional(),
     responsible: z.string().nullable().optional(),
     version: z.number().int().positive().default(1),
@@ -65,10 +67,14 @@ export const IndicatorSchema = z
       if (data.method === 'computed') {
         return !!data.computeKey && data.computeKey.trim().length > 0;
       }
+      if (data.method === 'manual') {
+        return !data.computeKey || data.computeKey.trim().length === 0;
+      }
       return true;
     },
     {
-      message: 'computeKey is required when method is computed',
+      message:
+        'computeKey is required when method is computed and prohibited when method is manual',
       path: ['computeKey'],
     },
   );
@@ -88,6 +94,8 @@ export const CreateIndicatorInputSchema = z
     disaggregations: z.array(z.string()).default([]),
     baseline: z.string().nullable().optional(),
     baselineYear: z.number().int().nullable().optional(),
+    endTarget: z.string().nullable().optional(),
+    endTargetNote: z.string().nullable().optional(),
     dataSource: z.string().nullable().optional(),
     responsible: z.string().nullable().optional(),
   })
@@ -96,10 +104,14 @@ export const CreateIndicatorInputSchema = z
       if (data.method === 'computed') {
         return !!data.computeKey && data.computeKey.trim().length > 0;
       }
+      if (data.method === 'manual') {
+        return !data.computeKey || data.computeKey.trim().length === 0;
+      }
       return true;
     },
     {
-      message: 'computeKey is required when method is computed',
+      message:
+        'computeKey is required when method is computed and prohibited when method is manual',
       path: ['computeKey'],
     },
   );

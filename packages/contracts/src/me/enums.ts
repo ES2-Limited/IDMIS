@@ -17,16 +17,22 @@ export type ValueStatus = z.infer<typeof ValueStatusSchema>;
 
 export const KNOWN_COMPUTE_KEYS = new Set([
   'slis.beneficiaries',
-  'slis.beneficiaries_gender',
-  'slis.area_by_service',
+  'slis.beneficiaries_female_pct',
+  'slis.area_serviced',
+  'slis.area_improved',
+  'slis.area_new',
   'slis.cropping_intensity',
-  'slis.yield',
-  'slis.fee_recovery',
-  'slis.wuas_operational',
-  'slis.trainings_tag',
-  'me.tech_adoption',
-  'me.scorecard',
-  'me.matching_grant',
+  'slis.fee_recovery_rate',
+  'slis.trained_dam_safety',
+  'core.wua_operational',
+  'me.survey.wua_participation',
+  'me.tech_adopters',
+  'me.tech_adopters_female',
+  'slis.yield.tomato',
+  'slis.yield.rice',
+  'slis.yield.maize',
+  'slis.yield.onion',
+  'me.scorecards_published',
 ] as const);
 
 export type KnownComputeKey = typeof KNOWN_COMPUTE_KEYS extends Set<infer T> ? T : never;

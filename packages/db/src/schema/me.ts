@@ -69,6 +69,8 @@ export const indicator = meSchema.table(
       .default(sql`'{}'::text[]`),
     baseline: numeric('baseline', { precision: 16, scale: 4 }),
     baselineYear: smallint('baseline_year'),
+    endTarget: numeric('end_target', { precision: 16, scale: 4 }),
+    endTargetNote: text('end_target_note'),
     dataSource: text('data_source'),
     responsible: text('responsible'),
   },
@@ -76,7 +78,7 @@ export const indicator = meSchema.table(
     unique('indicator_framework_code_unique').on(table.frameworkId, table.code),
     check(
       'indicator_method_compute_key_check',
-      sql`("method" <> 'computed' OR "compute_key" IS NOT NULL)`,
+      sql`("method" = 'computed' AND "compute_key" IS NOT NULL) OR ("method" = 'survey') OR ("method" = 'manual' AND "compute_key" IS NULL)`,
     ),
   ],
 );
