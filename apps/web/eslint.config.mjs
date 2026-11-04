@@ -1,3 +1,8 @@
 import baseConfig from '@idmis/config/eslint';
 
-export default baseConfig;
+export default [
+  {
+    ignores: ['dev-dist/**', 'dist/**'],
+  },
+  ...baseConfig,
+];
