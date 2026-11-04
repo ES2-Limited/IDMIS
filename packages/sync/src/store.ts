@@ -1,16 +1,11 @@
-import { IdmisDatabase, type LocalRecord, type OutboxOp } from './db';
-
-function generateUuid(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  // Fallback UUID v4 generator
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import {
+  IdmisDatabase,
+  type LocalRecord,
+  type OutboxOp,
+  type ReferenceDataRecord,
+  type PhotoQueueItem,
+} from './db';
+import { generateUuidV7 } from './uuid';
 
 export class LocalStore {
   constructor(private readonly db: IdmisDatabase) {}
@@ -39,10 +34,10 @@ export class LocalStore {
   public async commitInsert(
     entity: string,
     recordId: string,
-    data: Record<string, unknown>,
+    payload: Record<string, unknown>,
     options?: { schemeId?: string | null; stateId?: string | null },
   ): Promise<{ record: LocalRecord; op: OutboxOp }> {
-    const opId = generateUuid();
+    const opId = generateUuidV7();
     const now = new Date().toISOString();
 
     const record: LocalRecord = {
@@ -51,7 +46,7 @@ export class LocalStore {
       recordId,
       schemeId: options?.schemeId,
       stateId: options?.stateId,
-      data,
+      data: payload,
       version: 1,
       status: 'dirty',
       updatedAt: now,
@@ -63,7 +58,7 @@ export class LocalStore {
       action: 'create',
       recordId,
       baseVersion: 1,
-      data,
+      payload,
       createdAt: now,
       attempts: 0,
     };
@@ -82,20 +77,21 @@ export class LocalStore {
   public async commitUpdate(
     entity: string,
     recordId: string,
-    data: Record<string, unknown>,
+    payload: Record<string, unknown>,
   ): Promise<{ record: LocalRecord; op: OutboxOp }> {
     const existing = await this.getRecord(entity, recordId);
     if (!existing) {
-      throw new Error(`Cannot update non-existent record ${entity}:${recordId}`);
+      throw new Error(`Record ${entity}:${recordId} not found locally.`);
     }
 
-    const opId = generateUuid();
+    const opId = generateUuidV7();
     const now = new Date().toISOString();
+    const nextVersion = existing.version + 1;
 
-    const updatedRecord: LocalRecord = {
+    const record: LocalRecord = {
       ...existing,
-      data: { ...existing.data, ...data },
-      version: existing.version + 1,
+      data: { ...existing.data, ...payload },
+      version: nextVersion,
       status: 'dirty',
       updatedAt: now,
     };
@@ -106,17 +102,17 @@ export class LocalStore {
       action: 'update',
       recordId,
       baseVersion: existing.version,
-      data,
+      payload,
       createdAt: now,
       attempts: 0,
     };
 
     await this.db.transaction('rw', [this.db.records, this.db.outbox], async () => {
-      await this.db.records.put(updatedRecord);
+      await this.db.records.put(record);
       await this.db.outbox.put(op);
     });
 
-    return { record: updatedRecord, op };
+    return { record, op };
   }
 
   /**
@@ -124,7 +120,8 @@ export class LocalStore {
    */
   public async commitDelete(entity: string, recordId: string): Promise<OutboxOp> {
     const existing = await this.getRecord(entity, recordId);
-    const opId = generateUuid();
+    const baseVersion = existing ? existing.version : 1;
+    const opId = generateUuidV7();
     const now = new Date().toISOString();
 
     const op: OutboxOp = {
@@ -132,8 +129,8 @@ export class LocalStore {
       entity,
       action: 'delete',
       recordId,
-      baseVersion: existing ? existing.version : 1,
-      data: {},
+      baseVersion,
+      payload: {},
       createdAt: now,
       attempts: 0,
     };
@@ -154,32 +151,104 @@ export class LocalStore {
     await this.db.outbox.delete(opId);
   }
 
-  public async markRecordClean(
-    entity: string,
-    recordId: string,
-    newVersion?: number,
-  ): Promise<void> {
+  public async incrementOpAttempt(opId: string, error?: string): Promise<void> {
+    const op = await this.db.outbox.get(opId);
+    if (op) {
+      await this.db.outbox.update(opId, {
+        attempts: op.attempts + 1,
+        lastError: error ?? null,
+      });
+    }
+  }
+
+  public async markRecordClean(entity: string, recordId: string, version?: number): Promise<void> {
     const key = `${entity}:${recordId}`;
-    const record = await this.db.records.get(key);
-    if (record) {
+    const existing = await this.db.records.get(key);
+    if (existing) {
       await this.db.records.update(key, {
         status: 'clean',
-        version: newVersion ?? record.version,
+        version: version ?? existing.version,
+        rejectionReason: null,
       });
     }
   }
 
   public async markRecordConflict(entity: string, recordId: string): Promise<void> {
     const key = `${entity}:${recordId}`;
-    const record = await this.db.records.get(key);
-    if (record) {
-      await this.db.records.update(key, { status: 'conflict' });
-    }
+    await this.db.records.update(key, {
+      status: 'conflict',
+    });
   }
 
+  public async markRecordRejected(
+    entity: string,
+    recordId: string,
+    reason?: string,
+  ): Promise<void> {
+    const key = `${entity}:${recordId}`;
+    await this.db.records.update(key, {
+      status: 'rejected',
+      rejectionReason: reason ?? 'Server validation rejected record',
+    });
+  }
+
+  // Reference Data Cache
+  public async cacheReferenceData(
+    type: ReferenceDataRecord['type'],
+    items: Array<{ recordId: string; data: Record<string, unknown> }>,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const rows: ReferenceDataRecord[] = items.map((item) => ({
+      id: `${type}:${item.recordId}`,
+      type,
+      recordId: item.recordId,
+      data: item.data,
+      updatedAt: now,
+    }));
+    await this.db.referenceData.bulkPut(rows);
+  }
+
+  public async getReferenceData(type: ReferenceDataRecord['type']): Promise<ReferenceDataRecord[]> {
+    return this.db.referenceData.where('type').equals(type).toArray();
+  }
+
+  // Photo Queue Management
+  public async queuePhoto(
+    item: Omit<PhotoQueueItem, 'id' | 'createdAt' | 'attempts' | 'status' | 'uploadedBytes'>,
+  ): Promise<PhotoQueueItem> {
+    const id = generateUuidV7();
+    const photo: PhotoQueueItem = {
+      ...item,
+      id,
+      status: 'pending',
+      uploadedBytes: 0,
+      createdAt: new Date().toISOString(),
+    };
+    await this.db.photoQueue.put(photo);
+    return photo;
+  }
+
+  public async getPendingPhotos(): Promise<PhotoQueueItem[]> {
+    return this.db.photoQueue.where('status').equals('pending').toArray();
+  }
+
+  public async updatePhotoProgress(
+    id: string,
+    status: PhotoQueueItem['status'],
+    uploadedBytes: number,
+    error?: string,
+  ): Promise<void> {
+    await this.db.photoQueue.update(id, {
+      status,
+      uploadedBytes,
+      error: error ?? null,
+    });
+  }
+
+  // Watermark Cursors
   public async getCursor(scopeKey = 'national'): Promise<string | undefined> {
-    const entry = await this.db.cursors.get(scopeKey);
-    return entry?.cursor;
+    const record = await this.db.cursors.get(scopeKey);
+    return record?.cursor;
   }
 
   public async setCursor(cursor: string, scopeKey = 'national'): Promise<void> {
@@ -188,5 +257,19 @@ export class LocalStore {
       cursor,
       updatedAt: new Date().toISOString(),
     });
+  }
+
+  // Offline Allowance Management
+  public async setOfflineGrant(grantUntil: string): Promise<void> {
+    await this.db.meta.put({
+      key: 'offline_grant_until',
+      value: grantUntil,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  public async getOfflineGrant(): Promise<string | null> {
+    const item = await this.db.meta.get('offline_grant_until');
+    return item ? (item.value as string) : null;
   }
 }

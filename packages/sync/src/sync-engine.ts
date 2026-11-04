@@ -8,7 +8,7 @@ export interface SyncEngineOptions {
   deviceId?: string;
 }
 
-export type SyncState = 'idle' | 'pushing' | 'pulling' | 'error';
+export type SyncState = 'idle' | 'pushing' | 'pulling' | 'error' | 'locked';
 
 export class SyncEngine {
   private readonly apiClient: ApiClient;
@@ -38,7 +38,24 @@ export class SyncEngine {
   }
 
   /**
+   * Validates device offline grant before running push/pull.
+   * If grant has expired, transitions engine into locked state.
+   */
+  public async checkOfflineAllowance(): Promise<boolean> {
+    const grant = await this.store.getOfflineGrant();
+    if (!grant) return true; // No expiration constraint set
+    const expiry = new Date(grant).getTime();
+    const isExpired = Date.now() > expiry;
+    if (isExpired) {
+      this.setState('locked');
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Pushes all pending outbox operations to the server.
+   * Retries preserve the exact same opId for idempotency.
    */
   public async push(): Promise<SyncPushResponse | null> {
     const ops = await this.store.getPendingOps();
@@ -57,7 +74,7 @@ export class SyncEngine {
           action: op.action,
           recordId: op.recordId,
           baseVersion: op.baseVersion,
-          data: op.data,
+          data: op.payload,
         })),
       };
 
@@ -68,8 +85,14 @@ export class SyncEngine {
           await this.store.markRecordClean(res.entity, res.recordId, res.newVersion);
           await this.store.removeOutboxOp(res.opId);
         } else if (res.outcome === 'conflict') {
+          // Mark conflict on device; keep outbox op until resolution
           await this.store.markRecordConflict(res.entity, res.recordId);
-          // Keep op or retain for resolution
+          await this.store.incrementOpAttempt(res.opId, 'Conflict detected with server state');
+        } else if (res.outcome === 'rejected' || res.outcome === 'quarantined') {
+          // Return to 'needs fixing' / rejected status
+          const firstErr = res.errors?.[0]?.detail ?? res.quarantineReason ?? 'Validation rejected';
+          await this.store.markRecordRejected(res.entity, res.recordId, firstErr);
+          await this.store.incrementOpAttempt(res.opId, firstErr);
         }
       }
 
@@ -77,6 +100,10 @@ export class SyncEngine {
       return response;
     } catch (err) {
       this.setState('error');
+      // Increment attempt count on all ops
+      for (const op of ops) {
+        await this.store.incrementOpAttempt(op.opId, String(err));
+      }
       throw err;
     }
   }
@@ -98,14 +125,12 @@ export class SyncEngine {
       // Apply changes to local store
       for (const item of response.items) {
         if (item.op === 'delete' || item.deleted) {
-          // Remove local record
           const existing = await this.store.getRecord(item.entity, item.recordId);
           if (existing && existing.status !== 'dirty') {
             await this.store.commitDelete(item.entity, item.recordId);
           }
         } else if (item.data) {
           const existing = await this.store.getRecord(item.entity, item.recordId);
-          // If not dirty locally, upsert clean server state
           if (!existing || existing.status === 'clean') {
             await this.store.commitInsert(item.entity, item.recordId, item.data, {
               schemeId: item.schemeId,
@@ -132,6 +157,10 @@ export class SyncEngine {
    * Performs full synchronization cycle (push first, then pull).
    */
   public async sync(scopeKey = 'national'): Promise<void> {
+    const allowed = await this.checkOfflineAllowance();
+    if (!allowed) {
+      throw new Error('Offline allowance has expired. Please connect to internet to refresh.');
+    }
     await this.push();
     await this.pull(scopeKey);
   }

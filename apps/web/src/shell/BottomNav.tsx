@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { LayoutDashboard, Sprout, TrendingUp, Waves, Building } from 'lucide-react';
+import { LayoutDashboard, Sprout, TrendingUp, Building, MapPin } from 'lucide-react';
 import { useCan } from '../auth';
 
 export function BottomNav() {
@@ -9,14 +9,13 @@ export function BottomNav() {
 
   const canSlis = useCan('slis.farmer.read');
   const canMe = useCan('me.kpi.read');
-  const canBlis = useCan('blis.irrigation.read');
   const canCore = useCan('core.user.read');
 
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },
     { label: 'SLIS', path: '/slis', icon: Sprout, show: canSlis },
+    { label: 'Field Hub', path: '/field', icon: MapPin },
     { label: 'M&E', path: '/me', icon: TrendingUp, show: canMe },
-    { label: 'BLIS', path: '/blis', icon: Waves, show: canBlis },
     { label: 'Admin', path: '/core', icon: Building, show: canCore },
   ].filter((item) => item.show !== false);
 
@@ -27,9 +26,10 @@ export function BottomNav() {
     >
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
-          const isActive = item.exact
-            ? currentPath === item.path
-            : currentPath.startsWith(item.path);
+          const isActive =
+            item.exact || item.path === '/field'
+              ? currentPath === item.path
+              : currentPath.startsWith(item.path);
           const Icon = item.icon;
 
           return (

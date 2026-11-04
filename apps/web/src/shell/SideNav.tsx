@@ -27,13 +27,14 @@ function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string })
   if (!allowed) return null;
 
   const isActive =
-    item.path === '/'
-      ? currentPath === '/'
+    item.path === '/' || item.path === '/field'
+      ? currentPath === item.path
       : currentPath === item.path ||
         (item.path !== '/core' &&
           item.path !== '/slis' &&
           item.path !== '/me' &&
           item.path !== '/blis' &&
+          item.path !== '/field' &&
           currentPath.startsWith(item.path));
 
   const Icon = item.icon;
@@ -142,6 +143,17 @@ export function SideNav() {
         icon: ShieldAlert,
         permission: 'blis.irrigation.read',
       },
+    ];
+  } else if (currentPath.startsWith('/field')) {
+    moduleName = 'Field Collector Hub';
+    navItems = [
+      { label: 'Field Station Home', path: '/field', icon: LayoutDashboard },
+      { label: 'Fast Data Capture', path: '/field/capture', icon: MapPin },
+      { label: 'Register Farmer (Wizard)', path: '/field/capture/farmer', icon: Users },
+      { label: 'Map Plot Boundary (Walk)', path: '/field/capture/plot', icon: MapPin },
+      { label: 'My Cached Records', path: '/field/records', icon: FileText },
+      { label: 'Sync Centre', path: '/field/sync', icon: Database },
+      { label: 'Collector Profile (Me)', path: '/field/profile', icon: Users },
     ];
   } else {
     moduleName = 'TRIMING IDMIS';

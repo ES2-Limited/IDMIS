@@ -21,6 +21,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
     { id: 'slis', label: 'SLIS', path: '/slis' },
     { id: 'me', label: 'M&E', path: '/me' },
     { id: 'blis', label: 'BLIS', path: '/blis' },
+    { id: 'field', label: 'Field Station', path: '/field' },
   ];
 
   return (
@@ -30,7 +31,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Toggle navigation menu"
-          className="hidden sm:inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
+          className="inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
           onClick={onToggleSidebar}
         >
           <Menu className="h-5 w-5" />
@@ -59,7 +60,8 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           className="hidden lg:flex items-center gap-1.5 border-l border-slate-200/80 pl-4 ml-1"
         >
           {modules.map((m) => {
-            const isActive = currentPath.startsWith(m.path);
+            const isActive =
+              m.path === '/field' ? currentPath === m.path : currentPath.startsWith(m.path);
             return (
               <Link
                 key={m.id}

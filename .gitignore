@@ -7,4 +7,6 @@ coverage
 playwright-report
 dump.rdb
 *.rdb
+dev-dist
+
 

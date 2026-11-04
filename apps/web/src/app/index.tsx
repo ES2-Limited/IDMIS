@@ -13,6 +13,13 @@ import { ImportCenterView } from '../imports/ImportCenterView';
 import { SlisHome } from '../modules/slis/SlisHome';
 import { MeHome } from '../modules/me/MeHome';
 import { BlisHome } from '../modules/blis/BlisHome';
+import { FieldHomeView } from '../modules/field/FieldHomeView';
+import { FieldCaptureView } from '../modules/field/FieldCaptureView';
+import { FieldRecordsView } from '../modules/field/FieldRecordsView';
+import { FieldSyncView } from '../modules/field/FieldSyncView';
+import { FieldProfileView } from '../modules/field/FieldProfileView';
+import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
+import { PlotMappingView } from '../modules/slis/field/PlotMappingView';
 
 export const queryClient = new QueryClient();
 
@@ -48,11 +55,54 @@ const appShellRoute = createRoute({
   component: ShellLayout,
 });
 
-// Workspace Home Dashboard
+// Workspace Home Dashboard (Desktop Admin / Scheme Officer Overview)
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
   component: WorkspaceDashboard,
+});
+
+// Dedicated Field Station Home route
+const fieldHomeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field',
+  component: FieldHomeView,
+});
+
+const fieldCaptureRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture',
+  component: FieldCaptureView,
+});
+
+const fieldFarmerRegisterRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/farmer',
+  component: FarmerRegistrationWizard,
+});
+
+const fieldPlotMapRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/plot',
+  component: PlotMappingView,
+});
+
+const fieldRecordsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/records',
+  component: FieldRecordsView,
+});
+
+const fieldSyncRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/sync',
+  component: FieldSyncView,
+});
+
+const fieldProfileRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/profile',
+  component: FieldProfileView,
 });
 
 // Module routes: Core
@@ -160,6 +210,13 @@ const blisRoute = createRoute({
 
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
+  fieldHomeRoute,
+  fieldCaptureRoute,
+  fieldFarmerRegisterRoute,
+  fieldPlotMapRoute,
+  fieldRecordsRoute,
+  fieldSyncRoute,
+  fieldProfileRoute,
   coreRoute,
   coreUsersRoute,
   coreOrganisationsRoute,
