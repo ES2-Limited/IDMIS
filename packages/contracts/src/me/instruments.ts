@@ -121,6 +121,11 @@ export const TechAdoptionSchema = z.object({
   status: z.string().default('submitted'),
   submittedAt: z.string().datetime().nullable().optional(),
   submittedBy: z.string().uuid().nullable().optional(),
+  approvedAt: z.string().datetime().nullable().optional(),
+  approvedBy: z.string().uuid().nullable().optional(),
+  returnedAt: z.string().datetime().nullable().optional(),
+  returnedBy: z.string().uuid().nullable().optional(),
+  returnComment: z.string().nullable().optional(),
   deviceId: z.string().uuid().nullable().optional(),
   importBatchId: z.string().uuid().nullable().optional(),
   version: z.number().int().positive().default(1),
@@ -132,6 +137,17 @@ export const TechAdoptionSchema = z.object({
 });
 
 export type TechAdoption = z.infer<typeof TechAdoptionSchema>;
+
+export const ApproveTechAdoptionInputSchema = z.object({
+  version: z.number().int().positive().optional(),
+});
+export type ApproveTechAdoptionInput = z.infer<typeof ApproveTechAdoptionInputSchema>;
+
+export const ReturnTechAdoptionInputSchema = z.object({
+  comment: z.string().min(1, 'Return comment is required'),
+  version: z.number().int().positive().optional(),
+});
+export type ReturnTechAdoptionInput = z.infer<typeof ReturnTechAdoptionInputSchema>;
 
 export const CreateTechAdoptionInputSchema = z.object({
   id: z.string().uuid().optional(),

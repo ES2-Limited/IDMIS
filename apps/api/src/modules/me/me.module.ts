@@ -35,6 +35,7 @@ import { IndicatorValueImportHandler } from './imports/indicator-value.handler';
 import { SurveyResponseImportHandler } from './imports/survey-response.handler';
 import { ScorecardImportHandler } from './imports/scorecard.handler';
 import { MatchingGrantImportHandler } from './imports/matching-grant.handler';
+import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
 
 @Module({
   imports: [CoreModule, AuditModule],
@@ -66,6 +67,7 @@ import { MatchingGrantImportHandler } from './imports/matching-grant.handler';
     SurveyResponseImportHandler,
     ScorecardImportHandler,
     MatchingGrantImportHandler,
+    TechAdoptionImportHandler,
   ],
   exports: [
     IndicatorRepository,
@@ -86,6 +88,7 @@ import { MatchingGrantImportHandler } from './imports/matching-grant.handler';
     SurveyResponseImportHandler,
     ScorecardImportHandler,
     MatchingGrantImportHandler,
+    TechAdoptionImportHandler,
   ],
 })
 export class MeModule implements OnModuleInit {
@@ -96,6 +99,7 @@ export class MeModule implements OnModuleInit {
     private readonly surveyResponseHandler: SurveyResponseImportHandler,
     private readonly scorecardHandler: ScorecardImportHandler,
     private readonly matchingGrantHandler: MatchingGrantImportHandler,
+    private readonly techAdoptionHandler: TechAdoptionImportHandler,
   ) {}
 
   onModuleInit() {
@@ -104,5 +108,6 @@ export class MeModule implements OnModuleInit {
     this.registry.register(this.surveyResponseHandler);
     this.registry.register(this.scorecardHandler);
     this.registry.register(this.matchingGrantHandler);
+    this.registry.register(this.techAdoptionHandler);
   }
 }

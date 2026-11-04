@@ -1,12 +1,27 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   permissions,
   CreateTechAdoptionInputSchema,
   UpdateTechAdoptionInputSchema,
   ListTechAdoptionsQuerySchema,
+  ApproveTechAdoptionInputSchema,
+  ReturnTechAdoptionInputSchema,
   type CreateTechAdoptionInput,
   type UpdateTechAdoptionInput,
   type ListTechAdoptionsQuery,
+  type ApproveTechAdoptionInput,
+  type ReturnTechAdoptionInput,
 } from '@idmis/contracts';
 import { Can, CurrentAuthz, CurrentUser } from '../../../platform/auth';
 import type { UserAuthz } from '../../../platform/auth';
@@ -28,7 +43,7 @@ export class TechAdoptionController {
   }
 
   @Post()
-  @Can(permissions.ME_INSTRUMENTS_MANAGE)
+  @Can(permissions.ME_ADOPTION_RECORD)
   async createTechAdoption(
     @Body(new ZodValidationPipe(CreateTechAdoptionInputSchema)) input: CreateTechAdoptionInput,
     @CurrentAuthz() authz: UserAuthz,
@@ -44,7 +59,7 @@ export class TechAdoptionController {
   }
 
   @Put(':id')
-  @Can(permissions.ME_INSTRUMENTS_MANAGE)
+  @Can(permissions.ME_ADOPTION_RECORD)
   async updateTechAdoption(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateTechAdoptionInputSchema)) input: UpdateTechAdoptionInput,
@@ -55,7 +70,7 @@ export class TechAdoptionController {
   }
 
   @Delete(':id')
-  @Can(permissions.ME_INSTRUMENTS_MANAGE)
+  @Can(permissions.ME_ADOPTION_RECORD)
   async deleteTechAdoption(
     @Param('id') id: string,
     @Query('version') version: string,
@@ -64,5 +79,29 @@ export class TechAdoptionController {
   ) {
     const expectedVersion = parseInt(version, 10);
     return this.instrumentsService.deleteTechAdoption(id, expectedVersion, authz, user.id);
+  }
+
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @Can(permissions.ME_VALUE_APPROVE)
+  async approveTechAdoption(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(ApproveTechAdoptionInputSchema)) input: ApproveTechAdoptionInput,
+    @CurrentAuthz() authz: UserAuthz,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.instrumentsService.approveTechAdoption(id, input, authz, user.id);
+  }
+
+  @Post(':id/return')
+  @HttpCode(HttpStatus.OK)
+  @Can(permissions.ME_VALUE_APPROVE)
+  async returnTechAdoption(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(ReturnTechAdoptionInputSchema)) input: ReturnTechAdoptionInput,
+    @CurrentAuthz() authz: UserAuthz,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.instrumentsService.returnTechAdoption(id, input, authz, user.id);
   }
 }

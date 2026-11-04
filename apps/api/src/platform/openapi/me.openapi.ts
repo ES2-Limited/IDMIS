@@ -29,6 +29,8 @@ import {
   TechAdoptionSchema,
   CreateTechAdoptionInputSchema,
   UpdateTechAdoptionInputSchema,
+  ApproveTechAdoptionInputSchema,
+  ReturnTechAdoptionInputSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -104,6 +106,8 @@ export const meSchemas: Record<string, unknown> = {
   TechAdoptionResponse: toJsonSchema(TechAdoptionSchema),
   CreateTechAdoptionInput: toJsonSchema(CreateTechAdoptionInputSchema),
   UpdateTechAdoptionInput: toJsonSchema(UpdateTechAdoptionInputSchema),
+  ApproveTechAdoptionInput: toJsonSchema(ApproveTechAdoptionInputSchema),
+  ReturnTechAdoptionInput: toJsonSchema(ReturnTechAdoptionInputSchema),
 };
 
 export const mePaths: Record<string, Record<string, unknown>> = {
@@ -1187,6 +1191,62 @@ export const mePaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/me/tech-adoption/{id}/approve': {
+    post: {
+      summary: 'Approve tech adoption record',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: false,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ApproveTechAdoptionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Tech adoption record approved successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/me/tech-adoption/{id}/return': {
+    post: {
+      summary: 'Return tech adoption record with comments',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ReturnTechAdoptionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Tech adoption record returned successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
       },
     },
   },

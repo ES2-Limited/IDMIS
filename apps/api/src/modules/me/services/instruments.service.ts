@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   permissions,
   type CreateScorecardInput,
@@ -10,6 +15,8 @@ import {
   type CreateTechAdoptionInput,
   type UpdateTechAdoptionInput,
   type ListTechAdoptionsQuery,
+  type ApproveTechAdoptionInput,
+  type ReturnTechAdoptionInput,
 } from '@idmis/contracts';
 import { ScorecardRepository } from '../repositories/scorecard.repository';
 import { MatchingGrantRepository } from '../repositories/matching-grant.repository';
@@ -369,8 +376,9 @@ export class InstrumentsService {
     authz: UserAuthz,
     actorUserId: string,
     deviceId?: string,
+    importBatchId?: string,
   ) {
-    const resolvedScope = await assertMeScope(authz, permissions.ME_INSTRUMENTS_MANAGE, {
+    const resolvedScope = await assertMeScope(authz, permissions.ME_ADOPTION_RECORD, {
       scopeType: 'scheme',
       scopeOrgId: input.schemeId,
     });
@@ -398,6 +406,7 @@ export class InstrumentsService {
             submittedBy: actorUserId,
             submittedAt: new Date().toISOString(),
             deviceId: deviceId ?? null,
+            importBatchId: importBatchId ?? null,
             createdBy: actorUserId,
           },
           tx,
@@ -428,13 +437,13 @@ export class InstrumentsService {
 
     await assertMeScope(
       authz,
-      permissions.ME_INSTRUMENTS_MANAGE,
+      permissions.ME_ADOPTION_RECORD,
       { scopeType: 'scheme', scopeOrgId: existing.schemeId },
       true,
     );
 
     if (input.schemeId && input.schemeId !== existing.schemeId) {
-      await assertMeScope(authz, permissions.ME_INSTRUMENTS_MANAGE, {
+      await assertMeScope(authz, permissions.ME_ADOPTION_RECORD, {
         scopeType: 'scheme',
         scopeOrgId: input.schemeId,
       });
@@ -491,7 +500,7 @@ export class InstrumentsService {
 
     await assertMeScope(
       authz,
-      permissions.ME_INSTRUMENTS_MANAGE,
+      permissions.ME_ADOPTION_RECORD,
       { scopeType: 'scheme', scopeOrgId: existing.schemeId },
       true,
     );
@@ -506,6 +515,110 @@ export class InstrumentsService {
           entity: 'me.tech_adoption',
           actorUserId,
           entityId: id,
+        },
+      },
+    );
+  }
+
+  async approveTechAdoption(
+    id: string,
+    input: ApproveTechAdoptionInput,
+    authz: UserAuthz,
+    actorUserId: string,
+  ) {
+    const existing = await this.techAdoptionRepo.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Tech adoption record not found');
+    }
+
+    await assertMeScope(
+      authz,
+      permissions.ME_VALUE_APPROVE,
+      { scopeType: 'scheme', scopeOrgId: existing.schemeId },
+      true,
+    );
+
+    if (existing.status !== 'submitted') {
+      throw new ConflictProblemException({
+        detail: `Cannot approve tech adoption in status '${existing.status}' (expected 'submitted')`,
+        current: existing,
+        currentVersion: existing.version,
+      });
+    }
+
+    if (existing.submittedBy && existing.submittedBy === actorUserId) {
+      throw new ForbiddenException(
+        'Self-approval is forbidden. A user cannot approve their own submission.',
+      );
+    }
+
+    const expectedVersion = input.version ?? existing.version;
+
+    return runInTransaction(
+      async (tx) => {
+        return this.techAdoptionRepo.approve(id, expectedVersion, actorUserId, tx);
+      },
+      {
+        audit: {
+          action: 'approve',
+          entity: 'me.tech_adoption',
+          actorUserId,
+          entityId: id,
+          before: existing,
+        },
+      },
+    );
+  }
+
+  async returnTechAdoption(
+    id: string,
+    input: ReturnTechAdoptionInput,
+    authz: UserAuthz,
+    actorUserId: string,
+  ) {
+    const existing = await this.techAdoptionRepo.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Tech adoption record not found');
+    }
+
+    await assertMeScope(
+      authz,
+      permissions.ME_VALUE_APPROVE,
+      { scopeType: 'scheme', scopeOrgId: existing.schemeId },
+      true,
+    );
+
+    if (!input.comment || !input.comment.trim()) {
+      throw new BadRequestException('Comment is required to return a tech adoption record');
+    }
+
+    if (existing.status !== 'submitted') {
+      throw new ConflictProblemException({
+        detail: `Cannot return tech adoption in status '${existing.status}' (expected 'submitted')`,
+        current: existing,
+        currentVersion: existing.version,
+      });
+    }
+
+    const expectedVersion = input.version ?? existing.version;
+
+    return runInTransaction(
+      async (tx) => {
+        return this.techAdoptionRepo.return(
+          id,
+          expectedVersion,
+          actorUserId,
+          input.comment.trim(),
+          tx,
+        );
+      },
+      {
+        audit: {
+          action: 'return',
+          entity: 'me.tech_adoption',
+          actorUserId,
+          entityId: id,
+          before: existing,
         },
       },
     );

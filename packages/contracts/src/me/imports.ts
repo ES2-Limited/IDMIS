@@ -8,6 +8,7 @@ export const ME_IMPORT_DATASETS = [
   'me.survey_response',
   'me.scorecard',
   'me.matching_grant',
+  'me.tech_adoption',
 ] as const;
 export const MeImportDatasetSchema = z.enum(ME_IMPORT_DATASETS);
 export type MeImportDataset = z.infer<typeof MeImportDatasetSchema>;
@@ -80,6 +81,18 @@ export const MatchingGrantImportRowSchema = z.object({
   disbursedOn: z.string().optional(),
 });
 export type MatchingGrantImportRow = z.infer<typeof MatchingGrantImportRowSchema>;
+
+/**
+ * Row schema for me.tech_adoption import
+ */
+export const TechAdoptionImportRowSchema = z.object({
+  schemeCode: z.string().min(1).max(50),
+  technologyCode: z.string().min(1).max(100),
+  gender: z.enum(['female', 'male']),
+  farmerId: z.string().uuid().optional(),
+  adoptedOn: z.string().optional(),
+});
+export type TechAdoptionImportRow = z.infer<typeof TechAdoptionImportRowSchema>;
 
 export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition[]> = {
   'me.indicator_target': [
@@ -346,6 +359,48 @@ export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition
       type: 'string',
       description: 'Disbursement date (YYYY-MM-DD)',
       example: '2026-05-01',
+    },
+  ],
+  'me.tech_adoption': [
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the scheme',
+      example: 'KRIS',
+    },
+    {
+      name: 'technologyCode',
+      header: 'Technology Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the adopted technology (from technology lookup)',
+      example: 'drip_irrigation',
+    },
+    {
+      name: 'gender',
+      header: 'Gender',
+      required: true,
+      type: 'string',
+      description: 'Gender of adopting farmer (female or male)',
+      example: 'female',
+    },
+    {
+      name: 'farmerId',
+      header: 'Farmer ID',
+      required: false,
+      type: 'string',
+      description: 'UUID of the farmer if registered',
+      example: '00000000-0000-0000-0000-000000000000',
+    },
+    {
+      name: 'adoptedOn',
+      header: 'Adopted On',
+      required: false,
+      type: 'string',
+      description: 'Date of adoption (YYYY-MM-DD)',
+      example: '2026-05-15',
     },
   ],
 };

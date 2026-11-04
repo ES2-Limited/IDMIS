@@ -174,7 +174,100 @@ export class TechAdoptionRepository {
         ...(data.technologyId !== undefined && { technologyId: data.technologyId }),
         ...(data.gender !== undefined && { gender: data.gender }),
         ...(data.adoptedOn !== undefined && { adoptedOn: data.adoptedOn }),
+        status: 'submitted',
+        submittedBy: data.updatedBy,
+        submittedAt: now,
+        approvedBy: null,
+        approvedAt: null,
+        returnedBy: null,
+        returnedAt: null,
+        returnComment: null,
         updatedBy: data.updatedBy,
+        updatedAt: now,
+        version: sql`${techAdoption.version} + 1`,
+      })
+      .where(
+        and(
+          eq(techAdoption.id, id),
+          eq(techAdoption.version, expectedVersion),
+          isNull(techAdoption.deletedAt),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      const current = await this.findById(id, undefined, txDb);
+      if (!current) {
+        return null;
+      }
+      throw new ConflictProblemException({
+        detail: `Optimistic lock failure: TechAdoption ${id} has version ${current.version}, expected ${expectedVersion}`,
+        current,
+        currentVersion: current.version,
+      });
+    }
+
+    return updated;
+  }
+
+  async approve(id: string, expectedVersion: number, approvedBy: string, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
+    const now = new Date().toISOString();
+
+    const [updated] = await client
+      .update(techAdoption)
+      .set({
+        status: 'approved',
+        approvedBy,
+        approvedAt: now,
+        updatedBy: approvedBy,
+        updatedAt: now,
+        version: sql`${techAdoption.version} + 1`,
+      })
+      .where(
+        and(
+          eq(techAdoption.id, id),
+          eq(techAdoption.version, expectedVersion),
+          isNull(techAdoption.deletedAt),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      const current = await this.findById(id, undefined, txDb);
+      if (!current) {
+        return null;
+      }
+      throw new ConflictProblemException({
+        detail: `Optimistic lock failure: TechAdoption ${id} has version ${current.version}, expected ${expectedVersion}`,
+        current,
+        currentVersion: current.version,
+      });
+    }
+
+    return updated;
+  }
+
+  async return(
+    id: string,
+    expectedVersion: number,
+    returnedBy: string,
+    comment: string,
+    txDb?: DatabaseOrTx,
+  ) {
+    const client = this.getDb(txDb);
+    const now = new Date().toISOString();
+
+    const [updated] = await client
+      .update(techAdoption)
+      .set({
+        status: 'returned',
+        returnedBy,
+        returnedAt: now,
+        returnComment: comment,
+        approvedBy: null,
+        approvedAt: null,
+        updatedBy: returnedBy,
         updatedAt: now,
         version: sql`${techAdoption.version} + 1`,
       })

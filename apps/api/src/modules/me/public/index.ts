@@ -18,3 +18,4 @@ export * from '../imports/indicator-value.handler';
 export * from '../imports/survey-response.handler';
 export * from '../imports/scorecard.handler';
 export * from '../imports/matching-grant.handler';
+export * from '../imports/tech-adoption.handler';

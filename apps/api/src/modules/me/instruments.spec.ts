@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { NestFactory } from '@nestjs/core';
 import crypto from 'node:crypto';
@@ -57,6 +57,7 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
   const NATIONAL_ADMIN_ID = crypto.randomUUID();
   const KANO_ME_OFFICER_ID = crypto.randomUUID();
   const KANO_STATE_OFFICER_ID = crypto.randomUUID();
+  const KANO_FIELD_OFFICER_ID = crypto.randomUUID();
   const LAGOS_ME_OFFICER_ID = crypto.randomUUID();
   const SYSTEM_USER_ID = crypto.randomUUID();
 
@@ -79,12 +80,14 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
 
   // Devices
   const KANO_DEVICE_ID = crypto.randomUUID();
+  const KANO_FIELD_DEVICE_ID = crypto.randomUUID();
   const LAGOS_DEVICE_ID = crypto.randomUUID();
 
   // Tokens
   let nationalToken: string;
   let kanoOfficerToken: string;
   let kanoStateOfficerToken: string;
+  let kanoFieldOfficerToken: string;
   let lagosOfficerToken: string;
 
   const mockStorageFiles = new Map<string, Buffer>();
@@ -171,6 +174,16 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         updatedBy: SYSTEM_USER_ID,
       },
       {
+        id: KANO_FIELD_OFFICER_ID,
+        email: 'kano.field@idmis.gov.ng',
+        fullName: 'Kano Field Officer',
+        passwordHash: 'dummy',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
         id: LAGOS_ME_OFFICER_ID,
         email: 'lagos.me@idmis.gov.ng',
         fullName: 'Lagos MEOfficer',
@@ -245,17 +258,29 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
       },
     ]);
 
-    const perms = [
+    const mePerms = [
       permissions.ME_INSTRUMENTS_MANAGE,
+      permissions.ME_ADOPTION_RECORD,
       permissions.ME_INDICATOR_READ,
+      permissions.ME_VALUE_APPROVE,
       permissions.CORE_IMPORT_RUN,
       permissions.SLIS_SYNC_PUSH,
       permissions.SLIS_SYNC_PULL,
     ];
 
-    for (const p of perms) {
+    for (const p of mePerms) {
       await testDb.insert(rolePermission).values({ roleId: ME_NATIONAL_ROLE_ID, permission: p });
       await testDb.insert(rolePermission).values({ roleId: ME_OFFICER_ROLE_ID, permission: p });
+    }
+
+    const fieldPerms = [
+      permissions.ME_ADOPTION_RECORD,
+      permissions.ME_INDICATOR_READ,
+      permissions.SLIS_SYNC_PUSH,
+      permissions.SLIS_SYNC_PULL,
+    ];
+
+    for (const p of fieldPerms) {
       await testDb.insert(rolePermission).values({ roleId: FIELD_OFFICER_ROLE_ID, permission: p });
     }
 
@@ -274,6 +299,16 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         id: crypto.randomUUID(),
         userId: KANO_ME_OFFICER_ID,
         roleId: ME_OFFICER_ROLE_ID,
+        module: 'me',
+        scopeType: 'scheme',
+        scopeOrgId: KANO_SCHEME_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_FIELD_OFFICER_ID,
+        roleId: FIELD_OFFICER_ROLE_ID,
         module: 'me',
         scopeType: 'scheme',
         scopeOrgId: KANO_SCHEME_ID,
@@ -348,6 +383,13 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
       },
       {
+        id: KANO_FIELD_DEVICE_ID,
+        userId: KANO_FIELD_OFFICER_ID,
+        installationId: crypto.randomUUID(),
+        platform: 'android',
+        offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
+      },
+      {
         id: LAGOS_DEVICE_ID,
         userId: LAGOS_ME_OFFICER_ID,
         installationId: crypto.randomUUID(),
@@ -375,6 +417,7 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
     nationalToken = await createSession(NATIONAL_ADMIN_ID);
     kanoOfficerToken = await createSession(KANO_ME_OFFICER_ID);
     kanoStateOfficerToken = await createSession(KANO_STATE_OFFICER_ID);
+    kanoFieldOfficerToken = await createSession(KANO_FIELD_OFFICER_ID);
     lagosOfficerToken = await createSession(LAGOS_ME_OFFICER_ID);
   });
 
@@ -744,11 +787,191 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
       const target = pullBody.items.find((c: { recordId: string }) => c.recordId === syncRecordId);
       expect(target).toBeUndefined();
     });
+
+    it('field_officer creates tech_adoption via sync push -> submitted; field_officer cannot create a scorecard or grant (403)', async () => {
+      const fieldFarmerId = crypto.randomUUID();
+      const fieldRecordId = crypto.randomUUID();
+      const fieldOpId = crypto.randomUUID();
+
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${kanoFieldOfficerToken}` },
+        payload: {
+          deviceId: KANO_FIELD_DEVICE_ID,
+          ops: [
+            {
+              opId: fieldOpId,
+              entity: 'tech_adoption',
+              recordId: fieldRecordId,
+              action: 'create',
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerId: fieldFarmerId,
+                technologyId: TEST_TECH_ID,
+                gender: 'female',
+                adoptedOn: '2026-06-05',
+              },
+            },
+          ],
+        },
+      });
+
+      expect([200, 201]).toContain(pushRes.statusCode);
+      const pushBody = pushRes.json();
+      expect(pushBody.results).toHaveLength(1);
+      expect(pushBody.results[0].outcome).toBe('applied');
+
+      const [saved] = await testDb
+        .select()
+        .from(techAdoption)
+        .where(eq(techAdoption.id, fieldRecordId));
+      expect(saved).toBeDefined();
+      expect(saved.status).toBe('submitted');
+      expect(saved.submittedBy).toBe(KANO_FIELD_OFFICER_ID);
+      expect(saved.gender).toBe('female');
+
+      // field_officer cannot create a scorecard (403)
+      const scRes = await app.inject({
+        method: 'POST',
+        url: '/me/scorecards',
+        headers: { authorization: `Bearer ${kanoFieldOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          periodYear: 2027,
+          fileId: TEST_FILE_ID,
+        },
+      });
+      expect(scRes.statusCode).toBe(403);
+
+      // field_officer cannot create a matching grant (403)
+      const grantRes = await app.inject({
+        method: 'POST',
+        url: '/me/grants',
+        headers: { authorization: `Bearer ${kanoFieldOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          wuaId: KANO_WUA_ID,
+          purpose: 'Unauthorized pump purchase',
+          amountNgn: '100000.00',
+        },
+      });
+      expect(grantRes.statusCode).toBe(403);
+    });
   });
 
-  describe('Import Round-Trips for Scorecard and Matching Grant (BE-3.5)', () => {
+  describe('Technology Adoption Approval & Return Workflow (BE-3.5)', () => {
+    let adoptionId: string;
+
+    beforeEach(async () => {
+      // Create a fresh tech adoption record submitted by kanoOfficerToken (KANO_ME_OFFICER_ID)
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          farmerId: crypto.randomUUID(),
+          technologyId: TEST_TECH_ID,
+          gender: 'female',
+          adoptedOn: '2026-06-10',
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.status).toBe('submitted');
+      expect(body.submittedBy).toBe(KANO_ME_OFFICER_ID);
+      adoptionId = body.id;
+    });
+
+    it('rejects self-approval with 403 Forbidden', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/tech-adoption/${adoptionId}/approve`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: { version: 1 },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('rejects return without comment with 400 Bad Request', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/tech-adoption/${adoptionId}/return`,
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+        payload: {
+          version: 1,
+          comment: '   ',
+        },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('allows an in-scope approver to return with comment and editing resets to submitted', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/tech-adoption/${adoptionId}/return`,
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+        payload: {
+          version: 1,
+          comment: 'Farmer photo proof missing',
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.status).toBe('returned');
+      expect(body.returnComment).toBe('Farmer photo proof missing');
+      expect(body.returnedBy).toBe(KANO_STATE_OFFICER_ID);
+      expect(body.version).toBe(2);
+
+      // Editing returned record resets status back to submitted
+      const editRes = await app.inject({
+        method: 'PUT',
+        url: `/me/tech-adoption/${adoptionId}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          adoptedOn: '2026-06-12',
+          version: 2,
+        },
+      });
+      expect(editRes.statusCode).toBe(200);
+      expect(editRes.json().status).toBe('submitted');
+      expect(editRes.json().version).toBe(3);
+    });
+
+    it('allows an in-scope approver to approve, locking edits which reset status to submitted', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/me/tech-adoption/${adoptionId}/approve`,
+        headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+        payload: { version: 1 },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.status).toBe('approved');
+      expect(body.approvedBy).toBe(KANO_STATE_OFFICER_ID);
+      expect(body.version).toBe(2);
+
+      // Any edit on approved record resets status back to submitted
+      const editRes = await app.inject({
+        method: 'PUT',
+        url: `/me/tech-adoption/${adoptionId}`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          adoptedOn: '2026-06-20',
+          version: 2,
+        },
+      });
+      expect(editRes.statusCode).toBe(200);
+      expect(editRes.json().status).toBe('submitted');
+      expect(editRes.json().version).toBe(3);
+    });
+  });
+
+  describe('Import Round-Trips for Scorecard, Matching Grant and Tech Adoption (BE-3.5)', () => {
     const uploadAndValidate = async (
-      dataset: 'me.scorecard' | 'me.matching_grant',
+      dataset: 'me.scorecard' | 'me.matching_grant' | 'me.tech_adoption',
       rows: Record<string, unknown>[],
       token: string,
     ) => {
@@ -960,11 +1183,80 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         );
       expect(undoneGrant).toBeUndefined();
     });
+
+    it('completes template -> preview -> commit -> undo round trip for me.tech_adoption', async () => {
+      const batch = await uploadAndValidate(
+        'me.tech_adoption',
+        [
+          {
+            schemeCode: 'KRIS',
+            technologyCode: 'drip_irrigation',
+            gender: 'female',
+            adoptedOn: '2026-06-15',
+          },
+        ],
+        nationalToken,
+      );
+      expect(batch.status).toBe('validated');
+      expect(batch.validRows).toBe(1);
+      expect(batch.errorRows).toBe(0);
+
+      // Preview
+      const previewRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${batch.id}/preview`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+      expect(previewRes.statusCode).toBe(200);
+
+      // Commit
+      const commitRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${batch.id}/commit`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+      expect([200, 201]).toContain(commitRes.statusCode);
+
+      // Verify row exists in DB with status submitted and importBatchId
+      const [importedAdoption] = await testDb
+        .select()
+        .from(techAdoption)
+        .where(
+          and(
+            eq(techAdoption.schemeId, KANO_SCHEME_ID),
+            eq(techAdoption.importBatchId, batch.id),
+            isNull(techAdoption.deletedAt),
+          ),
+        );
+      expect(importedAdoption).toBeDefined();
+      expect(importedAdoption.gender).toBe('female');
+      expect(importedAdoption.status).toBe('submitted');
+
+      // Undo
+      const undoRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${batch.id}/undo`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+      expect([200, 201]).toContain(undoRes.statusCode);
+
+      const [undoneAdoption] = await testDb
+        .select()
+        .from(techAdoption)
+        .where(
+          and(
+            eq(techAdoption.schemeId, KANO_SCHEME_ID),
+            eq(techAdoption.importBatchId, batch.id),
+            isNull(techAdoption.deletedAt),
+          ),
+        );
+      expect(undoneAdoption).toBeUndefined();
+    });
   });
 
   describe('Indicator 12, 13, and 16 Data Verification (BE-3.5 Done Gate)', () => {
-    it('verifies indicators 12, 13 (tech adoption distinct farmers by gender) and 16 (published scorecards)', async () => {
-      // Seed dedicated test dataset for clear hand count
+    it('verifies indicators 12, 13 (tech adoption distinct farmers by gender) and 16 (published scorecards) end-to-end via API', async () => {
+      // Seed dedicated test organisations for clean hand count
       const indTestSchemeA = crypto.randomUUID();
       const indTestSchemeB = crypto.randomUUID();
       const indTestSchemeC = crypto.randomUUID();
@@ -996,115 +1288,199 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         },
       ]);
 
+      await testDb.insert(organisationState).values([
+        { organisationId: indTestSchemeA, stateId: KANO_STATE_ID },
+        { organisationId: indTestSchemeB, stateId: KANO_STATE_ID },
+        { organisationId: indTestSchemeC, stateId: KANO_STATE_ID },
+      ]);
+
+      // 1. Create Scorecards via API:
+      // Scheme A: published
+      const scARes = await app.inject({
+        method: 'POST',
+        url: '/me/scorecards',
+        headers: { authorization: `Bearer ${nationalToken}` },
+        payload: {
+          schemeId: indTestSchemeA,
+          periodYear: 2026,
+          fileId: TEST_FILE_ID,
+          publishedOn: '2026-06-30',
+        },
+      });
+      expect(scARes.statusCode).toBe(201);
+
+      // Scheme B: unpublished (publishedOn omitted/null)
+      const scBRes = await app.inject({
+        method: 'POST',
+        url: '/me/scorecards',
+        headers: { authorization: `Bearer ${nationalToken}` },
+        payload: {
+          schemeId: indTestSchemeB,
+          periodYear: 2026,
+          fileId: TEST_FILE_ID,
+        },
+      });
+      expect(scBRes.statusCode).toBe(201);
+
+      // Scheme C: published
+      const scCRes = await app.inject({
+        method: 'POST',
+        url: '/me/scorecards',
+        headers: { authorization: `Bearer ${nationalToken}` },
+        payload: {
+          schemeId: indTestSchemeC,
+          periodYear: 2026,
+          fileId: TEST_FILE_ID,
+          publishedOn: '2026-07-31',
+        },
+      });
+      expect(scCRes.statusCode).toBe(201);
+
+      // 2. Create Tech Adoption records via API and Sync Push:
       const farmerF1 = crypto.randomUUID();
       const farmerF2 = crypto.randomUUID();
       const farmerM1 = crypto.randomUUID();
+      const farmerF3 = crypto.randomUUID();
+      const farmerM2 = crypto.randomUUID();
 
-      const now = new Date().toISOString();
-
-      // Seed Tech Adoption records:
-      // Farmer F1 (female) adopted tech twice in Scheme A
-      // Farmer F2 (female) adopted tech once in Scheme A
-      // Farmer M1 (male) adopted tech once in Scheme A
-      await testDb.insert(techAdoption).values([
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeA,
+      // F1 adoption 1 (via API by kanoOfficer)
+      const resF1a = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
           farmerId: farmerF1,
           technologyId: TEST_TECH_ID,
           gender: 'female',
           adoptedOn: '2026-05-01',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
         },
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeA,
+      });
+      expect(resF1a.statusCode).toBe(201);
+      const idF1a = resF1a.json().id;
+
+      // F1 adoption 2 (via API by kanoOfficer)
+      const resF1b = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
           farmerId: farmerF1,
           technologyId: TEST_TECH_ID,
           gender: 'female',
           adoptedOn: '2026-06-01',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
         },
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeA,
+      });
+      expect(resF1b.statusCode).toBe(201);
+      const idF1b = resF1b.json().id;
+
+      // F2 adoption 1 (via API by kanoOfficer)
+      const resF2 = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
           farmerId: farmerF2,
           technologyId: TEST_TECH_ID,
           gender: 'female',
           adoptedOn: '2026-05-15',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
         },
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeA,
-          farmerId: farmerM1,
+      });
+      expect(resF2.statusCode).toBe(201);
+      const idF2 = resF2.json().id;
+
+      // M1 adoption 1 (via Sync Push by field officer)
+      const idM1 = crypto.randomUUID();
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${kanoFieldOfficerToken}` },
+        payload: {
+          deviceId: KANO_FIELD_DEVICE_ID,
+          ops: [
+            {
+              opId: crypto.randomUUID(),
+              entity: 'tech_adoption',
+              recordId: idM1,
+              action: 'create',
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerId: farmerM1,
+                technologyId: TEST_TECH_ID,
+                gender: 'male',
+                adoptedOn: '2026-05-20',
+              },
+            },
+          ],
+        },
+      });
+      expect([200, 201]).toContain(pushRes.statusCode);
+
+      // F3 adoption 1 (via API by kanoOfficer - NOT approved)
+      const resF3 = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          farmerId: farmerF3,
+          technologyId: TEST_TECH_ID,
+          gender: 'female',
+          adoptedOn: '2026-05-25',
+        },
+      });
+      expect(resF3.statusCode).toBe(201);
+
+      // M2 adoption 1 (via API by kanoOfficer - NOT approved)
+      const resM2 = await app.inject({
+        method: 'POST',
+        url: '/me/tech-adoption',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          schemeId: KANO_SCHEME_ID,
+          farmerId: farmerM2,
           technologyId: TEST_TECH_ID,
           gender: 'male',
-          adoptedOn: '2026-05-20',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
+          adoptedOn: '2026-05-30',
         },
-      ]);
+      });
+      expect(resM2.statusCode).toBe(201);
 
-      // Seed Scorecard records:
-      // Scheme A has a published scorecard (published_on set)
-      // Scheme B has an unpublished scorecard (published_on null)
-      // Scheme C has a published scorecard (published_on set)
-      await testDb.insert(scorecard).values([
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeA,
-          periodYear: 2026,
-          publishedOn: '2026-06-30',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeB,
-          periodYear: 2026,
-          publishedOn: null,
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: crypto.randomUUID(),
-          schemeId: indTestSchemeC,
-          periodYear: 2026,
-          publishedOn: '2026-07-31',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ]);
+      // 3. Approve F1 (both records), F2, and M1 via API with an approver in scope
+      // Kano state officer approves (submitted by kanoOfficer/fieldOfficer, so separation of duties is satisfied)
+      for (const recId of [idF1a, idF1b, idF2, idM1]) {
+        const approveRes = await app.inject({
+          method: 'POST',
+          url: `/me/tech-adoption/${recId}/approve`,
+          headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+          payload: { version: 1 },
+        });
+        expect(approveRes.statusCode).toBe(200);
+        expect(approveRes.json().status).toBe('approved');
+      }
 
-      // 1. Indicator 12: Distinct farmers adopting technology in Scheme A
+      // 4. Verify Indicator 12: Distinct farmers adopting technology in Kano scheme
+      // Only approved records must be counted (F1, F2, M1 = 3); unapproved (F3, M2) are excluded
       const [ind12Res] = await testDb
         .select({
           totalFarmers: sql<number>`count(distinct ${techAdoption.farmerId})::int`,
         })
         .from(techAdoption)
-        .where(and(eq(techAdoption.schemeId, indTestSchemeA), isNull(techAdoption.deletedAt)));
+        .where(
+          and(
+            eq(techAdoption.schemeId, KANO_SCHEME_ID),
+            eq(techAdoption.status, 'approved'),
+            isNull(techAdoption.deletedAt),
+          ),
+        );
 
       expect(ind12Res.totalFarmers).toBe(3); // farmerF1, farmerF2, farmerM1
 
-      // 2. Indicator 13: Distinct female farmers adopting technology in Scheme A
+      // 5. Verify Indicator 13: Distinct female farmers adopting technology in Kano scheme
+      // Only approved female records must be counted (F1, F2 = 2); unapproved female (F3) is excluded
       const [ind13Res] = await testDb
         .select({
           femaleFarmers: sql<number>`count(distinct ${techAdoption.farmerId})::int`,
@@ -1112,15 +1488,17 @@ describe('M&E Scorecards, Matching Grants, Tech Adoption Sync & Imports (BE-3.5)
         .from(techAdoption)
         .where(
           and(
-            eq(techAdoption.schemeId, indTestSchemeA),
+            eq(techAdoption.schemeId, KANO_SCHEME_ID),
             eq(techAdoption.gender, 'female'),
+            eq(techAdoption.status, 'approved'),
             isNull(techAdoption.deletedAt),
           ),
         );
 
       expect(ind13Res.femaleFarmers).toBe(2); // farmerF1, farmerF2
 
-      // 3. Indicator 16: Schemes with published scorecard
+      // 6. Verify Indicator 16: Schemes with published scorecard
+      // Out of Scheme A, B, and C, only A and C have published scorecards
       const [ind16Res] = await testDb
         .select({
           schemesWithScorecard: sql<number>`count(distinct ${scorecard.schemeId})::int`,
