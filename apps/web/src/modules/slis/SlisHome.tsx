@@ -113,10 +113,12 @@ export function SlisHome() {
               <FileSearch className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
               GIS Map View
             </Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer">
-              <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
-              New Farmer
-            </Button>
+            <Link to="/field/capture/farmer">
+              <Button className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center">
+                <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+                Register Farmer (Offline Wizard)
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

@@ -88,6 +88,12 @@ export function SideNav() {
     navItems = [
       { label: 'Dashboard', path: '/slis', icon: LayoutDashboard },
       {
+        label: 'Register Farmer (Wizard)',
+        path: '/field/capture/farmer',
+        icon: Users,
+        permission: 'slis.farmer.create',
+      },
+      {
         label: 'Farmers & Households',
         path: '/slis/farmers',
         icon: Users,
