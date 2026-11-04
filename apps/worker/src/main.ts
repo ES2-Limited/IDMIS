@@ -5,6 +5,7 @@ import { dispatchBatch } from './dispatcher/dispatcher';
 import { registerAuthzSubscribers } from './subscribers/authz.subscriber';
 import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
+import { processBlisPartitionJob } from './jobs/blis-partition.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -107,7 +108,53 @@ void refreshQueue.upsertJobScheduler(
   },
 );
 
-// 2. Initialize outbox dispatcher & subscribers
+// 4. Repeatable BLIS Measurement Partition Queue & Worker
+const blisPartitionQueueName = process.env.BLIS_PARTITION_QUEUE_NAME || 'blis-partition';
+const blisPartitionQueue = new Queue(blisPartitionQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const blisPartitionWorker = new Worker(
+  blisPartitionQueueName,
+  async (job) => {
+    return processBlisPartitionJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: 1,
+  },
+);
+
+blisPartitionWorker.on('error', (err) => {
+  console.warn('[BlisPartitionWorker] Error:', err.message);
+});
+
+// Schedule 1 December at 00:00 repeatable job
+void blisPartitionQueue.upsertJobScheduler(
+  'blis:ensure-partition-scheduler',
+  {
+    pattern: '0 0 1 12 *',
+  },
+  {
+    name: 'blis:ensure-partition',
+    data: {},
+  },
+);
+
+// Run once at worker startup
+void processBlisPartitionJob().catch((err) => {
+  console.warn('[BlisPartition] Startup partition check failed:', err.message);
+});
+
+// 5. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
 
 let isRunning = true;
@@ -136,6 +183,8 @@ const shutdown = async () => {
   isRunning = false;
   if (pollTimeout) clearTimeout(pollTimeout);
   try {
+    await blisPartitionWorker.close();
+    await blisPartitionQueue.close();
     await exportWorker.close();
     await exportQueue.close();
     await refreshWorker.close();

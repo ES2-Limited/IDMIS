@@ -90,6 +90,18 @@ export const permissions = {
   ME_SURVEY_RESPOND: 'me.survey.respond',
   ME_INSTRUMENTS_MANAGE: 'me.instruments.manage',
   ME_ADOPTION_RECORD: 'me.adoption.record',
+
+  // BLIS: River Basins, Hydrology, Dams & Maps
+  BLIS_BASIN_READ: 'blis.basin.read',
+  BLIS_BASIN_MANAGE: 'blis.basin.manage',
+  BLIS_STATION_MANAGE: 'blis.station.manage',
+  BLIS_MEASUREMENT_READ: 'blis.measurement.read',
+  BLIS_MEASUREMENT_IMPORT: 'blis.measurement.import',
+  BLIS_DAM_MANAGE: 'blis.dam.manage',
+  BLIS_INSPECTION_RECORD: 'blis.inspection.record',
+  BLIS_INSPECTION_APPROVE: 'blis.inspection.approve',
+  BLIS_MAP_READ: 'blis.map.read',
+  BLIS_MAP_MANAGE: 'blis.map.manage',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -159,4 +171,16 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.ME_SURVEY_RESPOND]: 'scoped',
   [permissions.ME_INSTRUMENTS_MANAGE]: 'scoped',
   [permissions.ME_ADOPTION_RECORD]: 'scoped',
+
+  // BLIS permissions (all scoped)
+  [permissions.BLIS_BASIN_READ]: 'scoped',
+  [permissions.BLIS_BASIN_MANAGE]: 'scoped',
+  [permissions.BLIS_STATION_MANAGE]: 'scoped',
+  [permissions.BLIS_MEASUREMENT_READ]: 'scoped',
+  [permissions.BLIS_MEASUREMENT_IMPORT]: 'scoped',
+  [permissions.BLIS_DAM_MANAGE]: 'scoped',
+  [permissions.BLIS_INSPECTION_RECORD]: 'scoped',
+  [permissions.BLIS_INSPECTION_APPROVE]: 'scoped',
+  [permissions.BLIS_MAP_READ]: 'scoped',
+  [permissions.BLIS_MAP_MANAGE]: 'scoped',
 };

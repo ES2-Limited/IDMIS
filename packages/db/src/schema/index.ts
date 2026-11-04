@@ -1,5 +1,4 @@
 export * from './common';
-export * from './common';
 export * from './core';
 export * from './slis';
 export * from './me';
