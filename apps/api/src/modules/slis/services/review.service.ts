@@ -18,6 +18,7 @@ import { assertInScope, type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
 import { ConflictProblemException } from '../../../platform/filters';
+import { eventBus } from '../../../platform/events/event-bus';
 
 @Injectable()
 export class ReviewService {
@@ -107,7 +108,7 @@ export class ReviewService {
       throw new ForbiddenException('Approvers cannot approve records they submitted');
     }
 
-    return runInTransaction(
+    const updated = await runInTransaction(
       async (tx) => {
         const updated = await this.reviewRepo.approveRecord(entity, id, version, actorUserId, tx);
 
@@ -157,6 +158,9 @@ export class ReviewService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: updated.schemeId });
+    return updated;
   }
 
   async returnRecord(
@@ -187,7 +191,7 @@ export class ReviewService {
       throw new BadRequestException('A comment explaining the return reason is required');
     }
 
-    return runInTransaction(
+    const updated = await runInTransaction(
       async (tx) => {
         const updated = await this.reviewRepo.returnRecord(
           entity,
@@ -233,6 +237,9 @@ export class ReviewService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: updated.schemeId });
+    return updated;
   }
 
   async bulkApprove(

@@ -16,6 +16,7 @@ import { ComputeResultRepository } from '../repositories/compute-result.reposito
 import { IndicatorValueRepository } from '../repositories/indicator-value.repository';
 import { IndicatorMatrixRepository } from '../repositories/indicator-matrix.repository';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
+import { eventBus } from '../../../platform/events/event-bus';
 
 export function getQuarterPeriodEnd(year: number, quarter: number): string {
   switch (quarter) {
@@ -49,6 +50,8 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MeComputeService.name);
   private computeQueue: Queue;
   private computeWorker: Worker | null = null;
+  private recomputeListener:
+    ((ev: { schemeId?: string | null; year?: number; quarter?: number }) => void) | null = null;
 
   constructor(
     private readonly registry: ComputeRegistry,
@@ -72,7 +75,16 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  getQueue(): Queue {
+    return this.computeQueue;
+  }
+
   async onModuleInit() {
+    this.recomputeListener = (ev) => {
+      void this.triggerRecompute(ev.schemeId ?? undefined, ev.year, ev.quarter);
+    };
+    eventBus.onRecompute(this.recomputeListener);
+
     if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
       return;
     }
@@ -120,6 +132,10 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
+      if (this.recomputeListener) {
+        eventBus.offRecompute(this.recomputeListener);
+        this.recomputeListener = null;
+      }
       if (this.computeWorker) {
         await this.computeWorker.close();
       }
@@ -133,9 +149,6 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
    * Enqueue a compute job for admin trigger. Returns immediately.
    */
   async enqueueCompute(options: { year: number; quarter?: number }) {
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      return;
-    }
     try {
       await this.computeQueue.add('compute', options, {
         removeOnComplete: true,
@@ -153,9 +166,6 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
    * Debounced recompute trigger (5 min debounce per scheme).
    */
   async triggerRecompute(schemeId?: string, year?: number, quarter?: number) {
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      return;
-    }
     const jobId = schemeId ? `debounce-scheme-${schemeId}` : 'debounce-global';
     try {
       await this.computeQueue.add(

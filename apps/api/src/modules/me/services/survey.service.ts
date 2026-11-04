@@ -17,6 +17,7 @@ import type {
 import type { UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
+import { eventBus } from '../../../platform/events/event-bus';
 import { assertMeScope } from '../utils/assert-me-scope';
 import { SurveyRepository } from '../repositories/survey.repository';
 import { SurveyResponseRepository } from '../repositories/survey-response.repository';
@@ -596,7 +597,7 @@ export class SurveyService {
       locationVal = `SRID=4326;POINT(${lon} ${lat})`;
     }
 
-    return runInTransaction(
+    const result = await runInTransaction(
       async (tx) => {
         const responseId = input.id ?? crypto.randomUUID();
         const createdResponse = await this.responseRepo.create(
@@ -644,6 +645,9 @@ export class SurveyService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: input.schemeId ?? null });
+    return result;
   }
 
   async getResponse(id: string, authz: UserAuthz) {

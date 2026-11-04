@@ -134,15 +134,22 @@ export class ComputeRegistry {
 
     // 10. Operational WUAs created or strengthened
     this.handlers.set('core.wua_operational', async (ctx) => {
+      const periodEndEod = `${ctx.periodEnd}T23:59:59.999Z`;
       const conditions: SQL[] = [
         eq(wua.isOperational, true),
         isNull(wua.deletedAt),
-        sql`${wua.createdAt}::date <= ${ctx.periodEnd}::date`,
+        sql`${wua.createdAt} <= ${periodEndEod}::timestamptz`,
       ];
 
-      if (ctx.scope.scopeType === 'scheme' && ctx.scope.scopeOrgId) {
+      if (ctx.scope.scopeType === 'scheme') {
+        if (!ctx.scope.scopeOrgId) {
+          throw new Error('Scope type scheme requires scopeOrgId');
+        }
         conditions.push(eq(wua.organisationId, ctx.scope.scopeOrgId));
-      } else if (ctx.scope.scopeType === 'state' && ctx.scope.scopeStateId) {
+      } else if (ctx.scope.scopeType === 'state') {
+        if (!ctx.scope.scopeStateId) {
+          throw new Error('Scope type state requires scopeStateId');
+        }
         conditions.push(
           or(
             eq(wua.stateId, ctx.scope.scopeStateId),
@@ -153,6 +160,8 @@ export class ComputeRegistry {
             )`,
           )!,
         );
+      } else if (ctx.scope.scopeType !== 'national') {
+        throw new Error(`Unsupported scope type for core.wua_operational: ${ctx.scope.scopeType}`);
       }
 
       const [row] = await db
@@ -173,15 +182,25 @@ export class ComputeRegistry {
         eq(surveyQuestion.code, 'wua_participation'),
       ];
 
-      if (ctx.scope.scopeType === 'scheme' && ctx.scope.scopeOrgId) {
+      if (ctx.scope.scopeType === 'scheme') {
+        if (!ctx.scope.scopeOrgId) {
+          throw new Error('Scope type scheme requires scopeOrgId');
+        }
         conditions.push(eq(surveyResponse.schemeId, ctx.scope.scopeOrgId));
-      } else if (ctx.scope.scopeType === 'state' && ctx.scope.scopeStateId) {
+      } else if (ctx.scope.scopeType === 'state') {
+        if (!ctx.scope.scopeStateId) {
+          throw new Error('Scope type state requires scopeStateId');
+        }
         conditions.push(
           sql`EXISTS (
             SELECT 1 FROM "core"."organisation_state" "os"
             WHERE "os"."organisation_id" = ${surveyResponse.schemeId}
               AND "os"."state_id" = ${ctx.scope.scopeStateId}
           )`,
+        );
+      } else if (ctx.scope.scopeType !== 'national') {
+        throw new Error(
+          `Unsupported scope type for me.survey.wua_participation: ${ctx.scope.scopeType}`,
         );
       }
 
@@ -204,11 +223,17 @@ export class ComputeRegistry {
       const [row] = await db
         .select({
           totalAnswers: sql<number>`count(*)::int`,
-          yesAnswers: sql<number>`count(case when ${isYes} then 1 end)::int`,
+          totalRate: sql<
+            string | null
+          >`case when count(*) > 0 then round((count(case when ${isYes} then 1 end)::numeric / count(*)::numeric) * 100, 2)::text else null end`,
           femaleTotal: sql<number>`count(case when ${isFemale} then 1 end)::int`,
-          femaleYes: sql<number>`count(case when ${isFemale} and ${isYes} then 1 end)::int`,
+          femaleRate: sql<
+            string | null
+          >`case when count(case when ${isFemale} then 1 end) > 0 then round((count(case when ${isFemale} and ${isYes} then 1 end)::numeric / count(case when ${isFemale} then 1 end)::numeric) * 100, 2)::text else null end`,
           maleTotal: sql<number>`count(case when ${isMale} then 1 end)::int`,
-          maleYes: sql<number>`count(case when ${isMale} and ${isYes} then 1 end)::int`,
+          maleRate: sql<
+            string | null
+          >`case when count(case when ${isMale} then 1 end) > 0 then round((count(case when ${isMale} and ${isYes} then 1 end)::numeric / count(case when ${isMale} then 1 end)::numeric) * 100, 2)::text else null end`,
         })
         .from(surveyAnswer)
         .innerJoin(surveyResponse, eq(surveyAnswer.responseId, surveyResponse.id))
@@ -216,7 +241,7 @@ export class ComputeRegistry {
         .where(and(...conditions));
 
       const totalAnswers = row?.totalAnswers ?? 0;
-      if (totalAnswers <= 0) {
+      if (totalAnswers <= 0 || row?.totalRate === null) {
         return [
           {
             disaggregation: {},
@@ -227,18 +252,15 @@ export class ComputeRegistry {
         ];
       }
 
-      const yesAnswers = row?.yesAnswers ?? 0;
-      const totalRate = ((yesAnswers / totalAnswers) * 100).toFixed(2);
       const outputs: ComputeSlotOutput[] = [
-        { disaggregation: {}, value: totalRate, status: 'computed' },
+        { disaggregation: {}, value: row.totalRate, status: 'computed' },
       ];
 
       const femaleTotal = row?.femaleTotal ?? 0;
-      if (femaleTotal > 0) {
-        const femaleRate = (((row?.femaleYes ?? 0) / femaleTotal) * 100).toFixed(2);
+      if (femaleTotal > 0 && row?.femaleRate !== null) {
         outputs.push({
           disaggregation: { gender: 'female' },
-          value: femaleRate,
+          value: row.femaleRate,
           status: 'computed',
         });
       } else {
@@ -250,11 +272,10 @@ export class ComputeRegistry {
       }
 
       const maleTotal = row?.maleTotal ?? 0;
-      if (maleTotal > 0) {
-        const maleRate = (((row?.maleYes ?? 0) / maleTotal) * 100).toFixed(2);
+      if (maleTotal > 0 && row?.maleRate !== null) {
         outputs.push({
           disaggregation: { gender: 'male' },
-          value: maleRate,
+          value: row.maleRate,
           status: 'computed',
         });
       } else {
@@ -270,15 +291,22 @@ export class ComputeRegistry {
 
     // 12. Clients adopting an improved agricultural technology
     this.handlers.set('me.tech_adopters', async (ctx) => {
+      const periodEndEod = `${ctx.periodEnd}T23:59:59.999Z`;
       const conditions: SQL[] = [
         eq(techAdoption.status, 'approved'),
         isNull(techAdoption.deletedAt),
-        sql`COALESCE(${techAdoption.adoptedOn}, ${techAdoption.createdAt}::date) <= ${ctx.periodEnd}::date`,
+        sql`${techAdoption.approvedAt} <= ${periodEndEod}::timestamptz`,
       ];
 
-      if (ctx.scope.scopeType === 'scheme' && ctx.scope.scopeOrgId) {
+      if (ctx.scope.scopeType === 'scheme') {
+        if (!ctx.scope.scopeOrgId) {
+          throw new Error('Scope type scheme requires scopeOrgId');
+        }
         conditions.push(eq(techAdoption.schemeId, ctx.scope.scopeOrgId));
-      } else if (ctx.scope.scopeType === 'state' && ctx.scope.scopeStateId) {
+      } else if (ctx.scope.scopeType === 'state') {
+        if (!ctx.scope.scopeStateId) {
+          throw new Error('Scope type state requires scopeStateId');
+        }
         conditions.push(
           sql`EXISTS (
             SELECT 1 FROM "core"."organisation_state" "os"
@@ -286,6 +314,8 @@ export class ComputeRegistry {
               AND "os"."state_id" = ${ctx.scope.scopeStateId}
           )`,
         );
+      } else if (ctx.scope.scopeType !== 'national') {
+        throw new Error(`Unsupported scope type for me.tech_adopters: ${ctx.scope.scopeType}`);
       }
 
       const [row] = await db
@@ -298,22 +328,33 @@ export class ComputeRegistry {
 
     // 13. Clients adopting an improved agricultural technology – female
     this.handlers.set('me.tech_adopters_female', async (ctx) => {
+      const periodEndEod = `${ctx.periodEnd}T23:59:59.999Z`;
       const conditions: SQL[] = [
         eq(techAdoption.status, 'approved'),
         isNull(techAdoption.deletedAt),
         eq(techAdoption.gender, 'female'),
-        sql`COALESCE(${techAdoption.adoptedOn}, ${techAdoption.createdAt}::date) <= ${ctx.periodEnd}::date`,
+        sql`${techAdoption.approvedAt} <= ${periodEndEod}::timestamptz`,
       ];
 
-      if (ctx.scope.scopeType === 'scheme' && ctx.scope.scopeOrgId) {
+      if (ctx.scope.scopeType === 'scheme') {
+        if (!ctx.scope.scopeOrgId) {
+          throw new Error('Scope type scheme requires scopeOrgId');
+        }
         conditions.push(eq(techAdoption.schemeId, ctx.scope.scopeOrgId));
-      } else if (ctx.scope.scopeType === 'state' && ctx.scope.scopeStateId) {
+      } else if (ctx.scope.scopeType === 'state') {
+        if (!ctx.scope.scopeStateId) {
+          throw new Error('Scope type state requires scopeStateId');
+        }
         conditions.push(
           sql`EXISTS (
             SELECT 1 FROM "core"."organisation_state" "os"
             WHERE "os"."organisation_id" = ${techAdoption.schemeId}
               AND "os"."state_id" = ${ctx.scope.scopeStateId}
           )`,
+        );
+      } else if (ctx.scope.scopeType !== 'national') {
+        throw new Error(
+          `Unsupported scope type for me.tech_adopters_female: ${ctx.scope.scopeType}`,
         );
       }
 
@@ -349,15 +390,25 @@ export class ComputeRegistry {
         sql`${scorecard.publishedOn} <= ${ctx.periodEnd}`,
       ];
 
-      if (ctx.scope.scopeType === 'scheme' && ctx.scope.scopeOrgId) {
+      if (ctx.scope.scopeType === 'scheme') {
+        if (!ctx.scope.scopeOrgId) {
+          throw new Error('Scope type scheme requires scopeOrgId');
+        }
         conditions.push(eq(scorecard.schemeId, ctx.scope.scopeOrgId));
-      } else if (ctx.scope.scopeType === 'state' && ctx.scope.scopeStateId) {
+      } else if (ctx.scope.scopeType === 'state') {
+        if (!ctx.scope.scopeStateId) {
+          throw new Error('Scope type state requires scopeStateId');
+        }
         conditions.push(
           sql`EXISTS (
             SELECT 1 FROM "core"."organisation_state" "os"
             WHERE "os"."organisation_id" = ${scorecard.schemeId}
               AND "os"."state_id" = ${ctx.scope.scopeStateId}
           )`,
+        );
+      } else if (ctx.scope.scopeType !== 'national') {
+        throw new Error(
+          `Unsupported scope type for me.scorecards_published: ${ctx.scope.scopeType}`,
         );
       }
 

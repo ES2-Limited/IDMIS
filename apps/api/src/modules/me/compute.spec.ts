@@ -49,6 +49,7 @@ import { ComputeRegistry } from './compute/compute.registry';
 import { IndicatorMatrixRepository } from './repositories/indicator-matrix.repository';
 import { IndicatorValueRepository } from './repositories/indicator-value.repository';
 import { loadMeIndicators } from '@idmis/db';
+import { SlisComputeQueryService } from '../slis/public';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,6 +95,8 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
   const CROP_TYPE_ID = crypto.randomUUID();
   const RICE_CROP_ID = crypto.randomUUID();
   const TOMATO_CROP_ID = crypto.randomUUID();
+  const MAIZE_CROP_ID = crypto.randomUUID();
+  const ONION_CROP_ID = crypto.randomUUID();
   const TECH_TYPE_ID = crypto.randomUUID();
   const DRIP_TECH_ID = crypto.randomUUID();
   const SEASON_2026_ID = crypto.randomUUID();
@@ -295,6 +298,20 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           label: 'Tomato',
           sortOrder: 2,
         },
+        {
+          id: MAIZE_CROP_ID,
+          lookupTypeId: cropTypeRow!.id,
+          code: 'maize',
+          label: 'Maize',
+          sortOrder: 3,
+        },
+        {
+          id: ONION_CROP_ID,
+          lookupTypeId: cropTypeRow!.id,
+          code: 'onion',
+          label: 'Onion',
+          sortOrder: 4,
+        },
       ])
       .onConflictDoNothing();
 
@@ -342,16 +359,46 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
     const adminPerms = [
       permissions.ME_INDICATOR_MANAGE,
       permissions.ME_INDICATOR_READ,
+      permissions.ME_TARGET_MANAGE,
       permissions.ME_VALUE_SUBMIT,
       permissions.ME_VALUE_APPROVE,
+      permissions.ME_INSTRUMENTS_MANAGE,
+      permissions.ME_SURVEY_MANAGE,
+      permissions.ME_SURVEY_RESPOND,
+      permissions.ME_ADOPTION_RECORD,
+      permissions.SLIS_REVIEW_APPROVE,
+      permissions.SLIS_REVIEW_SUBMIT,
+      permissions.SLIS_FARMER_CREATE,
+      permissions.SLIS_FARMER_READ,
+      permissions.SLIS_FARMER_UPDATE,
+      permissions.CORE_WUA_MANAGE,
+      permissions.CORE_WUA_READ,
     ];
     for (const p of adminPerms) {
       await testDb.insert(rolePermission).values({ roleId: NATIONAL_ADMIN_ROLE_ID, permission: p });
     }
 
-    const officerPerms = [permissions.ME_INDICATOR_READ, permissions.ME_VALUE_SUBMIT];
-    for (const p of officerPerms) {
+    const statePerms = [
+      permissions.ME_INDICATOR_READ,
+      permissions.ME_VALUE_SUBMIT,
+      permissions.ME_VALUE_APPROVE,
+      permissions.SLIS_REVIEW_APPROVE,
+    ];
+    for (const p of statePerms) {
       await testDb.insert(rolePermission).values({ roleId: STATE_OFFICER_ROLE_ID, permission: p });
+    }
+
+    const schemePerms = [
+      permissions.ME_INDICATOR_READ,
+      permissions.ME_VALUE_SUBMIT,
+      permissions.ME_SURVEY_RESPOND,
+      permissions.ME_ADOPTION_RECORD,
+      permissions.SLIS_REVIEW_SUBMIT,
+      permissions.SLIS_FARMER_CREATE,
+      permissions.SLIS_FARMER_READ,
+      permissions.SLIS_FARMER_UPDATE,
+    ];
+    for (const p of schemePerms) {
       await testDb.insert(rolePermission).values({ roleId: SCHEME_OFFICER_ROLE_ID, permission: p });
     }
 
@@ -368,6 +415,24 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       },
       {
         id: crypto.randomUUID(),
+        userId: NATIONAL_ADMIN_ID,
+        roleId: NATIONAL_ADMIN_ROLE_ID,
+        module: 'slis',
+        scopeType: 'national',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: NATIONAL_ADMIN_ID,
+        roleId: NATIONAL_ADMIN_ROLE_ID,
+        module: 'core',
+        scopeType: 'national',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
         userId: KANO_STATE_OFFICER_ID,
         roleId: STATE_OFFICER_ROLE_ID,
         module: 'me',
@@ -378,9 +443,29 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       },
       {
         id: crypto.randomUUID(),
+        userId: KANO_STATE_OFFICER_ID,
+        roleId: STATE_OFFICER_ROLE_ID,
+        module: 'slis',
+        scopeType: 'state',
+        scopeStateId: KANO_STATE_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
         userId: KANO_SCHEME_OFFICER_ID,
         roleId: SCHEME_OFFICER_ROLE_ID,
         module: 'me',
+        scopeType: 'scheme',
+        scopeOrgId: KANO_SCHEME_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_SCHEME_OFFICER_ID,
+        roleId: SCHEME_OFFICER_ROLE_ID,
+        module: 'slis',
         scopeType: 'scheme',
         scopeOrgId: KANO_SCHEME_ID,
         createdBy: SYSTEM_USER_ID,
@@ -457,6 +542,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           gender: 'female',
           phone: '08011111111',
           status: 'approved',
+          approvedAt: '2026-02-01T00:00:00Z',
           createdAt: '2026-02-01T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
@@ -471,6 +557,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           gender: 'male',
           phone: '08022222222',
           status: 'approved',
+          approvedAt: '2026-02-15T00:00:00Z',
           createdAt: '2026-02-15T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
@@ -499,6 +586,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           gender: 'female',
           phone: '08044444444',
           status: 'approved',
+          approvedAt: '2026-02-10T00:00:00Z',
           createdAt: '2026-02-10T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
@@ -568,6 +656,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           areaHa: '55.5000',
           serviceType: 'improved',
           status: 'approved',
+          approvedAt: '2026-01-10T00:00:00Z',
           createdAt: '2026-01-10T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
@@ -581,6 +670,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           areaHa: '44.5000',
           serviceType: 'new',
           status: 'approved',
+          approvedAt: '2026-01-15T00:00:00Z',
           createdAt: '2026-01-15T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
@@ -649,6 +739,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         areaHa: '200.0000',
         yieldT: '500.0000',
         status: 'approved',
+        approvedAt: '2026-02-01T00:00:00Z',
         createdAt: '2026-02-01T00:00:00Z',
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
@@ -702,6 +793,8 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         wuaId: KANO_WUA_ID,
         amountNgn: '100000.00',
         dueDate: '2026-04-01',
+        status: 'approved',
+        approvedAt: '2026-02-01T00:00:00Z',
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       });
@@ -737,6 +830,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         topic: 'Dam Structural Safety Workshop',
         heldOn: '2026-02-10',
         status: 'approved',
+        approvedAt: '2026-02-10T00:00:00Z',
         tags: ['dam_safety'],
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
@@ -937,6 +1031,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           gender: 'female',
           adoptedOn: '2026-02-01',
           status: 'approved',
+          approvedAt: '2026-02-01T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
         },
@@ -948,6 +1043,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
           gender: 'male',
           adoptedOn: '2026-02-05',
           status: 'approved',
+          approvedAt: '2026-02-05T00:00:00Z',
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
         },
@@ -1039,6 +1135,161 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(res[0]?.status).toBe('error');
       expect(res[0]?.message).toContain('Unimplemented compute key: non_existent_key');
+    });
+
+    it('buildScopeCondition throws on unsupported scopes or missing IDs, never falls back', () => {
+      const slisQueryService = app.get(SlisComputeQueryService);
+      expect(() =>
+        slisQueryService.buildScopeCondition(farmer.schemeId, farmer.stateId, {
+          scopeType: 'rbda',
+        }),
+      ).toThrow();
+      expect(() =>
+        slisQueryService.buildScopeCondition(farmer.schemeId, farmer.stateId, {
+          scopeType: 'sector',
+        }),
+      ).toThrow();
+      expect(() =>
+        slisQueryService.buildScopeCondition(farmer.schemeId, farmer.stateId, {
+          scopeType: 'scheme',
+        }),
+      ).toThrow();
+      expect(() =>
+        slisQueryService.buildScopeCondition(farmer.schemeId, farmer.stateId, {
+          scopeType: 'state',
+        }),
+      ).toThrow();
+      expect(
+        slisQueryService.buildScopeCondition(farmer.schemeId, farmer.stateId, {
+          scopeType: 'national',
+        }),
+      ).toBeUndefined();
+    });
+
+    it('disaggregation rows sum to total for count indicators (1a, 6)', async () => {
+      const res1a = await computeRegistry.execute('slis.beneficiaries', {
+        year: 2026,
+        quarter: 1,
+        periodEnd: '2026-03-31',
+        scope: { scopeType: 'scheme', scopeOrgId: KANO_SCHEME_ID },
+      });
+      const total1a = Number(res1a.find((s) => Object.keys(s.disaggregation).length === 0)?.value);
+      const female1a = Number(res1a.find((s) => s.disaggregation.gender === 'female')?.value);
+      const male1a = Number(res1a.find((s) => s.disaggregation.gender === 'male')?.value);
+      expect(female1a + male1a).toBe(total1a);
+
+      const res6 = await computeRegistry.execute('slis.trained_dam_safety', {
+        year: 2026,
+        quarter: 1,
+        periodEnd: '2026-03-31',
+        scope: { scopeType: 'scheme', scopeOrgId: KANO_SCHEME_ID },
+      });
+      const total6 = Number(res6.find((s) => Object.keys(s.disaggregation).length === 0)?.value);
+      const female6 = Number(res6.find((s) => s.disaggregation.gender === 'female')?.value);
+      const male6 = Number(res6.find((s) => s.disaggregation.gender === 'male')?.value);
+      expect(female6 + male6).toBe(total6);
+    });
+
+    it('records approved after period end are not counted when recomputing past quarter', async () => {
+      const q2FarmerId = crypto.randomUUID();
+      await testDb.insert(farmer).values({
+        id: q2FarmerId,
+        schemeId: KANO_SCHEME_ID,
+        stateId: KANO_STATE_ID,
+        farmerCode: 'K-Q2-LATE',
+        firstName: 'Late',
+        lastName: 'Arrival',
+        gender: 'female',
+        phone: '08099887766',
+        status: 'approved',
+        approvedAt: '2026-04-05T10:00:00Z',
+        createdAt: '2026-02-01T00:00:00Z',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      const q1Beneficiaries = await computeRegistry.execute('slis.beneficiaries', {
+        year: 2026,
+        quarter: 1,
+        periodEnd: '2026-03-31',
+        scope: { scopeType: 'scheme', scopeOrgId: KANO_SCHEME_ID },
+      });
+      const femaleSlot = q1Beneficiaries.find((s) => s.disaggregation.gender === 'female');
+      expect(femaleSlot?.value).toBe('1');
+    });
+
+    it('cropping intensity at state scope excludes schemes with missing/zero irrigable area and reports count in message', async () => {
+      const noAreaSchemeId = crypto.randomUUID();
+      await testDb.insert(organisation).values({
+        id: noAreaSchemeId,
+        code: 'SCH-NO-AREA',
+        name: 'No Area Scheme',
+        type: 'scheme',
+        isActive: true,
+        irrigableAreaHa: null,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+      await testDb.insert(organisationState).values({
+        organisationId: noAreaSchemeId,
+        stateId: KANO_STATE_ID,
+      });
+
+      const res = await computeRegistry.execute('slis.cropping_intensity', {
+        year: 2026,
+        quarter: 1,
+        periodEnd: '2026-03-31',
+        scope: { scopeType: 'state', scopeStateId: KANO_STATE_ID },
+      });
+
+      expect(res[0]?.status).toBe('computed');
+      expect(res[0]?.message).toContain('scheme(s) excluded due to missing irrigable area');
+    });
+
+    it('approving a farmer through the API enqueues a debounced compute job for that scheme and updates indicator 1a', async () => {
+      const triggerFarmerId = crypto.randomUUID();
+      await testDb.insert(farmer).values({
+        id: triggerFarmerId,
+        schemeId: KANO_SCHEME_ID,
+        stateId: KANO_STATE_ID,
+        farmerCode: 'K-TRIG-01',
+        firstName: 'Zainab',
+        lastName: 'Trigger',
+        gender: 'female',
+        phone: '08055555555',
+        status: 'submitted',
+        submittedBy: KANO_SCHEME_OFFICER_ID,
+        submittedAt: '2026-02-15T10:00:00Z',
+        createdAt: '2026-02-15T10:00:00Z',
+        createdBy: KANO_SCHEME_OFFICER_ID,
+        updatedBy: KANO_SCHEME_OFFICER_ID,
+      });
+
+      // National admin approves through API
+      const approveRes = await app.inject({
+        method: 'POST',
+        url: `/slis/review/farmer/${triggerFarmerId}/approve`,
+        headers: { authorization: `Bearer ${nationalAdminToken}` },
+        payload: { version: 1, comment: 'Approved in test' },
+      });
+      expect(approveRes.statusCode).toBe(201);
+
+      // Verify debounced job is scheduled in Redis queue
+      const queue = computeService.getQueue();
+      const delayedJobs = await queue.getJobs(['delayed']);
+      const job = delayedJobs.find((j) => j.id === `debounce-scheme-${KANO_SCHEME_ID}`);
+      expect(job).toBeDefined();
+
+      // Running the processor updates indicator 1a (computing for current quarter or full year to include newly approved record)
+      await computeService.runCompute({ year: 2026, quarter: 4 });
+      const beneficiaries = await computeRegistry.execute('slis.beneficiaries', {
+        year: 2026,
+        quarter: 4,
+        periodEnd: '2026-12-31',
+        scope: { scopeType: 'scheme', scopeOrgId: KANO_SCHEME_ID },
+      });
+      const femaleSlot = beneficiaries.find((s) => s.disaggregation.gender === 'female');
+      expect(femaleSlot?.value).toBe('3');
     });
   });
 
@@ -1164,82 +1415,559 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
 
   describe('3. Phase 3 Gate: Full Quarter Matrix, Manual Values, and Scoped Querying', () => {
     it('gate test: manual values entered + approved, computed produced, matrix matches exact hand calculation', async () => {
-      // 1. Enter manual value for indicator 5: Dams meeting safety standards (manual, target 8)
-      const [damSafetyInd] = await testDb
+      // 1. Seed remaining crops (tomato, maize, onion) for Kano Scheme in 2026-Q1
+      await testDb.insert(cropProduction).values([
+        {
+          id: crypto.randomUUID(),
+          schemeId: KANO_SCHEME_ID,
+          plotId: P1_ID,
+          seasonId: SEASON_2026_ID,
+          cropTypeId: TOMATO_CROP_ID,
+          areaHa: '30.0000',
+          yieldT: '60.0000',
+          status: 'approved',
+          approvedAt: '2026-02-01T00:00:00Z',
+          createdAt: '2026-02-01T00:00:00Z',
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        },
+        {
+          id: crypto.randomUUID(),
+          schemeId: KANO_SCHEME_ID,
+          plotId: P1_ID,
+          seasonId: SEASON_2026_ID,
+          cropTypeId: MAIZE_CROP_ID,
+          areaHa: '50.0000',
+          yieldT: '150.0000',
+          status: 'approved',
+          approvedAt: '2026-02-01T00:00:00Z',
+          createdAt: '2026-02-01T00:00:00Z',
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        },
+        {
+          id: crypto.randomUUID(),
+          schemeId: KANO_SCHEME_ID,
+          plotId: P1_ID,
+          seasonId: SEASON_2026_ID,
+          cropTypeId: ONION_CROP_ID,
+          areaHa: '20.0000',
+          yieldT: '80.0000',
+          status: 'approved',
+          approvedAt: '2026-02-01T00:00:00Z',
+          createdAt: '2026-02-01T00:00:00Z',
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        },
+      ]);
+
+      // 2. Computed indicators CANNOT be written via manual API -> returns 400
+      const [ind1a] = await testDb
         .select()
         .from(indicator)
-        .where(eq(indicator.code, '5'))
+        .where(eq(indicator.code, '1a'))
         .limit(1);
 
-      // Create target for 2026
-      await testDb.insert(indicatorTarget).values({
-        id: crypto.randomUUID(),
-        indicatorId: damSafetyInd!.id,
-        year: 2026,
-        scopeType: 'scheme',
-        scopeStateId: KANO_STATE_ID,
-        scopeOrgId: KANO_SCHEME_ID,
-        value: '8.0000',
-        createdBy: SYSTEM_USER_ID,
-        updatedBy: SYSTEM_USER_ID,
+      const computedManualAttempt = await app.inject({
+        method: 'POST',
+        url: '/me/values',
+        headers: { authorization: `Bearer ${kanoSchemeOfficerToken}` },
+        payload: {
+          indicatorId: ind1a!.id,
+          periodYear: 2026,
+          periodQuarter: 1,
+          scopeType: 'scheme',
+          scopeOrgId: KANO_SCHEME_ID,
+          value: '999.0000',
+          disaggregation: {},
+        },
       });
+      expect(computedManualAttempt.statusCode).toBe(400);
 
-      // Create and approve manual indicator_value = 6
-      const manualVal = await valueRepo.create({
-        indicatorId: damSafetyInd!.id,
-        periodYear: 2026,
-        periodQuarter: 1,
-        scopeType: 'scheme',
-        scopeStateId: KANO_STATE_ID,
-        scopeOrgId: KANO_SCHEME_ID,
-        disaggregation: {},
-        value: '6.0000',
-        source: 'manual',
-        status: 'approved',
-        createdBy: SYSTEM_USER_ID,
-      });
-      expect(manualVal.id).toBeDefined();
+      // 3. Enter every manual indicator (5, 7, 8, 9, 15) through POST values -> submit -> approve by a different user
+      const manualEntries = [
+        {
+          code: '5',
+          schemeVal: '6.0000',
+          schemeTarget: '8.0000',
+          stateVal: '12.0000',
+          stateTarget: '16.0000',
+        },
+        {
+          code: '7',
+          schemeVal: '4.0000',
+          schemeTarget: '7.0000',
+          stateVal: '8.0000',
+          stateTarget: '14.0000',
+        },
+        {
+          code: '8',
+          schemeVal: '5.0000',
+          schemeTarget: '7.0000',
+          stateVal: '10.0000',
+          stateTarget: '14.0000',
+        },
+        {
+          code: '9',
+          schemeVal: '3.0000',
+          schemeTarget: '5.0000',
+          stateVal: '6.0000',
+          stateTarget: '10.0000',
+        },
+        {
+          code: '15',
+          schemeVal: '2.0000',
+          schemeTarget: '7.0000',
+          stateVal: '4.0000',
+          stateTarget: '14.0000',
+        },
+      ];
 
-      // 2. Refresh materialized view
+      for (const entry of manualEntries) {
+        const [indRow] = await testDb
+          .select()
+          .from(indicator)
+          .where(eq(indicator.code, entry.code))
+          .limit(1);
+        expect(indRow).toBeDefined();
+
+        // Scheme Target
+        await testDb.insert(indicatorTarget).values({
+          id: crypto.randomUUID(),
+          indicatorId: indRow!.id,
+          year: 2026,
+          scopeType: 'scheme',
+          scopeStateId: KANO_STATE_ID,
+          scopeOrgId: KANO_SCHEME_ID,
+          value: entry.schemeTarget,
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        });
+
+        // Scheme Value: create -> submit -> approve by different user (State Officer)
+        const createSchemeValRes = await app.inject({
+          method: 'POST',
+          url: '/me/values',
+          headers: { authorization: `Bearer ${kanoSchemeOfficerToken}` },
+          payload: {
+            indicatorId: indRow!.id,
+            periodYear: 2026,
+            periodQuarter: 1,
+            scopeType: 'scheme',
+            scopeOrgId: KANO_SCHEME_ID,
+            value: entry.schemeVal,
+            disaggregation: {},
+          },
+        });
+        expect(createSchemeValRes.statusCode).toBe(201);
+        const schemeValData = createSchemeValRes.json();
+
+        const submitSchemeValRes = await app.inject({
+          method: 'POST',
+          url: `/me/values/${schemeValData.id}/submit`,
+          headers: { authorization: `Bearer ${kanoSchemeOfficerToken}` },
+          payload: { version: schemeValData.version },
+        });
+        expect(submitSchemeValRes.statusCode).toBe(200);
+
+        const approveSchemeValRes = await app.inject({
+          method: 'POST',
+          url: `/me/values/${schemeValData.id}/approve`,
+          headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+          payload: { version: schemeValData.version + 1 },
+        });
+        expect(approveSchemeValRes.statusCode).toBe(200);
+
+        // State Target
+        await testDb.insert(indicatorTarget).values({
+          id: crypto.randomUUID(),
+          indicatorId: indRow!.id,
+          year: 2026,
+          scopeType: 'state',
+          scopeStateId: KANO_STATE_ID,
+          scopeOrgId: null,
+          value: entry.stateTarget,
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        });
+
+        // State Value: create -> submit -> approve by different user (National Admin)
+        const createStateValRes = await app.inject({
+          method: 'POST',
+          url: '/me/values',
+          headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+          payload: {
+            indicatorId: indRow!.id,
+            periodYear: 2026,
+            periodQuarter: 1,
+            scopeType: 'state',
+            scopeStateId: KANO_STATE_ID,
+            value: entry.stateVal,
+            disaggregation: {},
+          },
+        });
+        expect(createStateValRes.statusCode).toBe(201);
+        const stateValData = createStateValRes.json();
+
+        const submitStateValRes = await app.inject({
+          method: 'POST',
+          url: `/me/values/${stateValData.id}/submit`,
+          headers: { authorization: `Bearer ${kanoStateOfficerToken}` },
+          payload: { version: stateValData.version },
+        });
+        expect(submitStateValRes.statusCode).toBe(200);
+
+        const approveStateValRes = await app.inject({
+          method: 'POST',
+          url: `/me/values/${stateValData.id}/approve`,
+          headers: { authorization: `Bearer ${nationalAdminToken}` },
+          payload: { version: stateValData.version + 1 },
+        });
+        expect(approveStateValRes.statusCode).toBe(200);
+      }
+
+      // 4. Run compute processor
+      await computeService.runCompute({ year: 2026, quarter: 1 });
+
+      // 5. Assert manual indicators CANNOT be overwritten by compute
+      for (const entry of manualEntries) {
+        const [indRow] = await testDb
+          .select()
+          .from(indicator)
+          .where(eq(indicator.code, entry.code))
+          .limit(1);
+
+        const val = await valueRepo.findBySlot(
+          indRow!.id,
+          2026,
+          1,
+          'scheme',
+          KANO_STATE_ID,
+          KANO_SCHEME_ID,
+          {},
+        );
+        expect(val).not.toBeNull();
+        expect(val!.source).toBe('manual');
+        expect(Number(val!.value)).toBe(Number(entry.schemeVal));
+      }
+
+      // 6. Refresh matrix materialized view
       await matrixRepo.refreshMatrix();
 
-      // 3. Query GET /me/matrix as National Admin
-      const res = await app.inject({
+      // 7. Assert EVERY one of the 22 matrix rows for Kano Scheme against exact expected table
+      const schemeMatrixRes = await app.inject({
         method: 'GET',
         url: `/me/matrix?year=2026&quarter=1&scopeType=scheme&scopeId=${KANO_SCHEME_ID}`,
         headers: { authorization: `Bearer ${nationalAdminToken}` },
       });
-      expect(res.statusCode).toBe(200);
-      const data = res.json();
-      expect(data.items).toBeDefined();
-      expect(data.items.length).toBeGreaterThan(0);
+      expect(schemeMatrixRes.statusCode).toBe(200);
+      const schemeMatrix = schemeMatrixRes.json();
+      expect(schemeMatrix.items.length).toBeGreaterThanOrEqual(22);
 
-      // 4. Verify Manual Indicator 5 in matrix
-      const rowInd5 = data.items.find(
-        (i: IndicatorMatrixRow) =>
-          i.indicatorCode === '5' && Object.keys(i.disaggregation).length === 0,
+      const EXPECTED_KANO_SCHEME_ROWS: Array<{
+        code: string;
+        value: string;
+        target: string | null;
+        endTarget: string | null;
+        pctOfEndTarget: string | null;
+        status: string;
+      }> = [
+        {
+          code: '1a',
+          value: '2.0000',
+          target: null,
+          endTarget: '10000000.0000',
+          pctOfEndTarget: '0.00',
+          status: 'computed',
+        },
+        {
+          code: '1b',
+          value: '50.0000',
+          target: null,
+          endTarget: '50.0000',
+          pctOfEndTarget: '100.00',
+          status: 'computed',
+        },
+        {
+          code: '2a',
+          value: '100.0000',
+          target: null,
+          endTarget: '50000.0000',
+          pctOfEndTarget: '0.20',
+          status: 'computed',
+        },
+        {
+          code: '2b',
+          value: '55.5000',
+          target: null,
+          endTarget: '27000.0000',
+          pctOfEndTarget: '0.21',
+          status: 'computed',
+        },
+        {
+          code: '2c',
+          value: '44.5000',
+          target: null,
+          endTarget: '230000.0000',
+          pctOfEndTarget: '0.02',
+          status: 'computed',
+        },
+        {
+          code: '3',
+          value: '30.0000',
+          target: null,
+          endTarget: '180.0000',
+          pctOfEndTarget: '16.67',
+          status: 'computed',
+        },
+        {
+          code: '4',
+          value: '85.0000',
+          target: null,
+          endTarget: '80.0000',
+          pctOfEndTarget: '106.25',
+          status: 'computed',
+        },
+        {
+          code: '5',
+          value: '6.0000',
+          target: '8.0000',
+          endTarget: '8.0000',
+          pctOfEndTarget: '75.00',
+          status: 'manual',
+        },
+        {
+          code: '6',
+          value: '2.0000',
+          target: null,
+          endTarget: '60.0000',
+          pctOfEndTarget: '3.33',
+          status: 'computed',
+        },
+        {
+          code: '7',
+          value: '4.0000',
+          target: '7.0000',
+          endTarget: '7.0000',
+          pctOfEndTarget: '57.14',
+          status: 'manual',
+        },
+        {
+          code: '8',
+          value: '5.0000',
+          target: '7.0000',
+          endTarget: '7.0000',
+          pctOfEndTarget: '71.43',
+          status: 'manual',
+        },
+        {
+          code: '9',
+          value: '3.0000',
+          target: '5.0000',
+          endTarget: '5.0000',
+          pctOfEndTarget: '60.00',
+          status: 'manual',
+        },
+        {
+          code: '10',
+          value: '2.0000',
+          target: null,
+          endTarget: '550.0000',
+          pctOfEndTarget: '0.36',
+          status: 'computed',
+        },
+        {
+          code: '11',
+          value: '66.6700',
+          target: null,
+          endTarget: '90.0000',
+          pctOfEndTarget: '74.08',
+          status: 'computed',
+        },
+        {
+          code: '12',
+          value: '2.0000',
+          target: null,
+          endTarget: '32000.0000',
+          pctOfEndTarget: '0.01',
+          status: 'computed',
+        },
+        {
+          code: '13',
+          value: '1.0000',
+          target: null,
+          endTarget: '48000.0000',
+          pctOfEndTarget: '0.00',
+          status: 'computed',
+        },
+        {
+          code: '14a',
+          value: '2.0000',
+          target: null,
+          endTarget: null,
+          pctOfEndTarget: null,
+          status: 'computed',
+        },
+        {
+          code: '14b',
+          value: '2.5000',
+          target: null,
+          endTarget: null,
+          pctOfEndTarget: null,
+          status: 'computed',
+        },
+        {
+          code: '14c',
+          value: '3.0000',
+          target: null,
+          endTarget: null,
+          pctOfEndTarget: null,
+          status: 'computed',
+        },
+        {
+          code: '14d',
+          value: '4.0000',
+          target: null,
+          endTarget: '5.5000',
+          pctOfEndTarget: '72.73',
+          status: 'computed',
+        },
+        {
+          code: '15',
+          value: '2.0000',
+          target: '7.0000',
+          endTarget: '7.0000',
+          pctOfEndTarget: '28.57',
+          status: 'manual',
+        },
+        {
+          code: '16',
+          value: '1.0000',
+          target: null,
+          endTarget: '4.0000',
+          pctOfEndTarget: '25.00',
+          status: 'computed',
+        },
+      ];
+
+      for (const expectedRow of EXPECTED_KANO_SCHEME_ROWS) {
+        const found = schemeMatrix.items.find(
+          (i: IndicatorMatrixRow) =>
+            i.indicatorCode === expectedRow.code && Object.keys(i.disaggregation).length === 0,
+        );
+        expect(
+          found,
+          `Row for indicator ${expectedRow.code} not found in scheme matrix`,
+        ).toBeDefined();
+        expect(found.value).toBe(expectedRow.value);
+        if (expectedRow.target !== null) {
+          expect(found.target).toBe(expectedRow.target);
+        }
+        if (expectedRow.endTarget !== null) {
+          expect(found.endTarget).toBe(expectedRow.endTarget);
+        }
+        if (expectedRow.pctOfEndTarget !== null) {
+          expect(found.pctOfEndTarget).toBe(expectedRow.pctOfEndTarget);
+        }
+        expect(found.status).toBe(expectedRow.status);
+      }
+
+      // 8. Assert EVERY one of the 22 matrix rows for Kano State
+      const stateMatrixRes = await app.inject({
+        method: 'GET',
+        url: `/me/matrix?year=2026&quarter=1&scopeType=state&scopeId=${KANO_STATE_ID}`,
+        headers: { authorization: `Bearer ${nationalAdminToken}` },
+      });
+      expect(stateMatrixRes.statusCode).toBe(200);
+      const stateMatrix = stateMatrixRes.json();
+      expect(stateMatrix.items.length).toBeGreaterThanOrEqual(22);
+
+      const EXPECTED_KANO_STATE_ROWS: Array<{
+        code: string;
+        value: string;
+        target: string | null;
+        status: string;
+      }> = [
+        { code: '1a', value: '2.0000', target: null, status: 'computed' },
+        { code: '1b', value: '50.0000', target: null, status: 'computed' },
+        { code: '2a', value: '100.0000', target: null, status: 'computed' },
+        { code: '2b', value: '55.5000', target: null, status: 'computed' },
+        { code: '2c', value: '44.5000', target: null, status: 'computed' },
+        { code: '3', value: '30.0000', target: null, status: 'computed' },
+        { code: '4', value: '85.0000', target: null, status: 'computed' },
+        { code: '5', value: '12.0000', target: '16.0000', status: 'manual' },
+        { code: '6', value: '2.0000', target: null, status: 'computed' },
+        { code: '7', value: '8.0000', target: '14.0000', status: 'manual' },
+        { code: '8', value: '10.0000', target: '14.0000', status: 'manual' },
+        { code: '9', value: '6.0000', target: '10.0000', status: 'manual' },
+        { code: '10', value: '2.0000', target: null, status: 'computed' },
+        { code: '11', value: '66.6700', target: null, status: 'computed' },
+        { code: '12', value: '2.0000', target: null, status: 'computed' },
+        { code: '13', value: '1.0000', target: null, status: 'computed' },
+        { code: '14a', value: '2.0000', target: null, status: 'computed' },
+        { code: '14b', value: '2.5000', target: null, status: 'computed' },
+        { code: '14c', value: '3.0000', target: null, status: 'computed' },
+        { code: '14d', value: '4.0000', target: null, status: 'computed' },
+        { code: '15', value: '4.0000', target: '14.0000', status: 'manual' },
+        { code: '16', value: '1.0000', target: null, status: 'computed' },
+      ];
+
+      for (const expectedRow of EXPECTED_KANO_STATE_ROWS) {
+        const found = stateMatrix.items.find(
+          (i: IndicatorMatrixRow) =>
+            i.indicatorCode === expectedRow.code && Object.keys(i.disaggregation).length === 0,
+        );
+        expect(
+          found,
+          `Row for indicator ${expectedRow.code} not found in state matrix`,
+        ).toBeDefined();
+        expect(found.value).toBe(expectedRow.value);
+        if (expectedRow.target !== null) {
+          expect(found.target).toBe(expectedRow.target);
+        }
+        expect(found.status).toBe(expectedRow.status);
+      }
+
+      // 9. Assert matrix disaggregations: gender for 1a, 6, 11; crop for 14
+      // 1a gender disaggregation
+      const row1aFemale = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '1a' && i.disaggregation.gender === 'female',
       );
-      expect(rowInd5).toBeDefined();
-      expect(Number(rowInd5.value)).toBe(6);
-      expect(Number(rowInd5.target)).toBe(8);
-      expect(Number(rowInd5.endTarget)).toBe(8);
-      // % of end target = (6 / 8) * 100 = 75.00%
-      expect(rowInd5.pctOfEndTarget).toBe('75.00');
+      const row1aMale = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '1a' && i.disaggregation.gender === 'male',
+      );
+      expect(row1aFemale?.value).toBe('1.0000');
+      expect(row1aMale?.value).toBe('1.0000');
 
-      // 5. Verify Computed Indicator 14b (Rice Yield)
-      const rowRice = data.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '14b');
-      expect(rowRice).toBeDefined();
-      expect(Number(rowRice.value)).toBe(2.5);
-      // endTarget is NULL for 14b -> pctOfEndTarget MUST be null
-      expect(rowRice.pctOfEndTarget).toBeNull();
+      // 6 gender disaggregation
+      const row6Female = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '6' && i.disaggregation.gender === 'female',
+      );
+      const row6Male = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '6' && i.disaggregation.gender === 'male',
+      );
+      expect(row6Female?.value).toBe('1.0000');
+      expect(row6Male?.value).toBe('1.0000');
 
-      // 6. Verify Computed Indicator 16 (Scorecards Published, endTarget = 4)
-      const rowScorecard = data.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '16');
-      expect(rowScorecard).toBeDefined();
-      expect(Number(rowScorecard.value)).toBe(1);
-      expect(Number(rowScorecard.endTarget)).toBe(4);
-      // % of end target = (1 / 4) * 100 = 25.00%
-      expect(rowScorecard.pctOfEndTarget).toBe('25.00');
+      // 11 gender disaggregation
+      const row11Female = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '11' && i.disaggregation.gender === 'female',
+      );
+      const row11Male = schemeMatrix.items.find(
+        (i: IndicatorMatrixRow) => i.indicatorCode === '11' && i.disaggregation.gender === 'male',
+      );
+      expect(row11Female?.value).toBe('100.0000');
+      expect(row11Male?.value).toBe('0.0000');
+
+      // 14 crop yields
+      const row14a = schemeMatrix.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '14a');
+      const row14b = schemeMatrix.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '14b');
+      const row14c = schemeMatrix.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '14c');
+      const row14d = schemeMatrix.items.find((i: IndicatorMatrixRow) => i.indicatorCode === '14d');
+      expect(row14a?.value).toBe('2.0000');
+      expect(row14b?.value).toBe('2.5000');
+      expect(row14c?.value).toBe('3.0000');
+      expect(row14d?.value).toBe('4.0000');
     });
 
     it('enforces scope on GET /me/matrix: state and scheme officers can read only within their scope', async () => {
