@@ -1,11 +1,4 @@
-import {
-  Users,
-  MapPin,
-  AlertTriangle,
-  Sprout,
-  ArrowUpRight,
-  FileSearch,
-} from 'lucide-react';
+import { Users, MapPin, AlertTriangle, Sprout, ArrowUpRight, FileSearch } from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
