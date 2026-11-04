@@ -77,6 +77,18 @@ export const permissions = {
   SLIS_REPORT_READ: 'slis.report.read',
   SLIS_REPORT_VIEW: 'slis.report.view',
   SLIS_EXPORT_GENERATE: 'slis.export.generate',
+
+  // M&E: Indicators, Targets & Values
+  ME_INDICATOR_READ: 'me.indicator.read',
+  ME_INDICATOR_MANAGE: 'me.indicator.manage',
+  ME_TARGET_MANAGE: 'me.target.manage',
+  ME_VALUE_SUBMIT: 'me.value.submit',
+  ME_VALUE_APPROVE: 'me.value.approve',
+
+  // M&E: Surveys & Instruments
+  ME_SURVEY_MANAGE: 'me.survey.manage',
+  ME_SURVEY_RESPOND: 'me.survey.respond',
+  ME_INSTRUMENTS_MANAGE: 'me.instruments.manage',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -135,4 +147,14 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.SLIS_REPORT_READ]: 'scoped',
   [permissions.SLIS_REPORT_VIEW]: 'scoped',
   [permissions.SLIS_EXPORT_GENERATE]: 'scoped',
+
+  // M&E permissions (all scoped)
+  [permissions.ME_INDICATOR_READ]: 'scoped',
+  [permissions.ME_INDICATOR_MANAGE]: 'scoped',
+  [permissions.ME_TARGET_MANAGE]: 'scoped',
+  [permissions.ME_VALUE_SUBMIT]: 'scoped',
+  [permissions.ME_VALUE_APPROVE]: 'scoped',
+  [permissions.ME_SURVEY_MANAGE]: 'scoped',
+  [permissions.ME_SURVEY_RESPOND]: 'scoped',
+  [permissions.ME_INSTRUMENTS_MANAGE]: 'scoped',
 };

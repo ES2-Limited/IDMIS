@@ -31,4 +31,15 @@ describe('permissions', () => {
     expect(permissionKinds[permissions.CORE_USER_READ]).toBe('scoped');
     expect(permissionKinds[permissions.CORE_RESET_PASSWORD]).toBe('scoped');
   });
+
+  it('marks M&E permissions as scoped', () => {
+    expect(permissionKinds[permissions.ME_INDICATOR_READ]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_INDICATOR_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_TARGET_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_VALUE_SUBMIT]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_VALUE_APPROVE]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_SURVEY_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_SURVEY_RESPOND]).toBe('scoped');
+    expect(permissionKinds[permissions.ME_INSTRUMENTS_MANAGE]).toBe('scoped');
+  });
 });

@@ -1,4 +1,6 @@
 import { sql, eq, and, inArray } from 'drizzle-orm';
+import { loadMeIndicators } from './seed/me-indicators';
+
 import { db } from './index';
 import {
   appUser,
@@ -423,6 +425,10 @@ export async function seed() {
       updatedBy: SYSTEM_USER_ID,
     })
     .onConflictDoNothing({ target: setting.key });
+
+  // 8. M&E Indicators (awaiting client-confirmed definitions)
+  console.log('Loading M&E Indicators...');
+  await loadMeIndicators(undefined, undefined, db);
 
   console.log('--- Core Seed Completed Successfully ---');
   return { rolePermsInserted, rolePermsDeleted };

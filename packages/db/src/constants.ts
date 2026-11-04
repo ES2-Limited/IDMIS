@@ -83,6 +83,13 @@ export const SYSTEM_ROLES = [
     description: 'Read-only access to scoped dashboards and reports',
     isSystem: true,
   },
+  {
+    id: '018f3a5e-0000-7000-8000-000000000021',
+    key: 'state_coordinator',
+    name: 'State Coordinator',
+    description: 'State ministry oversight and coordination across all schemes in state',
+    isSystem: true,
+  },
 ] as const;
 
 /**
@@ -142,6 +149,15 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    // M&E
+    permissions.ME_INDICATOR_READ,
+    permissions.ME_INDICATOR_MANAGE,
+    permissions.ME_TARGET_MANAGE,
+    permissions.ME_VALUE_SUBMIT,
+    permissions.ME_VALUE_APPROVE,
+    permissions.ME_SURVEY_MANAGE,
+    permissions.ME_SURVEY_RESPOND,
+    permissions.ME_INSTRUMENTS_MANAGE,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope
@@ -174,6 +190,9 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    // M&E Approver (National / Regional scope)
+    permissions.ME_INDICATOR_READ,
+    permissions.ME_VALUE_APPROVE,
   ],
 
   // 3. Module Administrator: Generic placeholder (specific module admins use dedicated roles)
@@ -282,6 +301,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REVIEW_SUBMIT,
     permissions.SLIS_SYNC_PUSH,
     permissions.SLIS_SYNC_PULL,
+    permissions.ME_SURVEY_RESPOND,
   ],
 
   // 7. M&E Officer: Monitoring & Evaluation data entry, survey collection, and analysis
@@ -298,6 +318,14 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    // M&E
+    permissions.ME_INDICATOR_READ,
+    permissions.ME_INDICATOR_MANAGE,
+    permissions.ME_TARGET_MANAGE,
+    permissions.ME_VALUE_SUBMIT,
+    permissions.ME_SURVEY_MANAGE,
+    permissions.ME_SURVEY_RESPOND,
+    permissions.ME_INSTRUMENTS_MANAGE,
   ],
 
   // 8. Basin Officer: Dam safety records & river basin monitoring
@@ -332,5 +360,27 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_FEE_READ,
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
+    // M&E Read-only
+    permissions.ME_INDICATOR_READ,
+  ],
+
+  // 11. State Coordinator: State ministry oversight and M&E value approvals (State scope)
+  state_coordinator: [
+    permissions.CORE_ORGANISATION_READ,
+    permissions.CORE_GEOGRAPHY_READ,
+    permissions.CORE_WUA_READ,
+    permissions.CORE_LOOKUP_READ,
+    permissions.CORE_FILE_READ,
+    // SLIS Oversight
+    permissions.SLIS_FARMER_READ,
+    permissions.SLIS_PLOT_READ,
+    permissions.SLIS_WATER_REQUEST_READ,
+    permissions.SLIS_FEE_READ,
+    permissions.SLIS_REPORT_READ,
+    permissions.SLIS_REPORT_VIEW,
+    permissions.SLIS_EXPORT_GENERATE,
+    // M&E Approver (State scope)
+    permissions.ME_INDICATOR_READ,
+    permissions.ME_VALUE_APPROVE,
   ],
 };
