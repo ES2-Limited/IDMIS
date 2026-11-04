@@ -26,6 +26,7 @@ import { assertMeScope } from '../utils/assert-me-scope';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
 import type { UserAuthz } from '../../../platform/auth';
+import { eventBus } from '../../../platform/events/event-bus';
 
 @Injectable()
 export class InstrumentsService {
@@ -63,7 +64,7 @@ export class InstrumentsService {
       });
     }
 
-    return runInTransaction(
+    const created = await runInTransaction(
       async (tx) => {
         return this.scorecardRepo.create(
           {
@@ -86,6 +87,12 @@ export class InstrumentsService {
         },
       },
     );
+
+    if (input.publishedOn) {
+      eventBus.emitRecompute({ schemeId: input.schemeId });
+    }
+
+    return created;
   }
 
   async updateScorecard(
@@ -134,7 +141,7 @@ export class InstrumentsService {
       }
     }
 
-    return runInTransaction(
+    const updated = await runInTransaction(
       async (tx) => {
         return this.scorecardRepo.update(
           id,
@@ -158,6 +165,12 @@ export class InstrumentsService {
         },
       },
     );
+
+    if (input.publishedOn !== undefined && input.publishedOn !== existing.publishedOn) {
+      eventBus.emitRecompute({ schemeId: targetSchemeId });
+    }
+
+    return updated;
   }
 
   async deleteScorecard(
@@ -554,7 +567,7 @@ export class InstrumentsService {
 
     const expectedVersion = input.version ?? existing.version;
 
-    return runInTransaction(
+    const approved = await runInTransaction(
       async (tx) => {
         return this.techAdoptionRepo.approve(id, expectedVersion, actorUserId, tx);
       },
@@ -568,6 +581,9 @@ export class InstrumentsService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: existing.schemeId });
+    return approved;
   }
 
   async returnTechAdoption(
@@ -602,7 +618,7 @@ export class InstrumentsService {
 
     const expectedVersion = input.version ?? existing.version;
 
-    return runInTransaction(
+    const returned = await runInTransaction(
       async (tx) => {
         return this.techAdoptionRepo.return(
           id,
@@ -622,6 +638,9 @@ export class InstrumentsService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: existing.schemeId });
+    return returned;
   }
 
   async getTechAdoption(id: string, authz: UserAuthz) {

@@ -14,6 +14,7 @@ import { assertInScope, type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
 import { ConflictProblemException } from '../../../platform/filters';
+import { eventBus } from '../../../platform/events/event-bus';
 import { eq, db, farmer } from '@idmis/db';
 
 @Injectable()
@@ -218,7 +219,7 @@ export class TrainingService {
 
     const attendanceId = input.id ?? crypto.randomUUID();
 
-    return runInTransaction(
+    const res = await runInTransaction(
       async (tx) => {
         const created = await this.trainingRepo.recordAttendance(
           {
@@ -258,6 +259,9 @@ export class TrainingService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: existingTraining.schemeId });
+    return res;
   }
 
   async listAttendance(trainingId: string, query: ListTrainingAttendanceQuery, authz: UserAuthz) {

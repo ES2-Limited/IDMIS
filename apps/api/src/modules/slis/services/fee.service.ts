@@ -10,6 +10,7 @@ import { assertInScope, type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
 import { ConflictProblemException } from '../../../platform/filters';
+import { eventBus } from '../../../platform/events/event-bus';
 
 @Injectable()
 export class FeeService {
@@ -134,7 +135,7 @@ export class FeeService {
       organisationId: existing.schemeId,
     });
 
-    return runInTransaction(
+    const res = await runInTransaction(
       async (tx) => {
         const collections = await this.feeRepo.listCollectionsByBillingId(id, tx);
         if (collections.length > 0) {
@@ -169,6 +170,9 @@ export class FeeService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: existing.schemeId });
+    return res;
   }
 
   async createCollection(input: CreateFeeCollectionData, authz: UserAuthz, actorUserId: string) {
@@ -261,7 +265,7 @@ export class FeeService {
       organisationId: existing.schemeId,
     });
 
-    return runInTransaction(
+    const res = await runInTransaction(
       async (tx) => {
         const deleted = await this.feeRepo.softDeleteCollection(id, actorUserId, tx);
 
@@ -289,6 +293,9 @@ export class FeeService {
         },
       },
     );
+
+    eventBus.emitRecompute({ schemeId: existing.schemeId });
+    return res;
   }
 
   async findBillingById(id: string) {

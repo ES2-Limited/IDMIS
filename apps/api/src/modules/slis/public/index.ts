@@ -26,3 +26,4 @@ export * from '../services/report.service';
 export * from '../repositories/report.repository';
 export * from '../services/export.service';
 export * from '../repositories/export.repository';
+export * from '../services/slis-compute-query.service';

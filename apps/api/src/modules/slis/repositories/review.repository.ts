@@ -6,6 +6,10 @@ import {
   cropProduction,
   waterRequest,
   streamFlowReading,
+  feeBilling,
+  feeCollection,
+  training,
+  trainingAttendance,
   appUser,
 } from '@idmis/db';
 import { Injectable } from '@nestjs/common';
@@ -14,7 +18,15 @@ import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 
 export type ReviewableEntity =
-  'farmer' | 'plot' | 'crop_production' | 'water_request' | 'stream_flow_reading';
+  | 'farmer'
+  | 'plot'
+  | 'crop_production'
+  | 'water_request'
+  | 'stream_flow_reading'
+  | 'fee_billing'
+  | 'fee_collection'
+  | 'training'
+  | 'training_attendance';
 
 export interface ReviewEntityRecord {
   id: string;
@@ -134,6 +146,83 @@ export class ReviewRepository {
         .where(and(...conditions))
         .limit(1);
       return r ? { ...r, stateId: null, entity: 'stream_flow_reading' } : null;
+    }
+
+    if (entity === 'fee_billing') {
+      const conditions: SQL[] = [eq(feeBilling.id, id)];
+      if (scope) {
+        const sc = applyScope(scope, { scheme: feeBilling.schemeId });
+        if (sc) conditions.push(sc);
+      }
+      const [r] = await txDb
+        .select({
+          id: feeBilling.id,
+          schemeId: feeBilling.schemeId,
+          status: feeBilling.status,
+          submittedBy: feeBilling.submittedBy,
+          version: feeBilling.version,
+        })
+        .from(feeBilling)
+        .where(and(...conditions))
+        .limit(1);
+      return r ? { ...r, stateId: null, entity: 'fee_billing' } : null;
+    }
+
+    if (entity === 'fee_collection') {
+      const conditions: SQL[] = [eq(feeCollection.id, id)];
+      if (scope) {
+        const sc = applyScope(scope, { scheme: feeCollection.schemeId });
+        if (sc) conditions.push(sc);
+      }
+      const [r] = await txDb
+        .select({
+          id: feeCollection.id,
+          schemeId: feeCollection.schemeId,
+          status: feeCollection.status,
+          submittedBy: feeCollection.submittedBy,
+          version: feeCollection.version,
+        })
+        .from(feeCollection)
+        .where(and(...conditions))
+        .limit(1);
+      return r ? { ...r, stateId: null, entity: 'fee_collection' } : null;
+    }
+
+    if (entity === 'training') {
+      const conditions: SQL[] = [eq(training.id, id)];
+      if (scope) {
+        const sc = applyScope(scope, { scheme: training.schemeId });
+        if (sc) conditions.push(sc);
+      }
+      const [r] = await txDb
+        .select({
+          id: training.id,
+          schemeId: training.schemeId,
+          status: training.status,
+          submittedBy: training.submittedBy,
+          version: training.version,
+        })
+        .from(training)
+        .where(and(...conditions))
+        .limit(1);
+      return r ? { ...r, stateId: null, entity: 'training' } : null;
+    }
+
+    if (entity === 'training_attendance') {
+      const conditions: SQL[] = [eq(trainingAttendance.id, id)];
+      const [r] = await txDb
+        .select({
+          id: trainingAttendance.id,
+          schemeId: training.schemeId,
+          status: training.status,
+          submittedBy: training.submittedBy,
+          version: trainingAttendance.version,
+        })
+        .from(trainingAttendance)
+        .innerJoin(training, eq(trainingAttendance.trainingId, training.id))
+        .where(and(...conditions))
+        .limit(1);
+      return r ? { ...r, stateId: null, entity: 'training_attendance' } : null;
     }
 
     return null;
@@ -369,6 +458,82 @@ export class ReviewRepository {
       return r ? { ...r, stateId: null, entity: 'stream_flow_reading' } : null;
     }
 
+    if (entity === 'fee_billing') {
+      const conditions: SQL[] = [eq(feeBilling.id, id)];
+      if (expectedVersion !== undefined) conditions.push(eq(feeBilling.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(feeBilling)
+        .set({
+          status: 'approved',
+          approvedBy: actorUserId,
+          approvedAt: now,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${feeBilling.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: feeBilling.id,
+          schemeId: feeBilling.schemeId,
+          status: feeBilling.status,
+          submittedBy: feeBilling.submittedBy,
+          version: feeBilling.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'fee_billing' } : null;
+    }
+
+    if (entity === 'fee_collection') {
+      const conditions: SQL[] = [eq(feeCollection.id, id)];
+      if (expectedVersion !== undefined)
+        conditions.push(eq(feeCollection.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(feeCollection)
+        .set({
+          status: 'approved',
+          approvedBy: actorUserId,
+          approvedAt: now,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${feeCollection.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: feeCollection.id,
+          schemeId: feeCollection.schemeId,
+          status: feeCollection.status,
+          submittedBy: feeCollection.submittedBy,
+          version: feeCollection.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'fee_collection' } : null;
+    }
+
+    if (entity === 'training') {
+      const conditions: SQL[] = [eq(training.id, id)];
+      if (expectedVersion !== undefined) conditions.push(eq(training.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(training)
+        .set({
+          status: 'approved',
+          approvedBy: actorUserId,
+          approvedAt: now,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${training.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: training.id,
+          schemeId: training.schemeId,
+          status: training.status,
+          submittedBy: training.submittedBy,
+          version: training.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'training' } : null;
+    }
+
     return null;
   }
 
@@ -514,6 +679,85 @@ export class ReviewRepository {
           version: streamFlowReading.version,
         });
       return r ? { ...r, stateId: null, entity: 'stream_flow_reading' } : null;
+    }
+
+    if (entity === 'fee_billing') {
+      const conditions: SQL[] = [eq(feeBilling.id, id)];
+      if (expectedVersion !== undefined) conditions.push(eq(feeBilling.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(feeBilling)
+        .set({
+          status: 'returned',
+          returnedBy: actorUserId,
+          returnedAt: now,
+          returnComment: comment,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${feeBilling.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: feeBilling.id,
+          schemeId: feeBilling.schemeId,
+          status: feeBilling.status,
+          submittedBy: feeBilling.submittedBy,
+          version: feeBilling.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'fee_billing' } : null;
+    }
+
+    if (entity === 'fee_collection') {
+      const conditions: SQL[] = [eq(feeCollection.id, id)];
+      if (expectedVersion !== undefined)
+        conditions.push(eq(feeCollection.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(feeCollection)
+        .set({
+          status: 'returned',
+          returnedBy: actorUserId,
+          returnedAt: now,
+          returnComment: comment,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${feeCollection.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: feeCollection.id,
+          schemeId: feeCollection.schemeId,
+          status: feeCollection.status,
+          submittedBy: feeCollection.submittedBy,
+          version: feeCollection.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'fee_collection' } : null;
+    }
+
+    if (entity === 'training') {
+      const conditions: SQL[] = [eq(training.id, id)];
+      if (expectedVersion !== undefined) conditions.push(eq(training.version, expectedVersion));
+
+      const [r] = await txDb
+        .update(training)
+        .set({
+          status: 'returned',
+          returnedBy: actorUserId,
+          returnedAt: now,
+          returnComment: comment,
+          updatedBy: actorUserId,
+          updatedAt: now,
+          version: sql`${training.version} + 1`,
+        })
+        .where(and(...conditions))
+        .returning({
+          id: training.id,
+          schemeId: training.schemeId,
+          status: training.status,
+          submittedBy: training.submittedBy,
+          version: training.version,
+        });
+      return r ? { ...r, stateId: null, entity: 'training' } : null;
     }
 
     return null;

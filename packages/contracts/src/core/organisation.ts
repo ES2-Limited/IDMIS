@@ -13,6 +13,11 @@ export const CreateOrganisationInputSchema = z.object({
   phone: z.string().nullable().optional(),
   email: z.string().email().nullable().optional(),
   geom: z.unknown().nullable().optional(),
+  irrigableAreaHa: z
+    .string()
+    .regex(/^\d+(\.\d{1,4})?$/)
+    .nullable()
+    .optional(),
   isActive: z.boolean().default(true),
   stateIds: z.array(z.uuid()).default([]),
 });
@@ -33,6 +38,7 @@ export const OrganisationResponseSchema = StandardResponseColumnsSchema.extend({
   phone: z.string().nullable(),
   email: z.string().nullable(),
   geom: z.unknown().nullable().optional(),
+  irrigableAreaHa: z.string().nullable().optional(),
   isActive: z.boolean(),
   stateIds: z.array(z.uuid()),
 });

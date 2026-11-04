@@ -11,6 +11,7 @@ import { SurveyController } from './controllers/survey.controller';
 import { ScorecardController } from './controllers/scorecard.controller';
 import { MatchingGrantController } from './controllers/matching-grant.controller';
 import { TechAdoptionController } from './controllers/tech-adoption.controller';
+import { ComputeController } from './controllers/compute.controller';
 
 // Repositories
 import { IndicatorRepository } from './repositories/indicator.repository';
@@ -21,6 +22,8 @@ import { SurveyResponseRepository } from './repositories/survey-response.reposit
 import { ScorecardRepository } from './repositories/scorecard.repository';
 import { MatchingGrantRepository } from './repositories/matching-grant.repository';
 import { TechAdoptionRepository } from './repositories/tech-adoption.repository';
+import { ComputeResultRepository } from './repositories/compute-result.repository';
+import { IndicatorMatrixRepository } from './repositories/indicator-matrix.repository';
 
 // Services
 import { IndicatorService } from './services/indicator.service';
@@ -28,6 +31,9 @@ import { IndicatorTargetService } from './services/indicator-target.service';
 import { IndicatorValueService } from './services/indicator-value.service';
 import { SurveyService } from './services/survey.service';
 import { InstrumentsService } from './services/instruments.service';
+import { MeComputeService } from './services/me-compute.service';
+import { ComputeRegistry } from './compute/compute.registry';
+import { SlisComputeQueryService } from '../slis/public';
 
 // Import Handlers
 import { IndicatorTargetImportHandler } from './imports/indicator-target.handler';
@@ -47,6 +53,7 @@ import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
     ScorecardController,
     MatchingGrantController,
     TechAdoptionController,
+    ComputeController,
   ],
   providers: [
     IndicatorRepository,
@@ -57,11 +64,16 @@ import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
     ScorecardRepository,
     MatchingGrantRepository,
     TechAdoptionRepository,
+    ComputeResultRepository,
+    IndicatorMatrixRepository,
     IndicatorService,
     IndicatorTargetService,
     IndicatorValueService,
     SurveyService,
     InstrumentsService,
+    ComputeRegistry,
+    MeComputeService,
+    SlisComputeQueryService,
     IndicatorTargetImportHandler,
     IndicatorValueImportHandler,
     SurveyResponseImportHandler,
@@ -78,11 +90,15 @@ import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
     ScorecardRepository,
     MatchingGrantRepository,
     TechAdoptionRepository,
+    ComputeResultRepository,
+    IndicatorMatrixRepository,
     IndicatorService,
     IndicatorTargetService,
     IndicatorValueService,
     SurveyService,
     InstrumentsService,
+    ComputeRegistry,
+    MeComputeService,
     IndicatorTargetImportHandler,
     IndicatorValueImportHandler,
     SurveyResponseImportHandler,

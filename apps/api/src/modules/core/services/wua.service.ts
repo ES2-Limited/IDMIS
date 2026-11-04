@@ -11,6 +11,7 @@ import { EncryptionService } from '../../../platform/security/encryption.service
 import { assertInScope, deriveLocationServerSide, type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
+import { eventBus } from '../../../platform/events/event-bus';
 
 @Injectable()
 export class WuaService {
@@ -183,7 +184,7 @@ export class WuaService {
         : (null as unknown as Buffer);
     }
 
-    return runInTransaction(
+    const updatedWua = await runInTransaction(
       async (tx) => {
         const updated = await this.wuaRepo.update(
           id,
@@ -235,6 +236,12 @@ export class WuaService {
         },
       },
     );
+
+    if (input.isOperational !== undefined && input.isOperational !== existing.isOperational) {
+      eventBus.emitRecompute({ schemeId: existing.organisationId });
+    }
+
+    return updatedWua;
   }
 
   // --- Officers ---

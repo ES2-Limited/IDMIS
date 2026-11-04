@@ -11,6 +11,7 @@ import {
   jsonb,
   check,
   unique,
+  uniqueIndex,
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -291,5 +292,86 @@ export const techAdoption = meSchema.table(
   },
   () => [
     check('tech_adoption_gender_check', sql`("gender" IS NULL OR "gender" IN ('female','male'))`),
+  ],
+);
+
+// 14. Compute Result
+export const computeResult = meSchema.table(
+  'compute_result',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    indicatorId: uuid('indicator_id')
+      .notNull()
+      .references(() => indicator.id),
+    periodYear: smallint('period_year').notNull(),
+    periodQuarter: smallint('period_quarter').notNull(),
+    scopeType: scopeTypeEnum('scope_type').notNull(),
+    scopeStateId: uuid('scope_state_id').references(() => state.id),
+    scopeOrgId: uuid('scope_org_id').references(() => organisation.id),
+    disaggregation: jsonb('disaggregation')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    status: text('status').notNull(), // 'computed' | 'not_available' | 'error'
+    message: text('message'),
+    computedAt: timestamp('computed_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check('compute_result_quarter_check', sql`("period_quarter" >= 1 AND "period_quarter" <= 4)`),
+    unique('compute_result_slot_unique')
+      .on(
+        table.indicatorId,
+        table.periodYear,
+        table.periodQuarter,
+        table.scopeType,
+        table.scopeStateId,
+        table.scopeOrgId,
+        table.disaggregation,
+      )
+      .nullsNotDistinct(),
+  ],
+);
+
+// 15. Materialised View: me.mv_indicator_matrix
+export const mvIndicatorMatrix = meSchema.table(
+  'mv_indicator_matrix',
+  {
+    indicatorId: uuid('indicator_id').notNull(),
+    indicatorCode: text('indicator_code').notNull(),
+    indicatorName: text('indicator_name').notNull(),
+    periodYear: smallint('period_year').notNull(),
+    periodQuarter: smallint('period_quarter').notNull(),
+    scopeType: scopeTypeEnum('scope_type').notNull(),
+    scopeStateId: uuid('scope_state_id'),
+    stateKey: uuid('state_key').notNull(),
+    scopeOrgId: uuid('scope_org_id'),
+    orgKey: uuid('org_key').notNull(),
+    disaggregation: jsonb('disaggregation').notNull(),
+    disaggregationKey: text('disaggregation_key').notNull(),
+    target: numeric('target', { precision: 16, scale: 4 }),
+    endTarget: numeric('end_target', { precision: 16, scale: 4 }),
+    value: numeric('value', { precision: 16, scale: 4 }),
+    status: text('status').notNull(),
+    message: text('message'),
+    pctOfEndTarget: numeric('pct_of_end_target', { precision: 8, scale: 2 }),
+    computedAt: timestamp('computed_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    uniqueIndex('mv_indicator_matrix_unique').on(
+      table.indicatorId,
+      table.periodYear,
+      table.periodQuarter,
+      table.scopeType,
+      table.stateKey,
+      table.orgKey,
+      table.disaggregationKey,
+    ),
   ],
 );
