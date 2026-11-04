@@ -20,7 +20,6 @@ import { FieldSyncView } from '../modules/field/FieldSyncView';
 import { FieldProfileView } from '../modules/field/FieldProfileView';
 import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
 import { PlotMappingView } from '../modules/slis/field/PlotMappingView';
-import { useFieldMode } from '../shell/FieldModeContext';
 
 export const queryClient = new QueryClient();
 

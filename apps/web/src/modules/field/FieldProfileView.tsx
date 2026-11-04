@@ -4,15 +4,11 @@ import { useSync } from '../../sync';
 import { useScope } from '../../shell/ScopeContext';
 import { useFieldMode } from '../../shell/FieldModeContext';
 import {
-  User,
   Shield,
   Smartphone,
-  HardDrive,
   Clock,
   LogOut,
   Layers,
-  Calendar,
-  Lock,
   Wifi,
   WifiOff,
   CheckCircle2,
@@ -21,9 +17,9 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/
 
 export function FieldProfileView() {
   const { user, signOut } = useAuth();
-  const { lastSyncedAt, pendingOpsCount, syncState, triggerSync } = useSync();
+  const { pendingOpsCount } = useSync();
   const { currentScope } = useScope();
-  const { toggleFieldModeOverride, isFieldLayoutActive } = useFieldMode();
+  const { toggleFieldModeOverride } = useFieldMode();
 
   const [isOnline, setIsOnline] = React.useState(
     typeof window !== 'undefined' ? window.navigator.onLine : true,
@@ -165,3 +161,4 @@ export function FieldProfileView() {
     </div>
   );
 }
+

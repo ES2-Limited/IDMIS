@@ -9,7 +9,6 @@ export function BottomNav() {
 
   const canSlis = useCan('slis.farmer.read');
   const canMe = useCan('me.kpi.read');
-  const canBlis = useCan('blis.irrigation.read');
   const canCore = useCan('core.user.read');
 
   const navItems = [

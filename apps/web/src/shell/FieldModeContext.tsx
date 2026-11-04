@@ -13,7 +13,7 @@ const FieldModeContext = React.createContext<FieldModeContextValue | null>(null)
 const STORAGE_OVERRIDE_KEY = 'idmis_field_mode_override';
 
 export function FieldModeProvider({ children }: { children: React.ReactNode }) {
-  const { user, permissions } = useAuth();
+  const { user } = useAuth();
   const [manualOverride, setManualOverride] = React.useState<boolean | null>(() => {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const stored = localStorage.getItem(STORAGE_OVERRIDE_KEY);

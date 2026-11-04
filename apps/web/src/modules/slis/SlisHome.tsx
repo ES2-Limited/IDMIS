@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Sprout,
   ArrowUpRight,
-  PlusCircle,
   FileSearch,
 } from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
