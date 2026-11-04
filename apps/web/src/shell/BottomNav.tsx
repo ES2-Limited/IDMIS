@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { LayoutDashboard, Sprout, TrendingUp, Waves, Building } from 'lucide-react';
+import { LayoutDashboard, Sprout, TrendingUp, Building, MapPin } from 'lucide-react';
 import { useCan } from '../auth';
 
 export function BottomNav() {
@@ -15,8 +15,8 @@ export function BottomNav() {
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },
     { label: 'SLIS', path: '/slis', icon: Sprout, show: canSlis },
+    { label: 'Field Hub', path: '/field/capture', icon: MapPin },
     { label: 'M&E', path: '/me', icon: TrendingUp, show: canMe },
-    { label: 'BLIS', path: '/blis', icon: Waves, show: canBlis },
     { label: 'Admin', path: '/core', icon: Building, show: canCore },
   ].filter((item) => item.show !== false);
 

@@ -155,6 +155,16 @@ export function SideNav() {
         permission: 'blis.irrigation.read',
       },
     ];
+  } else if (currentPath.startsWith('/field')) {
+    moduleName = 'Field Collector Hub';
+    navItems = [
+      { label: 'Field Station Home', path: '/', icon: LayoutDashboard },
+      { label: 'Fast Data Capture', path: '/field/capture', icon: MapPin },
+      { label: 'Register Farmer (Wizard)', path: '/field/capture/farmer', icon: Users },
+      { label: 'Map Plot Boundary (Walk)', path: '/field/capture/plot', icon: MapPin },
+      { label: 'My Cached Records', path: '/field/records', icon: FileText },
+      { label: 'Sync Centre', path: '/field/sync', icon: Database },
+    ];
   } else {
     moduleName = 'TRIMING IDMIS';
     navItems = [

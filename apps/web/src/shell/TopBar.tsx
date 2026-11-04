@@ -21,6 +21,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
     { id: 'slis', label: 'SLIS', path: '/slis' },
     { id: 'me', label: 'M&E', path: '/me' },
     { id: 'blis', label: 'BLIS', path: '/blis' },
+    { id: 'field', label: 'Field Station', path: '/field/capture' },
   ];
 
   return (
@@ -30,7 +31,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Toggle navigation menu"
-          className="hidden sm:inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
+          className="inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
           onClick={onToggleSidebar}
         >
           <Menu className="h-5 w-5" />

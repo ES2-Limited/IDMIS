@@ -22,22 +22,16 @@ export function FieldModeProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  // A user qualifies as an offline field collector if:
-  // 1. They have 'offline.capture' or 'slis.farmer.create' or 'slis.plot.manage' permission
-  // 2. OR user roles include field collector / enumerator / field_officer
-  // 3. User object has canCaptureOffline flag or system admin override
+  // A user qualifies as an offline field collector if their active assignment explicitly has
+  // canCaptureOffline or they are in field roles.
+  // Superadmin / office staff default to standard desktop workspace unless explicitly in field mode.
   const canCaptureOffline = React.useMemo(() => {
     if (!user) return false;
-    const hasRole = user.roles.some((r) =>
+    const isFieldRole = user.roles.some((r) =>
       ['field_collector', 'enumerator', 'data_collector', 'wua_officer'].includes(r.toLowerCase()),
     );
-    const hasPerm =
-      permissions.includes('*') ||
-      permissions.includes('slis.farmer.create') ||
-      permissions.includes('offline.capture') ||
-      permissions.includes('slis.sync.push');
-    return hasRole || hasPerm;
-  }, [user, permissions]);
+    return isFieldRole;
+  }, [user]);
 
   const toggleFieldModeOverride = React.useCallback(() => {
     setManualOverride((prev) => {
@@ -50,8 +44,8 @@ export function FieldModeProvider({ children }: { children: React.ReactNode }) {
   }, [canCaptureOffline]);
 
   // Field layout is active if:
-  // - Manual override is explicitly enabled OR
-  // - (Manual override is not set AND user is field collector / has offline capture)
+  // - User manually toggled field mode ON OR
+  // - User is genuinely a field collector (and hasn't manually opted out)
   const isFieldLayoutActive = manualOverride !== null ? manualOverride : canCaptureOffline;
 
   return (
