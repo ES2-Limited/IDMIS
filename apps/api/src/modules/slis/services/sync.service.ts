@@ -27,6 +27,7 @@ import { WaterRequestService } from './water-request.service';
 import { CropProductionService } from './crop-production.service';
 import { StreamFlowService } from './stream-flow.service';
 import { TrainingService } from './training.service';
+import { SurveyService, SurveyRepository, SurveyResponseRepository } from '../../me/public';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
 import type { UserAuthz } from '../../../platform/auth';
@@ -42,6 +43,9 @@ export class SyncService {
     private readonly cropProductionService: CropProductionService,
     private readonly streamFlowService: StreamFlowService,
     private readonly trainingService: TrainingService,
+    private readonly surveyService: SurveyService,
+    private readonly surveyRepo: SurveyRepository,
+    private readonly surveyResponseRepo: SurveyResponseRepository,
   ) {}
 
   async registerDevice(
@@ -438,6 +442,57 @@ export class SyncService {
           actorUserId,
         );
         return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+    }
+
+    if (entity === 'survey_response') {
+      if (action === 'create') {
+        const answers = Array.isArray(data.answers)
+          ? (data.answers as Array<{ questionId?: string; questionCode?: string; value: unknown }>)
+          : [];
+        const res = await this.surveyService.createResponse(
+          {
+            id: recordId,
+            surveyId: String(data.surveyId),
+            schemeId: (data.schemeId as string | undefined) ?? undefined,
+            farmerId: (data.farmerId as string | undefined) ?? undefined,
+            householdId: (data.householdId as string | undefined) ?? undefined,
+            collectedAt: (data.collectedAt as string | undefined) ?? undefined,
+            location: data.location,
+            answers,
+          },
+          authz,
+          actorUserId,
+          (data.deviceId as string | undefined) ?? undefined,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+    }
+
+    if (entity === 'survey_answer') {
+      if (action === 'create') {
+        const questionId = String(data.questionId);
+        const question = await this.surveyRepo.findQuestionById(questionId);
+        if (!question) {
+          throw new BadRequestException(`Question ${questionId} not found`);
+        }
+        this.surveyService.validateAnswer(question, data.value);
+
+        const answer = await this.surveyResponseRepo.createAnswer({
+          id: recordId,
+          responseId: String(data.responseId),
+          questionId,
+          value: data.value,
+        });
+        return answer as unknown as Record<string, unknown> & {
           version?: number;
           schemeId?: string | null;
           stateId?: string | null;

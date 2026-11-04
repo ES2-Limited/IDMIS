@@ -45,6 +45,7 @@ import { ExportController } from './controllers/export.controller';
 import { StorageModule } from '../../platform/storage/storage.module';
 import { BlisStationStubService } from '../blis/public';
 import { CoreModule } from '../core/core.module';
+import { MeModule } from '../me/me.module';
 import { ImportHandlerRegistry } from '../core/public';
 import { FarmerImportHandler } from './imports/farmer.handler';
 import { PlotImportHandler } from './imports/plot.handler';
@@ -55,7 +56,7 @@ import { TrainingImportHandler } from './imports/training.handler';
 import { CropProductionImportHandler } from './imports/crop-production.handler';
 
 @Module({
-  imports: [forwardRef(() => CoreModule), StorageModule],
+  imports: [forwardRef(() => CoreModule), forwardRef(() => MeModule), StorageModule],
   controllers: [
     FarmerController,
     HouseholdController,

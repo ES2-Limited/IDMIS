@@ -12,6 +12,14 @@ import {
   ReturnIndicatorValueInputSchema,
   AttachEvidenceInputSchema,
   IndicatorValueEvidenceSchema,
+  SurveySchema,
+  CreateSurveyInputSchema,
+  UpdateSurveyInputSchema,
+  SurveyQuestionSchema,
+  CreateSurveyQuestionInputSchema,
+  UpdateSurveyQuestionInputSchema,
+  SurveyResponseSchema,
+  CreateSurveyResponseInputSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -70,6 +78,14 @@ export const meSchemas: Record<string, unknown> = {
   ReturnIndicatorValueInput: toJsonSchema(ReturnIndicatorValueInputSchema),
   AttachEvidenceInput: toJsonSchema(AttachEvidenceInputSchema),
   IndicatorValueEvidenceResponse: toJsonSchema(IndicatorValueEvidenceSchema),
+  SurveyResponse: toJsonSchema(SurveySchema),
+  CreateSurveyInput: toJsonSchema(CreateSurveyInputSchema),
+  UpdateSurveyInput: toJsonSchema(UpdateSurveyInputSchema),
+  SurveyQuestionResponse: toJsonSchema(SurveyQuestionSchema),
+  CreateSurveyQuestionInput: toJsonSchema(CreateSurveyQuestionInputSchema),
+  UpdateSurveyQuestionInput: toJsonSchema(UpdateSurveyQuestionInputSchema),
+  SurveyResponseItem: toJsonSchema(SurveyResponseSchema),
+  CreateSurveyResponseInput: toJsonSchema(CreateSurveyResponseInputSchema),
 };
 
 export const mePaths: Record<string, Record<string, unknown>> = {
@@ -474,6 +490,303 @@ export const mePaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(401, 403, 404),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // SURVEYS & QUESTIONS (BE-3.4)
+  // -------------------------------------------------------------
+  '/me/surveys': {
+    get: {
+      summary: 'List surveys',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        { name: 'offset', in: 'query', schema: { type: 'integer' } },
+      ],
+      responses: {
+        '200': {
+          description: 'List of surveys',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: { type: 'array', items: { $ref: '#/components/schemas/SurveyResponse' } },
+                  total: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create a new survey',
+      tags: ['me'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateSurveyInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Survey created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/me/surveys/responses/{responseId}': {
+    get: {
+      summary: 'Get survey response by id',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'responseId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Survey response details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponseItem' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    delete: {
+      summary: 'Delete survey response',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'responseId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Survey response deleted successfully',
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+  },
+
+  '/me/surveys/{id}': {
+    get: {
+      summary: 'Get survey details',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Survey details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    put: {
+      summary: 'Update survey',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateSurveyInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Survey updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/me/surveys/{id}/version': {
+    post: {
+      summary: 'Create a new version of survey',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '201': {
+          description: 'New survey version created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+  },
+
+  '/me/surveys/{id}/questions': {
+    post: {
+      summary: 'Add question to survey',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateSurveyQuestionInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Question added successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyQuestionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/me/surveys/{id}/questions/{questionId}': {
+    put: {
+      summary: 'Update survey question',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'questionId', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateSurveyQuestionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Question updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyQuestionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+    delete: {
+      summary: 'Delete survey question',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'questionId', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Question deleted successfully',
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/me/surveys/{id}/responses': {
+    get: {
+      summary: 'List survey responses',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'schemeId', in: 'query', schema: { type: 'string' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        { name: 'offset', in: 'query', schema: { type: 'integer' } },
+      ],
+      responses: {
+        '200': {
+          description: 'List of survey responses',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/SurveyResponseItem' },
+                  },
+                  total: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+    post: {
+      summary: 'Submit survey response',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateSurveyResponseInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Survey response submitted successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SurveyResponseItem' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
       },
     },
   },
