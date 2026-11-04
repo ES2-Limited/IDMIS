@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button, Input } from '@idmis/ui';
 import { useAuth } from '../../auth';
-import { ShieldCheck, Lock, Mail, ArrowRight, KeyRound, Sparkles } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, ArrowRight, KeyRound, Sparkles, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function SignInPage() {
   const navigate = useNavigate();
   const { signIn, verifyTotp } = useAuth();
+  const { t, i18n } = useTranslation('auth');
+  const { t: tCommon } = useTranslation('common');
 
   const [email, setEmail] = useState('admin@idmis.gov.ng');
   const [password, setPassword] = useState('AdminSecret123!');
@@ -48,11 +51,11 @@ export function SignInPage() {
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Sign-in failed. Please check your credentials.');
-      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Invalid credentials. Please verify your email and password.',
+      );
     } finally {
       setLoading(false);
     }
@@ -60,9 +63,16 @@ export function SignInPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Background ambient lighting matching the hero palette */}
+      {/* Background ambient lighting */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-teal-600/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Language Switcher Badge */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white text-xs font-semibold">
+        <Globe className="h-3.5 w-3.5 text-teal-400" />
+        <span className="uppercase text-[11px] tracking-wider text-slate-300">Locale:</span>
+        <span className="text-teal-300 font-bold">{i18n.language}</span>
+      </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Brand Header */}
@@ -73,8 +83,8 @@ export function SignInPage() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             TRIMING <span className="text-teal-400 font-bold">IDMIS 2.0</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Federal Ministry of Water Resources and Sanitation
+          <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-xs mx-auto">
+            {tCommon('brand.subtitle')}
           </p>
         </div>
 
@@ -83,15 +93,13 @@ export function SignInPage() {
           <div className="mb-6">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 text-[11px] font-bold mb-2">
               <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
-              {tempToken ? 'Two-Factor Authentication' : 'Secure Official Portal'}
+              {tempToken ? t('twoFactorTitle') : 'Secure Official Portal'}
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-              {tempToken ? 'Enter 6-Digit TOTP Code' : 'Sign In with Credentials'}
+              {tempToken ? t('twoFactorTitle') : t('title')}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              {tempToken
-                ? 'Enter the verification code from your authenticator app.'
-                : 'Access scheme registries, farmer parcels, and water allocations.'}
+              {tempToken ? t('twoFactorDescription') : t('subtitle')}
             </p>
           </div>
 
@@ -112,7 +120,7 @@ export function SignInPage() {
                     htmlFor="signin-email"
                     className="block text-[11px] font-bold uppercase tracking-wider text-slate-500"
                   >
-                    Official Email
+                    {t('emailLabel')}
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -122,7 +130,7 @@ export function SignInPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="user@idmis.gov.ng"
+                      placeholder={t('emailPlaceholder')}
                       className="w-full pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white text-xs h-10.5 font-medium"
                     />
                   </div>
@@ -133,7 +141,7 @@ export function SignInPage() {
                     htmlFor="signin-password"
                     className="block text-[11px] font-bold uppercase tracking-wider text-slate-500"
                   >
-                    Password
+                    {t('passwordLabel')}
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -143,84 +151,84 @@ export function SignInPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
+                      placeholder={t('passwordPlaceholder')}
                       className="w-full pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white text-xs h-10.5 font-medium"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-600 text-[11px]">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                    />
+                    {t('rememberMe')}
+                  </label>
                 </div>
               </>
             ) : (
               <div className="space-y-2">
                 <label
-                  htmlFor="signin-totp"
-                  className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center"
+                  htmlFor="totp-code"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-slate-500"
                 >
-                  Authenticator Code
+                  Verification Code (TOTP)
                 </label>
                 <div className="relative">
-                  <KeyRound className="absolute left-4 top-3.5 h-4 w-4 text-teal-700" />
+                  <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                   <Input
-                    id="signin-totp"
+                    id="totp-code"
                     type="text"
                     required
                     maxLength={6}
-                    pattern="\d{6}"
+                    autoFocus
                     value={totpCode}
                     onChange={(e) => setTotpCode(e.target.value)}
-                    placeholder="123456"
-                    className="w-full text-center text-xl tracking-widest font-mono font-bold h-12 rounded-xl bg-teal-50/50 border-teal-200 focus:bg-white"
-                    autoFocus
+                    placeholder={t('totpPlaceholder')}
+                    className="w-full pl-10 tracking-widest text-center text-lg font-bold rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-11"
                   />
                 </div>
-                <p className="text-center text-[11px] text-slate-400">
-                  Development code is{' '}
-                  <span className="font-mono font-bold text-slate-700">123456</span>
-                </p>
               </div>
             )}
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11.5 mt-2 rounded-xl font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-md cursor-pointer"
+              className="w-full h-11 rounded-xl font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 text-xs"
             >
               {loading ? (
-                'Processing...'
+                tempToken ? (
+                  t('verifyingTotp')
+                ) : (
+                  t('authenticating')
+                )
               ) : tempToken ? (
-                'Verify & Proceed'
+                <>
+                  {t('verifyTotp')}
+                  <ArrowRight className="h-4 w-4" />
+                </>
               ) : (
-                <span className="flex items-center justify-center gap-1.5">
-                  Sign In to Workspace <ArrowRight className="h-4 w-4" />
-                </span>
+                <>
+                  {t('signInButton')}
+                  <ArrowRight className="h-4 w-4" />
+                </>
               )}
             </Button>
-
-            {tempToken && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setTempToken(null);
-                  setTotpCode('');
-                  setError(null);
-                }}
-                className="w-full h-10 rounded-xl text-xs font-semibold cursor-pointer"
-              >
-                Back to Sign In
-              </Button>
-            )}
           </form>
 
+          {/* Quick Demo Credential Helper */}
           <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
             <span className="flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-amber-500" /> End-to-end encrypted
+              <Sparkles className="h-3 w-3 text-amber-500" /> Demo Sandbox Active
             </span>
-            <span>Version 2.0.0</span>
+            <span className="font-mono text-slate-500 font-medium">Auto-filled: Admin</span>
           </div>
         </div>
 
         <p className="text-center text-[11px] text-slate-500 mt-6 font-medium">
-          National Irrigation Schemes Registry • All rights reserved
+          {tCommon('brand.project')}
         </p>
       </div>
     </div>

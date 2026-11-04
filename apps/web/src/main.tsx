@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { router, queryClient } from './app';
 import { AuthProvider } from './auth';
+import './i18n';
 import './index.css';
 
 const rootElement = document.getElementById('root');

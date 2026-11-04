@@ -1,0 +1,25 @@
+{
+  "title": "Core Administration & Identity",
+  "description": "Manage system permissions, institutional hierarchies, Water User Associations (WUAs), and tabular spreadsheet batch imports.",
+  "tabs": {
+    "users": "Users & Roles",
+    "organisations": "Organisations & WUAs",
+    "imports": "Batch Import Center"
+  },
+  "users": {
+    "title": "User Accounts & Scope Access",
+    "subtitle": "RBAC permission roles, state and scheme tenant boundaries, and offline device authorizations.",
+    "createUser": "Create New User",
+    "searchPlaceholder": "Search users by name, email...",
+    "allRoles": "All Roles",
+    "allStatuses": "All Statuses",
+    "activeOnly": "Active Only",
+    "inactiveOnly": "Inactive Only"
+  },
+  "organisations": {
+    "title": "Institutional Hierarchy & Water User Associations",
+    "subtitle": "River Basin Development Authorities (RBDAs), state ministry desks, schemes, sectors, and WUAs.",
+    "addOrg": "Add Organisation",
+    "treeHeader": "River Basin Hierarchy Tree"
+  }
+}

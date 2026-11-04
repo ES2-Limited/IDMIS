@@ -1,0 +1,54 @@
+{
+  "brand": {
+    "title": "TRIMING IDMIS",
+    "subtitle": "Federal Ministry of Water Resources and Sanitation",
+    "project": "Transforming Irrigation Management in Nigeria"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "manage": "Manage",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "refresh": "Refresh",
+    "search": "Search...",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "undo": "Undo Batch"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "saved_on_device": "Saved on Device",
+    "syncing": "Syncing",
+    "needs_fixing": "Needs Fixing",
+    "awaiting_review": "Awaiting Review",
+    "conflict": "Conflict",
+    "returned": "Returned",
+    "approved": "Approved",
+    "committed": "Committed",
+    "undone": "Undone"
+  },
+  "navigation": {
+    "dashboard": "Workspace Home",
+    "core": "Core Admin",
+    "slis": "SLIS (Land & Schemes)",
+    "me": "M&E (Indicators)",
+    "blis": "BLIS (Basin Land Info)",
+    "users": "Users & Roles",
+    "organisations": "Organisations & WUAs",
+    "imports": "Batch Import Center"
+  },
+  "currency": {
+    "symbol": "₦",
+    "code": "NGN"
+  }
+}
