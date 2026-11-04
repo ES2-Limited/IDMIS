@@ -30,7 +30,7 @@
     "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.4",
     "ioredis": "^6.0.0",
-    "postgres": "^3.4.5"
+    "postgres": "^4.0.0"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
