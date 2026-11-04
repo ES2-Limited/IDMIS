@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { Shield, Eye, CheckCircle2, Building, MapPin, Smartphone, Globe } from 'lucide-react';
-import { Badge, Switch } from '@idmis/ui';
+import {
+  Badge,
+  Switch,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import type { ModuleKey, ScopeType } from '@idmis/contracts';
 import { mockOrganisations, mockRoles } from '../../mocks/coreData';
 
@@ -179,46 +187,76 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
         </div>
       </div>
 
-      {/* Specific Target Org if RBDA / Scheme / Sector */}
+      {/* Specific Target Org if RBDA / Scheme / Sector with Radix Select */}
       {['rbda', 'scheme', 'sector'].includes(value.scopeType) && (
-        <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+        <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
             <Building className="h-3.5 w-3.5 text-slate-500" />
             Specific Organisation / Unit
           </label>
-          <select
-            value={value.scopeOrgId || ''}
-            onChange={(e) => onChange({ ...value, scopeOrgId: e.target.value })}
-            className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600"
+          <Select
+            value={value.scopeOrgId || mockOrganisations[0]?.id || ''}
+            onValueChange={(val) => onChange({ ...value, scopeOrgId: val })}
+            disabled={disabled}
           >
-            {mockOrganisations
-              .filter((o) => (value.scopeType === 'rbda' ? o.type === 'rbda' : true))
-              .map((org) => (
-                <option key={org.id} value={org.id}>
-                  [{org.code}] {org.name}
-                </option>
-              ))}
-          </select>
+            <SelectTrigger className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-2xs hover:border-teal-600 transition-all cursor-pointer">
+              <SelectValue placeholder="Choose organisation unit" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              {mockOrganisations
+                .filter((o) => (value.scopeType === 'rbda' ? o.type === 'rbda' : true))
+                .map((org) => (
+                  <SelectItem key={org.id} value={org.id} className="text-xs font-medium py-2">
+                    [{org.code}] {org.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
-      {/* Specific State if state-scoped */}
+      {/* Specific State if state-scoped with Radix Select */}
       {value.scopeType === 'state' && (
-        <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+        <div className="space-y-1.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
             <MapPin className="h-3.5 w-3.5 text-slate-500" />
             Assigned State Jurisdiction
           </label>
-          <select
+          <Select
             value={value.scopeStateId || '018f3a70-0001-7000-8000-000000000001'}
-            onChange={(e) => onChange({ ...value, scopeStateId: e.target.value })}
-            className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600"
+            onValueChange={(val) => onChange({ ...value, scopeStateId: val })}
+            disabled={disabled}
           >
-            <option value="018f3a70-0001-7000-8000-000000000001">Kano State</option>
-            <option value="018f3a70-0002-7000-8000-000000000002">Jigawa State</option>
-            <option value="018f3a70-0003-7000-8000-000000000003">Zamfara State</option>
-            <option value="018f3a70-0004-7000-8000-000000000004">Sokoto State</option>
-          </select>
+            <SelectTrigger className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-2xs hover:border-teal-600 transition-all cursor-pointer">
+              <SelectValue placeholder="Choose state" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem
+                value="018f3a70-0001-7000-8000-000000000001"
+                className="text-xs font-medium py-2"
+              >
+                Kano State
+              </SelectItem>
+              <SelectItem
+                value="018f3a70-0002-7000-8000-000000000002"
+                className="text-xs font-medium py-2"
+              >
+                Jigawa State
+              </SelectItem>
+              <SelectItem
+                value="018f3a70-0003-7000-8000-000000000003"
+                className="text-xs font-medium py-2"
+              >
+                Zamfara State
+              </SelectItem>
+              <SelectItem
+                value="018f3a70-0004-7000-8000-000000000004"
+                className="text-xs font-medium py-2"
+              >
+                Sokoto State
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 

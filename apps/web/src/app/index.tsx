@@ -7,6 +7,8 @@ import { SignInPage } from '../routes/auth/SignInPage';
 import { UnauthorizedPage } from '../routes/auth/UnauthorizedPage';
 import { WorkspaceDashboard } from '../modules/dashboard/WorkspaceDashboard';
 import { CoreHome } from '../modules/core/CoreHome';
+import { UserManagementView } from '../modules/core/UserManagementView';
+import { OrganisationsTreeView } from '../modules/core/OrganisationsTreeView';
 import { SlisHome } from '../modules/slis/SlisHome';
 import { MeHome } from '../modules/me/MeHome';
 import { BlisHome } from '../modules/blis/BlisHome';
@@ -52,25 +54,88 @@ const indexRoute = createRoute({
   component: WorkspaceDashboard,
 });
 
-// Module routes
+// Module routes: Core
 const coreRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core',
   component: CoreHome,
 });
 
+const coreUsersRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/core/users',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>Core Administration</span>
+        <span>/</span>
+        <span className="text-teal-700 font-bold">Users & Roles</span>
+      </div>
+      <UserManagementView />
+    </div>
+  ),
+});
+
+const coreOrganisationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/core/organisations',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>Core Administration</span>
+        <span>/</span>
+        <span className="text-teal-700 font-bold">Organisations & WUAs</span>
+      </div>
+      <OrganisationsTreeView />
+    </div>
+  ),
+});
+
+// Module routes: SLIS
 const slisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis',
   component: SlisHome,
 });
 
+const slisFarmersRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/slis/farmers',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>SLIS Module</span>
+        <span>/</span>
+        <span className="text-emerald-700 font-bold">Farmers & Households</span>
+      </div>
+      <SlisHome />
+    </div>
+  ),
+});
+
+const slisPlotsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/slis/plots',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>SLIS Module</span>
+        <span>/</span>
+        <span className="text-emerald-700 font-bold">Plots & Command Areas</span>
+      </div>
+      <SlisHome />
+    </div>
+  ),
+});
+
+// Module routes: M&E
 const meRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me',
   component: MeHome,
 });
 
+// Module routes: BLIS
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis',
@@ -80,7 +145,11 @@ const blisRoute = createRoute({
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
   coreRoute,
+  coreUsersRoute,
+  coreOrganisationsRoute,
   slisRoute,
+  slisFarmersRoute,
+  slisPlotsRoute,
   meRoute,
   blisRoute,
 ]);

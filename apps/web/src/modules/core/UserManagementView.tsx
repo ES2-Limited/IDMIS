@@ -1,6 +1,22 @@
 import * as React from 'react';
-import { Users, Search, UserPlus, Smartphone, ChevronRight } from 'lucide-react';
-import { Button, Input } from '@idmis/ui';
+import {
+  Users,
+  Search,
+  UserPlus,
+  Smartphone,
+  ChevronRight,
+  Shield,
+  CheckCircle2,
+} from 'lucide-react';
+import {
+  Button,
+  Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import type { CreateAppUserInput } from '@idmis/contracts';
 import { mockUsers, mockRoles } from '../../mocks/coreData';
 import { CreateUserDialog } from './CreateUserDialog';
@@ -88,7 +104,7 @@ export function UserManagementView() {
         </Button>
       </div>
 
-      {/* Filter & Search Bar */}
+      {/* Filter & Search Bar with Radix Select Dropdowns (Matches Header Style) */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -100,29 +116,53 @@ export function UserManagementView() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
-          >
-            <option value="all">All Roles</option>
-            {mockRoles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2.5">
+          {/* Role Filter Select */}
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger
+              aria-label="Filter by Role"
+              className="h-10 min-h-[40px] w-[180px] bg-slate-50 border-slate-200 text-xs font-semibold rounded-xl hover:bg-white hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Shield className="h-3.5 w-3.5 text-teal-700 shrink-0" />
+                <SelectValue placeholder="All Roles" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Roles
+              </SelectItem>
+              {mockRoles.map((r) => (
+                <SelectItem key={r.id} value={r.id} className="text-xs font-medium py-2">
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
+          {/* Status Filter Select */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger
+              aria-label="Filter by Status"
+              className="h-10 min-h-[40px] w-[150px] bg-slate-50 border-slate-200 text-xs font-semibold rounded-xl hover:bg-white hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <CheckCircle2 className="h-3.5 w-3.5 text-teal-700 shrink-0" />
+                <SelectValue placeholder="All Statuses" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Statuses
+              </SelectItem>
+              <SelectItem value="active" className="text-xs font-medium py-2">
+                Active Only
+              </SelectItem>
+              <SelectItem value="inactive" className="text-xs font-medium py-2">
+                Inactive Only
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
