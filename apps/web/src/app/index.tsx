@@ -13,6 +13,11 @@ import { ImportCenterView } from '../imports/ImportCenterView';
 import { SlisHome } from '../modules/slis/SlisHome';
 import { MeHome } from '../modules/me/MeHome';
 import { BlisHome } from '../modules/blis/BlisHome';
+import { FieldHomeView } from '../modules/field/FieldHomeView';
+import { FieldCaptureView } from '../modules/field/FieldCaptureView';
+import { FieldRecordsView } from '../modules/field/FieldRecordsView';
+import { FieldSyncView } from '../modules/field/FieldSyncView';
+import { useFieldMode } from '../shell/FieldModeContext';
 
 export const queryClient = new QueryClient();
 
@@ -48,11 +53,35 @@ const appShellRoute = createRoute({
   component: ShellLayout,
 });
 
+// Module routes: Field Station
+function ResponsiveHome() {
+  const { isFieldLayoutActive } = useFieldMode();
+  return isFieldLayoutActive ? <FieldHomeView /> : <WorkspaceDashboard />;
+}
+
 // Workspace Home Dashboard
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
-  component: WorkspaceDashboard,
+  component: ResponsiveHome,
+});
+
+const fieldCaptureRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture',
+  component: FieldCaptureView,
+});
+
+const fieldRecordsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/records',
+  component: FieldRecordsView,
+});
+
+const fieldSyncRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/sync',
+  component: FieldSyncView,
 });
 
 // Module routes: Core
@@ -160,6 +189,9 @@ const blisRoute = createRoute({
 
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
+  fieldCaptureRoute,
+  fieldRecordsRoute,
+  fieldSyncRoute,
   coreRoute,
   coreUsersRoute,
   coreOrganisationsRoute,
