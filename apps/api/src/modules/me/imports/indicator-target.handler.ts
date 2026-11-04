@@ -184,13 +184,18 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
             column: 'schemeCode',
             message: `Referenced scheme code '${data.schemeCode}' does not exist`,
           });
+        } else if (!foundScheme.stateId) {
+          errors.push({
+            column: 'schemeCode',
+            message: `Scheme '${data.schemeCode}' has no associated state in organisation_state`,
+          });
         } else {
           data.scopeOrgId = foundScheme.id;
-          data.scopeStateId = foundScheme.stateId ?? null;
+          data.scopeStateId = foundScheme.stateId;
 
           if (!scope.isNational) {
             const schemeMatch = scope.schemeIds?.includes(foundScheme.id);
-            const stateMatch = foundScheme.stateId && scope.stateIds?.includes(foundScheme.stateId);
+            const stateMatch = scope.stateIds?.includes(foundScheme.stateId);
             if (!schemeMatch && !stateMatch) {
               errors.push({
                 column: 'schemeCode',
@@ -231,8 +236,10 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
         indicatorId: data.indicatorId as string,
         year: data.year as number,
         scopeType: data.scopeType as 'national' | 'state' | 'scheme',
-        scopeStateId: data.scopeStateId as string | undefined,
-        scopeOrgId: data.scopeOrgId as string | undefined,
+        scopeStateId:
+          data.scopeType === 'scheme' ? undefined : (data.scopeStateId as string | undefined),
+        scopeOrgId:
+          data.scopeType === 'scheme' ? (data.scopeOrgId as string | undefined) : undefined,
         value: String(data.value),
       },
       authz,

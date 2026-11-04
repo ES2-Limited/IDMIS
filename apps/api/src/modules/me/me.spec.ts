@@ -516,6 +516,44 @@ describe('M&E Values, Targets, Approval, Evidence & Imports (BE-3.2)', () => {
       expect(res.statusCode).toBe(403);
     });
 
+    it('rejects target creation with spoofed state for scheme scope and verifies stored state derivation', async () => {
+      // 1. Client provides scopeStateId when scopeType is scheme -> 400 Bad Request (contract schema rejection)
+      const spoofRes = await app.inject({
+        method: 'POST',
+        url: '/me/targets',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          indicatorId: MANUAL_IND_ID,
+          year: 2027,
+          scopeType: 'scheme',
+          scopeOrgId: LAGOS_SCHEME_ID,
+          scopeStateId: KANO_STATE_ID, // spoofed Kano state for Lagos scheme!
+          value: '8000.00',
+        },
+      });
+      expect(spoofRes.statusCode).toBe(400);
+
+      // Verify nothing written
+      const checkRows = await testDb
+        .select()
+        .from(indicatorTarget)
+        .where(
+          and(
+            eq(indicatorTarget.indicatorId, MANUAL_IND_ID),
+            eq(indicatorTarget.year, 2027),
+            eq(indicatorTarget.scopeOrgId, LAGOS_SCHEME_ID),
+          ),
+        );
+      expect(checkRows.length).toBe(0);
+
+      // 2. Verify stored target's scope_state_id is derived server-side from organisation_state
+      const [storedKanoTarget] = await testDb
+        .select()
+        .from(indicatorTarget)
+        .where(eq(indicatorTarget.id, createdTargetId));
+      expect(storedKanoTarget.scopeStateId).toBe(KANO_STATE_ID);
+    });
+
     it('allows national admin to create national target', async () => {
       const res = await app.inject({
         method: 'POST',
@@ -625,6 +663,46 @@ describe('M&E Values, Targets, Approval, Evidence & Imports (BE-3.2)', () => {
       });
 
       expect(res.statusCode).toBe(409);
+    });
+
+    it('rejects value creation with spoofed state for scheme scope and verifies stored state derivation', async () => {
+      // 1. Client provides scopeStateId when scopeType is scheme -> 400 Bad Request
+      const spoofRes = await app.inject({
+        method: 'POST',
+        url: '/me/values',
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+        payload: {
+          indicatorId: MANUAL_IND_ID,
+          periodYear: 2026,
+          periodQuarter: 2,
+          scopeType: 'scheme',
+          scopeOrgId: LAGOS_SCHEME_ID,
+          scopeStateId: KANO_STATE_ID, // spoofed Kano state for Lagos scheme!
+          value: '9000.00',
+        },
+      });
+      expect(spoofRes.statusCode).toBe(400);
+
+      // Verify nothing written
+      const checkRows = await testDb
+        .select()
+        .from(indicatorValue)
+        .where(
+          and(
+            eq(indicatorValue.indicatorId, MANUAL_IND_ID),
+            eq(indicatorValue.periodYear, 2026),
+            eq(indicatorValue.periodQuarter, 2),
+            eq(indicatorValue.scopeOrgId, LAGOS_SCHEME_ID),
+          ),
+        );
+      expect(checkRows.length).toBe(0);
+
+      // 2. Verified stored value's scope_state_id equals Kano state (derived from organisation_state)
+      const [storedKanoValue] = await testDb
+        .select()
+        .from(indicatorValue)
+        .where(eq(indicatorValue.id, testValueId));
+      expect(storedKanoValue.scopeStateId).toBe(KANO_STATE_ID);
     });
 
     it('transitions draft value to submitted', async () => {
@@ -858,13 +936,28 @@ describe('M&E Values, Targets, Approval, Evidence & Imports (BE-3.2)', () => {
       expect(listRes.json().length).toBe(1);
       expect(listRes.json()[0].originalName).toBe('survey_summary.pdf');
 
-      // Scope check: Lagos officer cannot view evidence of Kano value (404)
-      const outOfScopeRes = await app.inject({
+      // Scope check: Lagos officer cannot view, attach or delete evidence of Kano value (404)
+      const outOfScopeGetRes = await app.inject({
         method: 'GET',
         url: `/me/values/${val.id}/evidence`,
         headers: { authorization: `Bearer ${lagosOfficerToken}` },
       });
-      expect(outOfScopeRes.statusCode).toBe(404);
+      expect(outOfScopeGetRes.statusCode).toBe(404);
+
+      const outOfScopeAttachRes = await app.inject({
+        method: 'POST',
+        url: `/me/values/${val.id}/evidence`,
+        headers: { authorization: `Bearer ${lagosOfficerToken}` },
+        payload: { fileId },
+      });
+      expect(outOfScopeAttachRes.statusCode).toBe(404);
+
+      const outOfScopeDeleteRes = await app.inject({
+        method: 'DELETE',
+        url: `/me/values/${val.id}/evidence/${fileId}`,
+        headers: { authorization: `Bearer ${lagosOfficerToken}` },
+      });
+      expect(outOfScopeDeleteRes.statusCode).toBe(404);
 
       // Remove evidence
       const deleteRes = await app.inject({
@@ -998,6 +1091,45 @@ describe('M&E Values, Targets, Approval, Evidence & Imports (BE-3.2)', () => {
       const previewData = previewRes.json();
       expect(previewData.rows[0].status).toBe('error');
       expect(previewData.rows[0].errors[0].code).toBe('computed_indicator_rejected');
+    });
+
+    it('rejects cross-state spoofed scheme rows during value import validation', async () => {
+      // Kano officer uploads a row with Lagos scheme ('LRIS') spoofed with Kano state ('KN')
+      const rows = [
+        {
+          indicatorCode: '1a',
+          periodYear: 2028,
+          periodQuarter: 1,
+          scopeType: 'scheme',
+          stateCode: 'KN', // spoofed Kano state for Lagos scheme
+          schemeCode: 'LRIS', // Lagos Scheme
+          disaggregation: JSON.stringify({ gender: 'female' }),
+          value: '4500.00',
+          notes: 'Attempted cross-state import',
+        },
+      ];
+
+      const batch = await uploadAndValidate(
+        'me.indicator_value',
+        rows,
+        kanoOfficerToken,
+        KANO_SCHEME_ID,
+      );
+
+      const previewRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${batch.id}/preview`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+
+      expect(previewRes.statusCode).toBe(200);
+      const previewData = previewRes.json();
+      expect(previewData.rows[0].status).toBe('error');
+      const err = previewData.rows[0].errors.find(
+        (e: { column: string; message: string; code?: string }) => e.code === 'out_of_scope',
+      );
+      expect(err).toBeDefined();
+      expect(err.message).toContain('outside your assigned scope');
     });
 
     it('executes full round-trip for manual indicator values: template -> fill -> upload -> preview -> commit -> undo', async () => {

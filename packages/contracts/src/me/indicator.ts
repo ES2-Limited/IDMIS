@@ -139,14 +139,63 @@ export const IndicatorTargetSchema = z.object({
 
 export type IndicatorTarget = z.infer<typeof IndicatorTargetSchema>;
 
-export const CreateIndicatorTargetInputSchema = z.object({
-  indicatorId: z.string().uuid(),
-  year: z.number().int(),
-  scopeType: ScopeTypeSchema,
-  scopeStateId: z.string().uuid().optional(),
-  scopeOrgId: z.string().uuid().optional(),
-  value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
-});
+export const CreateIndicatorTargetInputSchema = z
+  .object({
+    indicatorId: z.string().uuid(),
+    year: z.number().int(),
+    scopeType: ScopeTypeSchema,
+    scopeStateId: z.string().uuid().optional(),
+    scopeOrgId: z.string().uuid().optional(),
+    value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scopeType === 'national') {
+      if (data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is prohibited when scopeType is national',
+          path: ['scopeStateId'],
+        });
+      }
+      if (data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is prohibited when scopeType is national',
+          path: ['scopeOrgId'],
+        });
+      }
+    } else if (data.scopeType === 'state') {
+      if (!data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is required when scopeType is state',
+          path: ['scopeStateId'],
+        });
+      }
+      if (data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is prohibited when scopeType is state',
+          path: ['scopeOrgId'],
+        });
+      }
+    } else if (data.scopeType === 'scheme') {
+      if (!data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is required when scopeType is scheme',
+          path: ['scopeOrgId'],
+        });
+      }
+      if (data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is prohibited when scopeType is scheme (derived server-side)',
+          path: ['scopeStateId'],
+        });
+      }
+    }
+  });
 
 export type CreateIndicatorTargetInput = z.infer<typeof CreateIndicatorTargetInputSchema>;
 
@@ -198,18 +247,67 @@ export const IndicatorValueSchema = z.object({
 
 export type IndicatorValue = z.infer<typeof IndicatorValueSchema>;
 
-export const CreateIndicatorValueInputSchema = z.object({
-  indicatorId: z.string().uuid(),
-  periodYear: z.number().int(),
-  periodQuarter: z.number().int().min(1).max(4).optional(),
-  scopeType: ScopeTypeSchema,
-  scopeStateId: z.string().uuid().optional(),
-  scopeOrgId: z.string().uuid().optional(),
-  disaggregation: DisaggregationSchema.optional(),
-  value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
-  notes: z.string().optional(),
-  status: z.enum(['draft', 'submitted']).optional(),
-});
+export const CreateIndicatorValueInputSchema = z
+  .object({
+    indicatorId: z.string().uuid(),
+    periodYear: z.number().int(),
+    periodQuarter: z.number().int().min(1).max(4).optional(),
+    scopeType: ScopeTypeSchema,
+    scopeStateId: z.string().uuid().optional(),
+    scopeOrgId: z.string().uuid().optional(),
+    disaggregation: DisaggregationSchema.optional(),
+    value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
+    notes: z.string().optional(),
+    status: z.enum(['draft', 'submitted']).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scopeType === 'national') {
+      if (data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is prohibited when scopeType is national',
+          path: ['scopeStateId'],
+        });
+      }
+      if (data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is prohibited when scopeType is national',
+          path: ['scopeOrgId'],
+        });
+      }
+    } else if (data.scopeType === 'state') {
+      if (!data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is required when scopeType is state',
+          path: ['scopeStateId'],
+        });
+      }
+      if (data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is prohibited when scopeType is state',
+          path: ['scopeOrgId'],
+        });
+      }
+    } else if (data.scopeType === 'scheme') {
+      if (!data.scopeOrgId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeOrgId is required when scopeType is scheme',
+          path: ['scopeOrgId'],
+        });
+      }
+      if (data.scopeStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'scopeStateId is prohibited when scopeType is scheme (derived server-side)',
+          path: ['scopeStateId'],
+        });
+      }
+    }
+  });
 
 export type CreateIndicatorValueInput = z.infer<typeof CreateIndicatorValueInputSchema>;
 
