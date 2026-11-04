@@ -47,6 +47,11 @@ export class LookupRepository {
     return row ?? null;
   }
 
+  async findValueById(id: string, txDb: DatabaseOrTx = db) {
+    const [row] = await txDb.select().from(lookupValue).where(eq(lookupValue.id, id)).limit(1);
+    return row ?? null;
+  }
+
   async createType(data: CreateLookupTypeData, txDb: DatabaseOrTx = db) {
     const [row] = await txDb
       .insert(lookupType)

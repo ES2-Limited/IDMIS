@@ -6,6 +6,8 @@ export const ME_IMPORT_DATASETS = [
   'me.indicator_target',
   'me.indicator_value',
   'me.survey_response',
+  'me.scorecard',
+  'me.matching_grant',
 ] as const;
 export const MeImportDatasetSchema = z.enum(ME_IMPORT_DATASETS);
 export type MeImportDataset = z.infer<typeof MeImportDatasetSchema>;
@@ -53,6 +55,31 @@ export const SurveyResponseImportRowSchema = z.object({
   answers: z.string().min(1), // JSON string containing { [questionCode]: answerValue }
 });
 export type SurveyResponseImportRow = z.infer<typeof SurveyResponseImportRowSchema>;
+
+/**
+ * Row schema for me.scorecard import
+ */
+export const ScorecardImportRowSchema = z.object({
+  schemeCode: z.string().min(1).max(50),
+  periodYear: z.coerce.number().int().min(2000).max(2100),
+  publishedOn: z.string().optional(),
+});
+export type ScorecardImportRow = z.infer<typeof ScorecardImportRowSchema>;
+
+/**
+ * Row schema for me.matching_grant import
+ */
+export const MatchingGrantImportRowSchema = z.object({
+  schemeCode: z.string().min(1).max(50),
+  wuaRegNo: z.string().optional(),
+  purpose: z.string().optional(),
+  amountNgn: z
+    .string()
+    .regex(/^-?\d+(\.\d{1,2})?$/, 'Amount must be a valid currency decimal string'),
+  approvedOn: z.string().optional(),
+  disbursedOn: z.string().optional(),
+});
+export type MatchingGrantImportRow = z.infer<typeof MatchingGrantImportRowSchema>;
 
 export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition[]> = {
   'me.indicator_target': [
@@ -243,6 +270,82 @@ export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition
       type: 'string',
       description: 'JSON object mapping question codes to answers',
       example: '{"q1":"Yes","q2":42}',
+    },
+  ],
+  'me.scorecard': [
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the scheme',
+      example: 'KRIS',
+    },
+    {
+      name: 'periodYear',
+      header: 'Period Year',
+      required: true,
+      type: 'number',
+      description: 'Calendar year for the scorecard',
+      example: 2026,
+    },
+    {
+      name: 'publishedOn',
+      header: 'Published On',
+      required: false,
+      type: 'string',
+      description: 'Date scorecard was published (YYYY-MM-DD)',
+      example: '2026-06-30',
+    },
+  ],
+  'me.matching_grant': [
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the scheme',
+      example: 'KRIS',
+    },
+    {
+      name: 'wuaRegNo',
+      header: 'WUA Registration No',
+      required: false,
+      type: 'string',
+      description: 'Registration number of recipient WUA',
+      example: 'WUA-KRIS-001',
+    },
+    {
+      name: 'purpose',
+      header: 'Grant Purpose',
+      required: false,
+      type: 'string',
+      description: 'Purpose or description of the grant',
+      example: 'Canal maintenance equipment grant',
+    },
+    {
+      name: 'amountNgn',
+      header: 'Amount NGN',
+      required: true,
+      type: 'string',
+      description: 'Approved grant amount in NGN (decimal string)',
+      example: '1500000.00',
+    },
+    {
+      name: 'approvedOn',
+      header: 'Approved On',
+      required: false,
+      type: 'string',
+      description: 'Approval date (YYYY-MM-DD)',
+      example: '2026-04-10',
+    },
+    {
+      name: 'disbursedOn',
+      header: 'Disbursed On',
+      required: false,
+      type: 'string',
+      description: 'Disbursement date (YYYY-MM-DD)',
+      example: '2026-05-01',
     },
   ],
 };

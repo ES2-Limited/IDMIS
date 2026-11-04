@@ -20,6 +20,15 @@ import {
   UpdateSurveyQuestionInputSchema,
   SurveyResponseSchema,
   CreateSurveyResponseInputSchema,
+  ScorecardSchema,
+  CreateScorecardInputSchema,
+  UpdateScorecardInputSchema,
+  MatchingGrantSchema,
+  CreateMatchingGrantInputSchema,
+  UpdateMatchingGrantInputSchema,
+  TechAdoptionSchema,
+  CreateTechAdoptionInputSchema,
+  UpdateTechAdoptionInputSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -86,6 +95,15 @@ export const meSchemas: Record<string, unknown> = {
   UpdateSurveyQuestionInput: toJsonSchema(UpdateSurveyQuestionInputSchema),
   SurveyResponseItem: toJsonSchema(SurveyResponseSchema),
   CreateSurveyResponseInput: toJsonSchema(CreateSurveyResponseInputSchema),
+  ScorecardResponse: toJsonSchema(ScorecardSchema),
+  CreateScorecardInput: toJsonSchema(CreateScorecardInputSchema),
+  UpdateScorecardInput: toJsonSchema(UpdateScorecardInputSchema),
+  MatchingGrantResponse: toJsonSchema(MatchingGrantSchema),
+  CreateMatchingGrantInput: toJsonSchema(CreateMatchingGrantInputSchema),
+  UpdateMatchingGrantInput: toJsonSchema(UpdateMatchingGrantInputSchema),
+  TechAdoptionResponse: toJsonSchema(TechAdoptionSchema),
+  CreateTechAdoptionInput: toJsonSchema(CreateTechAdoptionInputSchema),
+  UpdateTechAdoptionInput: toJsonSchema(UpdateTechAdoptionInputSchema),
 };
 
 export const mePaths: Record<string, Record<string, unknown>> = {
@@ -787,6 +805,388 @@ export const mePaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // SCORECARDS
+  // -------------------------------------------------------------
+  '/me/scorecards': {
+    get: {
+      summary: 'List scorecards',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string' } },
+        { name: 'periodYear', in: 'query', schema: { type: 'integer' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'List of scorecards',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/ScorecardResponse' },
+                  },
+                  total: { type: 'integer' },
+                  nextCursor: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create scorecard',
+      tags: ['me'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateScorecardInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Scorecard created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ScorecardResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 409),
+      },
+    },
+  },
+
+  '/me/scorecards/{id}': {
+    get: {
+      summary: 'Get scorecard by ID',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Scorecard details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ScorecardResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    put: {
+      summary: 'Update scorecard',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateScorecardInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Scorecard updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ScorecardResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+    delete: {
+      summary: 'Delete scorecard',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Scorecard deleted successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ScorecardResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // MATCHING GRANTS
+  // -------------------------------------------------------------
+  '/me/grants': {
+    get: {
+      summary: 'List matching grants',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string' } },
+        { name: 'wuaId', in: 'query', schema: { type: 'string' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'List of matching grants',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/MatchingGrantResponse' },
+                  },
+                  total: { type: 'integer' },
+                  nextCursor: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create matching grant',
+      tags: ['me'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateMatchingGrantInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Matching grant created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MatchingGrantResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 409),
+      },
+    },
+  },
+
+  '/me/grants/{id}': {
+    get: {
+      summary: 'Get matching grant by ID',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Matching grant details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MatchingGrantResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    put: {
+      summary: 'Update matching grant',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateMatchingGrantInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Matching grant updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MatchingGrantResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+    delete: {
+      summary: 'Delete matching grant',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Matching grant deleted successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MatchingGrantResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // TECHNOLOGY ADOPTION
+  // -------------------------------------------------------------
+  '/me/tech-adoption': {
+    get: {
+      summary: 'List tech adoptions',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string' } },
+        { name: 'technologyId', in: 'query', schema: { type: 'string' } },
+        { name: 'gender', in: 'query', schema: { type: 'string', enum: ['female', 'male'] } },
+        { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        { name: 'cursor', in: 'query', schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'List of tech adoptions',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/TechAdoptionResponse' },
+                  },
+                  total: { type: 'integer' },
+                  nextCursor: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create tech adoption record',
+      tags: ['me'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateTechAdoptionInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Tech adoption created successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 409),
+      },
+    },
+  },
+
+  '/me/tech-adoption/{id}': {
+    get: {
+      summary: 'Get tech adoption record by ID',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        '200': {
+          description: 'Tech adoption record details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    put: {
+      summary: 'Update tech adoption record',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateTechAdoptionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Tech adoption record updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+    delete: {
+      summary: 'Delete tech adoption record',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Tech adoption record deleted successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TechAdoptionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404, 409),
       },
     },
   },
