@@ -2,7 +2,11 @@ import { z } from 'zod';
 import type { ImportColumnDefinition } from '../core/import';
 import { ScopeTypeSchema } from '../core/enums';
 
-export const ME_IMPORT_DATASETS = ['me.indicator_target', 'me.indicator_value'] as const;
+export const ME_IMPORT_DATASETS = [
+  'me.indicator_target',
+  'me.indicator_value',
+  'me.survey_response',
+] as const;
 export const MeImportDatasetSchema = z.enum(ME_IMPORT_DATASETS);
 export type MeImportDataset = z.infer<typeof MeImportDatasetSchema>;
 
@@ -34,6 +38,21 @@ export const IndicatorValueImportRowSchema = z.object({
   notes: z.string().optional(),
 });
 export type IndicatorValueImportRow = z.infer<typeof IndicatorValueImportRowSchema>;
+
+/**
+ * Row schema for me.survey_response import
+ */
+export const SurveyResponseImportRowSchema = z.object({
+  surveyName: z.string().optional(),
+  surveyId: z.string().optional(),
+  schemeCode: z.string().optional(),
+  respondentId: z.string().optional(),
+  respondentPhone: z.string().optional(),
+  period: z.string().optional(),
+  collectedAt: z.string().optional(),
+  answers: z.string().min(1), // JSON string containing { [questionCode]: answerValue }
+});
+export type SurveyResponseImportRow = z.infer<typeof SurveyResponseImportRowSchema>;
 
 export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition[]> = {
   'me.indicator_target': [
@@ -158,6 +177,72 @@ export const ME_IMPORT_TEMPLATES: Record<MeImportDataset, ImportColumnDefinition
       type: 'string',
       description: 'Optional commentary or notes',
       example: 'Verified by field survey',
+    },
+  ],
+  'me.survey_response': [
+    {
+      name: 'surveyName',
+      header: 'Survey Name',
+      required: false,
+      type: 'string',
+      description: 'Name of the survey (resolved to latest version)',
+      example: 'Annual Beneficiary Survey',
+    },
+    {
+      name: 'surveyId',
+      header: 'Survey ID',
+      required: false,
+      type: 'string',
+      description: 'Exact UUID of the survey',
+      example: '00000000-0000-0000-0000-000000000000',
+    },
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: false,
+      type: 'string',
+      description: 'Scheme code if applicable',
+      example: 'KRIS',
+    },
+    {
+      name: 'respondentId',
+      header: 'Respondent ID',
+      required: false,
+      type: 'string',
+      description: 'Identifier of the respondent',
+      example: 'RESP-001',
+    },
+    {
+      name: 'respondentPhone',
+      header: 'Respondent Phone',
+      required: false,
+      type: 'string',
+      description: 'Phone number of the respondent',
+      example: '+2348012345678',
+    },
+    {
+      name: 'period',
+      header: 'Period',
+      required: false,
+      type: 'string',
+      description: 'Period code (e.g. 2026-Q1)',
+      example: '2026-Q1',
+    },
+    {
+      name: 'collectedAt',
+      header: 'Collected At',
+      required: false,
+      type: 'string',
+      description: 'ISO datetime of data collection',
+      example: '2026-03-15T10:00:00Z',
+    },
+    {
+      name: 'answers',
+      header: 'Answers JSON',
+      required: true,
+      type: 'string',
+      description: 'JSON object mapping question codes to answers',
+      example: '{"q1":"Yes","q2":42}',
     },
   ],
 };
