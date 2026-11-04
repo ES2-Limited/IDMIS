@@ -17,6 +17,7 @@ import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
 import { FieldSyncView } from '../modules/field/FieldSyncView';
+import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
 import { useFieldMode } from '../shell/FieldModeContext';
 
 export const queryClient = new QueryClient();
@@ -70,6 +71,12 @@ const fieldCaptureRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/field/capture',
   component: FieldCaptureView,
+});
+
+const fieldFarmerRegisterRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/farmer',
+  component: FarmerRegistrationWizard,
 });
 
 const fieldRecordsRoute = createRoute({
@@ -190,6 +197,7 @@ const blisRoute = createRoute({
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
   fieldCaptureRoute,
+  fieldFarmerRegisterRoute,
   fieldRecordsRoute,
   fieldSyncRoute,
   coreRoute,

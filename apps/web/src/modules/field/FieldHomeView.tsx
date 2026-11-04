@@ -119,7 +119,7 @@ export function FieldHomeView() {
 
         <div className="grid grid-cols-2 gap-3">
           <Link
-            to="/slis"
+            to="/field/capture/farmer"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-teal-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-teal-50 text-teal-700 w-fit group-hover:scale-105 transition-transform">

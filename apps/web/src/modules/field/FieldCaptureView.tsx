@@ -12,7 +12,7 @@ export function FieldCaptureView() {
       description: '7-step survey: identity, household, location GPS, WUA group & photo docs.',
       icon: UserPlus,
       color: 'teal',
-      route: '/slis',
+      route: '/field/capture/farmer',
     },
     {
       id: 'plot',
