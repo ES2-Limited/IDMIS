@@ -27,9 +27,10 @@ export function BottomNav() {
     >
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
-          const isActive = item.exact
-            ? currentPath === item.path
-            : currentPath.startsWith(item.path);
+          const isActive =
+            item.exact || item.path === '/field'
+              ? currentPath === item.path
+              : currentPath.startsWith(item.path);
           const Icon = item.icon;
 
           return (

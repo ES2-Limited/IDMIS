@@ -17,6 +17,7 @@ import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
 import { FieldSyncView } from '../modules/field/FieldSyncView';
+import { FieldProfileView } from '../modules/field/FieldProfileView';
 import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
 import { PlotMappingView } from '../modules/slis/field/PlotMappingView';
 import { useFieldMode } from '../shell/FieldModeContext';
@@ -97,6 +98,12 @@ const fieldSyncRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/field/sync',
   component: FieldSyncView,
+});
+
+const fieldProfileRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/profile',
+  component: FieldProfileView,
 });
 
 // Module routes: Core
@@ -210,6 +217,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   fieldPlotMapRoute,
   fieldRecordsRoute,
   fieldSyncRoute,
+  fieldProfileRoute,
   coreRoute,
   coreUsersRoute,
   coreOrganisationsRoute,

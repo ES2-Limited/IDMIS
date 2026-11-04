@@ -26,7 +26,7 @@ export function FieldBottomBar() {
       isSpinning: isSyncing,
       badge: pendingOpsCount > 0 ? `${pendingOpsCount}` : undefined,
     },
-    { label: 'Me', path: '/me', icon: UserCheck },
+    { label: 'Me', path: '/field/profile', icon: UserCheck },
   ];
 
   return (
@@ -36,7 +36,10 @@ export function FieldBottomBar() {
     >
       <div className="flex items-center justify-around max-w-lg mx-auto">
         {tabs.map((tab) => {
-          const isActive = tab.exact ? currentPath === tab.path : currentPath.startsWith(tab.path);
+          const isActive =
+            tab.exact || tab.path === '/field'
+              ? currentPath === tab.path
+              : currentPath.startsWith(tab.path);
           const Icon = tab.icon;
 
           return (

@@ -60,7 +60,8 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           className="hidden lg:flex items-center gap-1.5 border-l border-slate-200/80 pl-4 ml-1"
         >
           {modules.map((m) => {
-            const isActive = currentPath.startsWith(m.path);
+            const isActive =
+              m.path === '/field' ? currentPath === m.path : currentPath.startsWith(m.path);
             return (
               <Link
                 key={m.id}
