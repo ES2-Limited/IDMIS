@@ -19,6 +19,9 @@ import {
   household,
   feeBilling,
   feeCollection,
+  surveyResponse,
+  surveyAnswer,
+  techAdoption,
 } from '@idmis/db';
 import { Injectable, Logger } from '@nestjs/common';
 import type {
@@ -51,6 +54,9 @@ export const SYNC_SUPPORTED_ENTITIES = new Set<string>([
   'household',
   'fee_billing',
   'fee_collection',
+  'survey_response',
+  'survey_answer',
+  'tech_adoption',
 ]);
 
 @Injectable()
@@ -368,6 +374,24 @@ export class SyncRepository {
           }));
           break;
         }
+        case 'survey_response':
+          rows = (await txDb
+            .select()
+            .from(surveyResponse)
+            .where(inArray(surveyResponse.id, ids))) as Array<Record<string, unknown>>;
+          break;
+        case 'survey_answer':
+          rows = (await txDb
+            .select()
+            .from(surveyAnswer)
+            .where(inArray(surveyAnswer.id, ids))) as Array<Record<string, unknown>>;
+          break;
+        case 'tech_adoption':
+          rows = (await txDb
+            .select()
+            .from(techAdoption)
+            .where(inArray(techAdoption.id, ids))) as Array<Record<string, unknown>>;
+          break;
         default:
           this.logger.error(`Unknown sync entity in fetchCurrentEntityRows: "${entity}"`);
           break;

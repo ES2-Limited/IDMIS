@@ -30,3 +30,5 @@ export { drizzle } from 'drizzle-orm/postgres-js';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
 export * from './authz/index';
 export * from './security/index';
+export * from './seed/me-indicators';
+export * from './seed/me-indicators.data';

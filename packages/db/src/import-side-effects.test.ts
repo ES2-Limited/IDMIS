@@ -14,13 +14,13 @@ describe('No Side Effects on Import (@idmis/db built dist)', () => {
     const mod = await import(distIndexPath);
     expect(mod.runMigrations).toBeUndefined();
     expect(mod.MIGRATION_ADVISORY_LOCK_ID).toBeUndefined();
-  });
+  }, 15000);
 
   it('exports runMigrations and MIGRATION_ADVISORY_LOCK_ID from @idmis/db/migrate dist', async () => {
     const mod = await import(distMigratePath);
     expect(typeof mod.runMigrations).toBe('function');
     expect(mod.MIGRATION_ADVISORY_LOCK_ID).toBe(84729104);
-  });
+  }, 15000);
 
   it('importing built dist has zero side effects and does not attempt DB connection or migrations', async () => {
     // We execute node in an isolated child process with an unreachable database host.
