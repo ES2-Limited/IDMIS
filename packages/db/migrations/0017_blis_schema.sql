@@ -140,16 +140,23 @@ BEGIN
       v_start_date,
       v_end_date
     );
-    EXECUTE format(
-      'GRANT SELECT, INSERT, UPDATE, DELETE ON blis.%I TO idmis_app;',
-      v_table_name
-    );
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'idmis_app') THEN
+      EXECUTE format(
+        'GRANT SELECT, INSERT, UPDATE, DELETE ON blis.%I TO idmis_app;',
+        v_table_name
+      );
+    END IF;
   END IF;
 END;
 $$;
 
 REVOKE ALL ON FUNCTION blis.ensure_measurement_partition(int) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION blis.ensure_measurement_partition(int) TO idmis_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'idmis_app') THEN
+    GRANT EXECUTE ON FUNCTION blis.ensure_measurement_partition(int) TO idmis_app;
+  END IF;
+END $$;
 
 -- Create initial partitions for current year (2026) and next year (2027)
 SELECT blis.ensure_measurement_partition(2026);
@@ -369,11 +376,16 @@ CREATE INDEX IF NOT EXISTS "map_feature_geom_gist_idx" ON "blis"."map_feature" U
 CREATE INDEX IF NOT EXISTS "map_feature_layer_id_idx" ON "blis"."map_feature" ("layer_id");
 
 -- 17. Database Permissions for idmis_app
-GRANT USAGE ON SCHEMA "blis" TO idmis_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "blis" TO idmis_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "blis" TO idmis_app;
-GRANT EXECUTE ON ALL ROUTINES IN SCHEMA "blis" TO idmis_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT USAGE, SELECT ON SEQUENCES TO idmis_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO idmis_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT EXECUTE ON ROUTINES TO idmis_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'idmis_app') THEN
+    GRANT USAGE ON SCHEMA "blis" TO idmis_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "blis" TO idmis_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "blis" TO idmis_app;
+    GRANT EXECUTE ON ALL ROUTINES IN SCHEMA "blis" TO idmis_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT USAGE, SELECT ON SEQUENCES TO idmis_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO idmis_app;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA "blis" GRANT EXECUTE ON ROUTINES TO idmis_app;
+  END IF;
+END $$;
 
