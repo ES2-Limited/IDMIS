@@ -27,7 +27,12 @@ import { WaterRequestService } from './water-request.service';
 import { CropProductionService } from './crop-production.service';
 import { StreamFlowService } from './stream-flow.service';
 import { TrainingService } from './training.service';
-import { SurveyService, SurveyRepository, SurveyResponseRepository } from '../../me/public';
+import {
+  SurveyService,
+  SurveyRepository,
+  SurveyResponseRepository,
+  InstrumentsService,
+} from '../../me/public';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
 import type { UserAuthz } from '../../../platform/auth';
@@ -46,6 +51,7 @@ export class SyncService {
     private readonly surveyService: SurveyService,
     private readonly surveyRepo: SurveyRepository,
     private readonly surveyResponseRepo: SurveyResponseRepository,
+    private readonly instrumentsService: InstrumentsService,
   ) {}
 
   async registerDevice(
@@ -493,6 +499,50 @@ export class SyncService {
           value: data.value,
         });
         return answer as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+    }
+
+    if (entity === 'tech_adoption') {
+      if (action === 'create') {
+        const res = await this.instrumentsService.createTechAdoption(
+          {
+            id: recordId,
+            schemeId: String(data.schemeId),
+            farmerId: (data.farmerId as string | undefined) ?? undefined,
+            technologyId: String(data.technologyId),
+            gender: data.gender as 'female' | 'male',
+            adoptedOn: (data.adoptedOn as string | undefined) ?? undefined,
+          },
+          authz,
+          actorUserId,
+          (data.deviceId as string | undefined) ?? undefined,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+      if (action === 'update') {
+        const res = await this.instrumentsService.updateTechAdoption(
+          recordId,
+          baseVersion,
+          {
+            schemeId: (data.schemeId as string | undefined) ?? undefined,
+            farmerId: (data.farmerId as string | undefined) ?? undefined,
+            technologyId: (data.technologyId as string | undefined) ?? undefined,
+            gender: (data.gender as 'female' | 'male' | undefined) ?? undefined,
+            adoptedOn: (data.adoptedOn as string | undefined) ?? undefined,
+            version: baseVersion,
+          },
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
           version?: number;
           schemeId?: string | null;
           stateId?: string | null;

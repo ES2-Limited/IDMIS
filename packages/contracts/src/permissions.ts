@@ -89,6 +89,7 @@ export const permissions = {
   ME_SURVEY_MANAGE: 'me.survey.manage',
   ME_SURVEY_RESPOND: 'me.survey.respond',
   ME_INSTRUMENTS_MANAGE: 'me.instruments.manage',
+  ME_ADOPTION_RECORD: 'me.adoption.record',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -157,4 +158,5 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.ME_SURVEY_MANAGE]: 'scoped',
   [permissions.ME_SURVEY_RESPOND]: 'scoped',
   [permissions.ME_INSTRUMENTS_MANAGE]: 'scoped',
+  [permissions.ME_ADOPTION_RECORD]: 'scoped',
 };

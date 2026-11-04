@@ -158,6 +158,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.ME_SURVEY_MANAGE,
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_INSTRUMENTS_MANAGE,
+    permissions.ME_ADOPTION_RECORD,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope
@@ -302,6 +303,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_SYNC_PUSH,
     permissions.SLIS_SYNC_PULL,
     permissions.ME_SURVEY_RESPOND,
+    permissions.ME_ADOPTION_RECORD,
   ],
 
   // 7. M&E Officer: Monitoring & Evaluation data entry, survey collection, and analysis
@@ -326,6 +328,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.ME_SURVEY_MANAGE,
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_INSTRUMENTS_MANAGE,
+    permissions.ME_ADOPTION_RECORD,
   ],
 
   // 8. Basin Officer: Dam safety records & river basin monitoring
