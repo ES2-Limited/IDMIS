@@ -21,7 +21,7 @@ export function FieldCaptureView() {
       description: 'Walk boundary with GPS or drop points; area computed on device.',
       icon: MapPin,
       color: 'emerald',
-      route: '/slis',
+      route: '/field/capture/plot',
     },
     {
       id: 'water',

@@ -94,6 +94,12 @@ export function SideNav() {
         permission: 'slis.farmer.create',
       },
       {
+        label: 'Map Plot Boundary (Walk)',
+        path: '/field/capture/plot',
+        icon: MapPin,
+        permission: 'slis.farm.create',
+      },
+      {
         label: 'Farmers & Households',
         path: '/slis/farmers',
         icon: Users,

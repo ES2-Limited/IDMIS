@@ -134,7 +134,7 @@ export function FieldHomeView() {
           </Link>
 
           <Link
-            to="/slis"
+            to="/field/capture/plot"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 w-fit group-hover:scale-105 transition-transform">
