@@ -11,16 +11,19 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hookform/resolvers": "^7.0.1",
     "@idmis/api-client": "workspace:*",
     "@idmis/contracts": "workspace:*",
     "@idmis/sync": "workspace:*",
     "@idmis/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-router": "^1.170.46",
+    "@tanstack/react-table": "^9.3.1",
     "dexie": "^4.4.7",
     "lucide-react": "^1.66.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.91.0"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
