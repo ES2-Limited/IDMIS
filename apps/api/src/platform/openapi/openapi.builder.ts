@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { slisSchemas, slisPaths } from './slis.openapi';
+import { meSchemas, mePaths } from './me.openapi';
 import {
   ProblemDetailsSchema,
   ConflictProblemSchema,
@@ -335,6 +336,9 @@ export function buildOpenApiDocument(
 
     // SLIS
     ...slisSchemas,
+
+    // M&E
+    ...meSchemas,
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -1724,6 +1728,9 @@ export function buildOpenApiDocument(
   // SLIS endpoints
   Object.assign(paths, slisPaths);
 
+  // M&E endpoints
+  Object.assign(paths, mePaths);
+
   const tags = [
     { name: 'auth', description: 'Authentication, TOTP MFA, sessions, and passwords' },
     { name: 'users', description: 'User account provisioning, profiles, and status' },
@@ -1749,6 +1756,10 @@ export function buildOpenApiDocument(
     {
       name: 'slis-exports',
       description: 'Scheme Land Information System asynchronous tabular export processing',
+    },
+    {
+      name: 'me',
+      description: 'Monitoring and Evaluation (indicators, targets, values, evidence)',
     },
   ];
 

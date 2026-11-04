@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BaseListQuerySchema } from '../core/common';
 import { ScopeTypeSchema } from '../core/enums';
 import {
   IndicatorLevelSchema,
@@ -149,6 +150,21 @@ export const CreateIndicatorTargetInputSchema = z.object({
 
 export type CreateIndicatorTargetInput = z.infer<typeof CreateIndicatorTargetInputSchema>;
 
+export const UpdateIndicatorTargetInputSchema = z.object({
+  value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
+  version: z.number().int().positive(),
+});
+
+export type UpdateIndicatorTargetInput = z.infer<typeof UpdateIndicatorTargetInputSchema>;
+
+export const ListIndicatorTargetsQuerySchema = BaseListQuerySchema.extend({
+  indicatorId: z.string().uuid().optional(),
+  year: z.coerce.number().int().optional(),
+  scopeType: ScopeTypeSchema.optional(),
+});
+
+export type ListIndicatorTargetsQuery = z.infer<typeof ListIndicatorTargetsQuerySchema>;
+
 // 4. Indicator Value
 export const IndicatorValueSchema = z.object({
   id: z.string().uuid(),
@@ -182,7 +198,7 @@ export const IndicatorValueSchema = z.object({
 
 export type IndicatorValue = z.infer<typeof IndicatorValueSchema>;
 
-export const SubmitIndicatorValueInputSchema = z.object({
+export const CreateIndicatorValueInputSchema = z.object({
   indicatorId: z.string().uuid(),
   periodYear: z.number().int(),
   periodQuarter: z.number().int().min(1).max(4).optional(),
@@ -192,9 +208,51 @@ export const SubmitIndicatorValueInputSchema = z.object({
   disaggregation: DisaggregationSchema.optional(),
   value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string'),
   notes: z.string().optional(),
+  status: z.enum(['draft', 'submitted']).optional(),
+});
+
+export type CreateIndicatorValueInput = z.infer<typeof CreateIndicatorValueInputSchema>;
+
+export const UpdateIndicatorValueInputSchema = z.object({
+  value: z
+    .string()
+    .regex(/^-?\d+(\.\d+)?$/, 'Value must be a valid decimal string')
+    .optional(),
+  notes: z.string().optional(),
+  disaggregation: DisaggregationSchema.optional(),
+  version: z.number().int().positive(),
+});
+
+export type UpdateIndicatorValueInput = z.infer<typeof UpdateIndicatorValueInputSchema>;
+
+export const SubmitIndicatorValueInputSchema = z.object({
+  version: z.number().int().positive().optional(),
 });
 
 export type SubmitIndicatorValueInput = z.infer<typeof SubmitIndicatorValueInputSchema>;
+
+export const ApproveIndicatorValueInputSchema = z.object({
+  version: z.number().int().positive().optional(),
+});
+
+export type ApproveIndicatorValueInput = z.infer<typeof ApproveIndicatorValueInputSchema>;
+
+export const ReturnIndicatorValueInputSchema = z.object({
+  comment: z.string().min(1, 'Return requires a comment'),
+  version: z.number().int().positive().optional(),
+});
+
+export type ReturnIndicatorValueInput = z.infer<typeof ReturnIndicatorValueInputSchema>;
+
+export const ListIndicatorValuesQuerySchema = BaseListQuerySchema.extend({
+  indicatorId: z.string().uuid().optional(),
+  periodYear: z.coerce.number().int().optional(),
+  periodQuarter: z.coerce.number().int().min(1).max(4).optional(),
+  status: ValueStatusSchema.optional(),
+  scopeType: ScopeTypeSchema.optional(),
+});
+
+export type ListIndicatorValuesQuery = z.infer<typeof ListIndicatorValuesQuerySchema>;
 
 // 5. Indicator Value Evidence
 export const IndicatorValueEvidenceSchema = z.object({
@@ -203,3 +261,9 @@ export const IndicatorValueEvidenceSchema = z.object({
 });
 
 export type IndicatorValueEvidence = z.infer<typeof IndicatorValueEvidenceSchema>;
+
+export const AttachEvidenceInputSchema = z.object({
+  fileId: z.string().uuid(),
+});
+
+export type AttachEvidenceInput = z.infer<typeof AttachEvidenceInputSchema>;
