@@ -20,10 +20,12 @@
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-table": "^9.3.1",
     "dexie": "^4.4.7",
+    "i18next": "^26.7.1",
     "lucide-react": "^1.66.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.91.0"
+    "react-hook-form": "^7.91.0",
+    "react-i18next": "^17.1.11"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
