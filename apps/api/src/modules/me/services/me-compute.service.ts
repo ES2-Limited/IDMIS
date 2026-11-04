@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
 import {
   db,
@@ -160,10 +166,11 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
         removeOnFail: 100,
       });
     } catch (err) {
-      this.logger.warn(
-        `Failed to enqueue compute job, executing synchronously: ${(err as Error).message}`,
+      this.logger.error(
+        `Failed to enqueue compute job: ${(err as Error).message}`,
+        (err as Error).stack,
       );
-      await this.runCompute(options);
+      throw new ServiceUnavailableException('Compute queue is unavailable');
     }
   }
 
