@@ -55,17 +55,18 @@ const appShellRoute = createRoute({
   component: ShellLayout,
 });
 
-// Module routes: Field Station
-function ResponsiveHome() {
-  const { isFieldLayoutActive } = useFieldMode();
-  return isFieldLayoutActive ? <FieldHomeView /> : <WorkspaceDashboard />;
-}
-
-// Workspace Home Dashboard
+// Workspace Home Dashboard (Desktop Admin / Scheme Officer Overview)
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
-  component: ResponsiveHome,
+  component: WorkspaceDashboard,
+});
+
+// Dedicated Field Station Home route
+const fieldHomeRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field',
+  component: FieldHomeView,
 });
 
 const fieldCaptureRoute = createRoute({
@@ -203,6 +204,7 @@ const blisRoute = createRoute({
 
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
+  fieldHomeRoute,
   fieldCaptureRoute,
   fieldFarmerRegisterRoute,
   fieldPlotMapRoute,

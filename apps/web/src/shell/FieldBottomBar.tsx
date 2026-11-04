@@ -11,7 +11,7 @@ export function FieldBottomBar() {
   const isSyncing = syncState === 'pushing' || syncState === 'pulling';
 
   const tabs = [
-    { label: 'Home', path: '/', icon: Home, exact: true },
+    { label: 'Home', path: '/field', icon: Home, exact: true },
     { label: 'Capture', path: '/field/capture', icon: PlusCircle },
     {
       label: 'My Records',

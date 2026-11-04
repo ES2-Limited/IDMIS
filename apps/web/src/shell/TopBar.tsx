@@ -21,7 +21,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
     { id: 'slis', label: 'SLIS', path: '/slis' },
     { id: 'me', label: 'M&E', path: '/me' },
     { id: 'blis', label: 'BLIS', path: '/blis' },
-    { id: 'field', label: 'Field Station', path: '/field/capture' },
+    { id: 'field', label: 'Field Station', path: '/field' },
   ];
 
   return (

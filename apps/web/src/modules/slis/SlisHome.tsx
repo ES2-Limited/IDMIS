@@ -29,10 +29,10 @@ export function SlisHome() {
         'NIN/BVN masked storage',
         'Household head link',
         'Photo capture',
-        'Offline IndexedDB sync',
+        'Bulk spreadsheet import',
       ],
       linkText: 'Open Farmer Registry',
-      to: '/slis',
+      to: '/slis/farmers',
     },
     {
       title: 'Plots & GIS Boundaries',
@@ -51,7 +51,7 @@ export function SlisHome() {
         'Soil & slope data',
       ],
       linkText: 'Inspect Land Parcels',
-      to: '/slis',
+      to: '/slis/plots',
     },
     {
       title: 'Review Queue & Conflicts',
@@ -70,7 +70,7 @@ export function SlisHome() {
         'One-click resolve',
       ],
       linkText: 'Review Held Conflicts',
-      to: '/slis',
+      to: '/slis/review',
     },
   ];
 
@@ -91,14 +91,14 @@ export function SlisHome() {
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <Sprout className="h-3 w-3" /> SLIS Module
               </span>
-              <StatusChip status="saved_on_device">Field Ready</StatusChip>
+              <StatusChip status="saved_on_device">Verified</StatusChip>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Scheme Land Information System (SLIS)
             </h1>
             <p className="text-emerald-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
-              Register farmers, capture GIS field parcel boundaries, verify tenure rights, and
-              supervise water allocations under active scheme{' '}
+              Supervise scheme farmers, land parcels, irrigation command areas, and water
+              allocations under active scheme{' '}
               <span className="font-semibold text-emerald-300">
                 {currentScope.name || 'All Schemes'}
               </span>
@@ -106,17 +106,19 @@ export function SlisHome() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
-            >
-              <FileSearch className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
-              GIS Map View
-            </Button>
-            <Link to="/field/capture/farmer">
+            <Link to="/slis/plots">
+              <Button
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+              >
+                <FileSearch className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
+                GIS Map View
+              </Button>
+            </Link>
+            <Link to="/slis/farmers">
               <Button className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center">
-                <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
-                Register Farmer (Offline Wizard)
+                <Users className="h-3.5 w-3.5 mr-1.5" />
+                View Farmer Registry
               </Button>
             </Link>
           </div>

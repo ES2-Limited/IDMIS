@@ -15,7 +15,7 @@ export function BottomNav() {
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },
     { label: 'SLIS', path: '/slis', icon: Sprout, show: canSlis },
-    { label: 'Field Hub', path: '/field/capture', icon: MapPin },
+    { label: 'Field Hub', path: '/field', icon: MapPin },
     { label: 'M&E', path: '/me', icon: TrendingUp, show: canMe },
     { label: 'Admin', path: '/core', icon: Building, show: canCore },
   ].filter((item) => item.show !== false);
