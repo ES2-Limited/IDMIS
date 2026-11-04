@@ -1,70 +1,13 @@
-import { Users, Building, UploadCloud, ShieldCheck, ArrowUpRight, KeyRound } from 'lucide-react';
-import { Card, StatusChip, Button } from '@idmis/ui';
-import { Link } from '@tanstack/react-router';
+import * as React from 'react';
+import { Users, Building, ShieldCheck, KeyRound } from 'lucide-react';
+import { StatusChip, Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { UserManagementView } from './UserManagementView';
+import { OrganisationsTreeView } from './OrganisationsTreeView';
 
 export function CoreHome() {
   const { currentScope } = useScope();
-
-  const coreSections = [
-    {
-      title: 'User Management & Roles',
-      description:
-        'System accounts, RBAC permission roles, officer field badges, and scope boundaries.',
-      stats: '1,420 Active Users',
-      statLabel: '98 Field Officers',
-      icon: Users,
-      badge: 'RBAC Active',
-      badgeStatus: 'approved' as const,
-      color: 'teal',
-      features: [
-        'Role assignments',
-        'Biometric & TOTP MFA',
-        'Scheme scoping',
-        'Deactivation audit',
-      ],
-      linkText: 'Manage Users',
-      to: '/core',
-    },
-    {
-      title: 'Organisations & WUAs',
-      description:
-        'River Basin Development Authorities (RBDAs), state ministries, schemes, and water user associations.',
-      stats: '5 RBDAs • 382 WUAs',
-      statLabel: '100% Verified',
-      icon: Building,
-      badge: 'Institutional',
-      badgeStatus: 'saved_on_device' as const,
-      color: 'amber',
-      features: [
-        'Institutional hierarchy',
-        'WUA executive committees',
-        'Bank account link',
-        'Fee compliance',
-      ],
-      linkText: 'View Hierarchy',
-      to: '/core',
-    },
-    {
-      title: 'Batch Import Center',
-      description:
-        'Tabular spreadsheet import engine with column matching, dry-run schema validation, and undo history.',
-      stats: '48 Data Sets',
-      statLabel: '0 Pending Errors',
-      icon: UploadCloud,
-      badge: 'Engine Ready',
-      badgeStatus: 'approved' as const,
-      color: 'blue',
-      features: [
-        '5-step import wizard',
-        'CSV/XLSX parser',
-        'Auto-error report',
-        'Rollback snapshot',
-      ],
-      linkText: 'Open Import Center',
-      to: '/core',
-    },
-  ];
+  const [activeTab, setActiveTab] = React.useState('users');
 
   const quickStats = [
     { label: 'System RBAC Roles', value: '14 Roles', sub: 'Deny-by-default' },
@@ -129,69 +72,33 @@ export function CoreHome() {
         ))}
       </div>
 
-      {/* Main Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {coreSections.map((sec, i) => {
-          const Icon = sec.icon;
-          return (
-            <Card
-              key={i}
-              className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                      sec.color === 'teal'
-                        ? 'bg-teal-50 text-teal-700 border border-teal-200/60'
-                        : sec.color === 'amber'
-                          ? 'bg-amber-50 text-amber-600 border border-amber-200/60'
-                          : 'bg-blue-50 text-blue-600 border border-blue-200/60'
-                    }`}
-                  >
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <StatusChip status={sec.badgeStatus}>{sec.badge}</StatusChip>
-                </div>
+      {/* Admin Module Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-slate-100 p-1 rounded-xl border border-slate-200 inline-flex">
+          <TabsTrigger
+            value="users"
+            className="rounded-lg px-4 py-2 text-xs font-extrabold data-[state=active]:bg-white data-[state=active]:text-teal-800 data-[state=active]:shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Users className="h-4 w-4" />
+            User Management & Roles
+          </TabsTrigger>
+          <TabsTrigger
+            value="organisations"
+            className="rounded-lg px-4 py-2 text-xs font-extrabold data-[state=active]:bg-white data-[state=active]:text-teal-800 data-[state=active]:shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Building className="h-4 w-4" />
+            Organisations & WUAs Tree
+          </TabsTrigger>
+        </TabsList>
 
-                <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-                  {sec.title}
-                </h3>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed min-h-[40px]">
-                  {sec.description}
-                </p>
+        <TabsContent value="users">
+          <UserManagementView />
+        </TabsContent>
 
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800">{sec.stats}</span>
-                  <span className="text-[11px] font-medium text-slate-400">{sec.statLabel}</span>
-                </div>
-
-                <div className="mt-4 space-y-1.5">
-                  {sec.features.map((feat, fIdx) => (
-                    <div key={fIdx} className="flex items-center gap-2 text-[11px] text-slate-600">
-                      <div className="h-1.5 w-1.5 rounded-full bg-teal-600" />
-                      <span>{feat}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full justify-between h-10 rounded-xl text-xs font-bold text-slate-700 hover:text-teal-700 hover:border-teal-300 hover:bg-teal-50/50 cursor-pointer"
-                >
-                  <Link to={sec.to}>
-                    <span>{sec.linkText}</span>
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+        <TabsContent value="organisations">
+          <OrganisationsTreeView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
