@@ -305,4 +305,93 @@ export class IndicatorValueRepository {
       .innerJoin(file, eq(indicatorValueEvidence.fileId, file.id))
       .where(and(eq(indicatorValueEvidence.indicatorValueId, valueId), isNull(file.deletedAt)));
   }
+
+  async upsertComputedSlot(data: CreateIndicatorValueData, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
+    const existing = await this.findBySlot(
+      data.indicatorId,
+      data.periodYear,
+      data.periodQuarter ?? null,
+      data.scopeType,
+      data.scopeStateId ?? null,
+      data.scopeOrgId ?? null,
+      data.disaggregation ?? {},
+      txDb,
+    );
+
+    if (existing) {
+      // Golden rule: A computed value never overwrites a manual indicator's value
+      if (existing.source !== 'computed') {
+        return existing;
+      }
+
+      const [updated] = await client
+        .update(indicatorValue)
+        .set({
+          value: data.value,
+          status: 'approved',
+          computedAt: data.computedAt ?? new Date().toISOString(),
+          version: sql`${indicatorValue.version} + 1`,
+          updatedAt: new Date().toISOString(),
+          updatedBy: SYSTEM_USER_ID,
+          deletedAt: null,
+        })
+        .where(eq(indicatorValue.id, existing.id))
+        .returning();
+      return updated!;
+    }
+
+    const [created] = await client
+      .insert(indicatorValue)
+      .values({
+        id: data.id ?? crypto.randomUUID(),
+        indicatorId: data.indicatorId,
+        periodYear: data.periodYear,
+        periodQuarter: data.periodQuarter ?? null,
+        scopeType: data.scopeType,
+        scopeStateId: data.scopeStateId ?? null,
+        scopeOrgId: data.scopeOrgId ?? null,
+        disaggregation: data.disaggregation ?? {},
+        value: data.value,
+        source: 'computed',
+        status: 'approved',
+        computedAt: data.computedAt ?? new Date().toISOString(),
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      })
+      .returning();
+    return created!;
+  }
+
+  async deleteComputedSlot(
+    indicatorId: string,
+    periodYear: number,
+    periodQuarter: number | null,
+    scopeType: string,
+    scopeStateId: string | null,
+    scopeOrgId: string | null,
+    disaggregation: Record<string, unknown> = {},
+    txDb?: DatabaseOrTx,
+  ) {
+    const client = this.getDb(txDb);
+    const conditions: SQL[] = [
+      eq(indicatorValue.indicatorId, indicatorId),
+      eq(indicatorValue.periodYear, periodYear),
+      periodQuarter !== null && periodQuarter !== undefined
+        ? eq(indicatorValue.periodQuarter, periodQuarter)
+        : isNull(indicatorValue.periodQuarter),
+      eq(
+        indicatorValue.scopeType,
+        scopeType as 'national' | 'state' | 'scheme' | 'rbda' | 'sector',
+      ),
+      scopeStateId
+        ? eq(indicatorValue.scopeStateId, scopeStateId)
+        : isNull(indicatorValue.scopeStateId),
+      scopeOrgId ? eq(indicatorValue.scopeOrgId, scopeOrgId) : isNull(indicatorValue.scopeOrgId),
+      sql`${indicatorValue.disaggregation} = ${JSON.stringify(disaggregation)}::jsonb`,
+      eq(indicatorValue.source, 'computed'),
+    ];
+
+    return client.delete(indicatorValue).where(and(...conditions));
+  }
 }

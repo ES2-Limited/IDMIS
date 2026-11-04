@@ -219,6 +219,18 @@ export const BASE_LOOKUPS = [
       { code: 'sector_boundary', label: 'Sector Boundary', sortOrder: 4 },
     ],
   },
+  {
+    key: 'training_tag',
+    name: 'Training Tag',
+    module: 'slis' as const,
+    values: [
+      { code: 'dam_safety', label: 'Dam Safety', sortOrder: 1 },
+      { code: 'wua_governance', label: 'WUA Governance', sortOrder: 2 },
+      { code: 'agronomy', label: 'Agronomy', sortOrder: 3 },
+      { code: 'fee_management', label: 'Fee Management', sortOrder: 4 },
+      { code: 'other', label: 'Other', sortOrder: 5 },
+    ],
+  },
 ] as const;
 
 export async function seed() {
@@ -396,6 +408,13 @@ export async function seed() {
       })
       .onConflictDoNothing({ target: lookupType.key });
 
+    const existingType = await db
+      .select({ id: lookupType.id })
+      .from(lookupType)
+      .where(eq(lookupType.key, lt.key))
+      .limit(1);
+    const resolvedTypeId = existingType[0]?.id ?? lookupTypeId;
+
     for (let vIdx = 0; vIdx < lt.values.length; vIdx++) {
       const val = lt.values[vIdx]!;
       const lookupValId = `018f3a5e-0003-7000-${String(tIdx + 1).padStart(4, '0')}-${String(vIdx + 1).padStart(12, '0')}`;
@@ -404,7 +423,7 @@ export async function seed() {
         .insert(lookupValue)
         .values({
           id: lookupValId,
-          lookupTypeId,
+          lookupTypeId: resolvedTypeId,
           code: val.code,
           label: val.label,
           sortOrder: val.sortOrder,

@@ -431,6 +431,10 @@ export const training = slisSchema.table(
       .notNull()
       .references(() => organisation.id),
     topic: text('topic').notNull(),
+    tags: text('tags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     trainerName: text('trainer_name'),
     heldOn: date('held_on', { mode: 'string' }).notNull(),
     venue: text('venue'),

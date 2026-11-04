@@ -8,6 +8,7 @@ import {
   jsonb,
   timestamp,
   date,
+  numeric,
   inet,
   primaryKey,
   check,
@@ -117,6 +118,7 @@ export const organisation = coreSchema.table(
     phone: text('phone'),
     email: text('email'),
     geom: geometryGeneric('geom'),
+    irrigableAreaHa: numeric('irrigable_area_ha', { precision: 12, scale: 4 }),
     isActive: boolean('is_active').notNull().default(true),
   },
   (table) => [

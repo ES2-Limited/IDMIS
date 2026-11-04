@@ -3,6 +3,8 @@ export * from '../services/indicator-target.service';
 export * from '../services/indicator-value.service';
 export * from '../services/survey.service';
 export * from '../services/instruments.service';
+export * from '../services/me-compute.service';
+export * from '../compute/compute.registry';
 
 export * from '../repositories/indicator.repository';
 export * from '../repositories/indicator-target.repository';
@@ -12,6 +14,8 @@ export * from '../repositories/survey-response.repository';
 export * from '../repositories/scorecard.repository';
 export * from '../repositories/matching-grant.repository';
 export * from '../repositories/tech-adoption.repository';
+export * from '../repositories/compute-result.repository';
+export * from '../repositories/indicator-matrix.repository';
 
 export * from '../imports/indicator-target.handler';
 export * from '../imports/indicator-value.handler';

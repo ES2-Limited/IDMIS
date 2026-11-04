@@ -41,6 +41,7 @@ import { ReportService } from './services/report.service';
 import { ReportController } from './controllers/report.controller';
 import { ExportRepository } from './repositories/export.repository';
 import { ExportService } from './services/export.service';
+import { SlisComputeQueryService } from './services/slis-compute-query.service';
 import { ExportController } from './controllers/export.controller';
 import { StorageModule } from '../../platform/storage/storage.module';
 import { BlisStationStubService } from '../blis/public';
@@ -104,6 +105,7 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     ReportService,
     ExportRepository,
     ExportService,
+    SlisComputeQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,
@@ -144,6 +146,7 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     ReportService,
     ExportRepository,
     ExportService,
+    SlisComputeQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,

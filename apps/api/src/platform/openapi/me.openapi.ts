@@ -31,6 +31,8 @@ import {
   UpdateTechAdoptionInputSchema,
   ApproveTechAdoptionInputSchema,
   ReturnTechAdoptionInputSchema,
+  TriggerMeComputeInputSchema,
+  IndicatorMatrixResponseSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -108,6 +110,8 @@ export const meSchemas: Record<string, unknown> = {
   UpdateTechAdoptionInput: toJsonSchema(UpdateTechAdoptionInputSchema),
   ApproveTechAdoptionInput: toJsonSchema(ApproveTechAdoptionInputSchema),
   ReturnTechAdoptionInput: toJsonSchema(ReturnTechAdoptionInputSchema),
+  TriggerMeComputeInput: toJsonSchema(TriggerMeComputeInputSchema),
+  IndicatorMatrixResponse: toJsonSchema(IndicatorMatrixResponseSchema),
 };
 
 export const mePaths: Record<string, Record<string, unknown>> = {
@@ -1247,6 +1251,80 @@ export const mePaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // COMPUTE & MATRIX
+  // -------------------------------------------------------------
+  '/me/compute': {
+    post: {
+      summary: 'Trigger recompute of computed indicators for a period',
+      tags: ['me'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/TriggerMeComputeInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Compute job enqueued successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { message: { type: 'string' } },
+              },
+            },
+          },
+        },
+        '202': {
+          description: 'Compute job enqueued successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { message: { type: 'string' } },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/me/matrix': {
+    get: {
+      summary: 'Get indicator performance matrix',
+      tags: ['me'],
+      security: SECURED,
+      parameters: [
+        { name: 'year', in: 'query', required: false, schema: { type: 'integer' } },
+        { name: 'quarter', in: 'query', required: false, schema: { type: 'integer' } },
+        { name: 'scopeType', in: 'query', required: false, schema: { type: 'string' } },
+        {
+          name: 'scopeId',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Indicator matrix response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/IndicatorMatrixResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
       },
     },
   },
