@@ -174,9 +174,8 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
     await testDb.insert(rolePermission).values([
       { roleId: SCHEME_ROLE_ID, permission: permissions.SLIS_STREAM_FLOW_RECORD },
       { roleId: SCHEME_ROLE_ID, permission: permissions.SLIS_SYNC_PUSH },
-      { roleId: SCHEME_ROLE_ID, permission: permissions.CORE_IMPORT_INITIATE },
-      { roleId: SCHEME_ROLE_ID, permission: permissions.CORE_IMPORT_PREVIEW },
-      { roleId: SCHEME_ROLE_ID, permission: permissions.CORE_IMPORT_COMMIT },
+      { roleId: SCHEME_ROLE_ID, permission: permissions.CORE_IMPORT_RUN },
+      { roleId: SCHEME_ROLE_ID, permission: permissions.SLIS_IMPORT_RUN },
     ]);
 
     await testDb.insert(assignment).values({
@@ -205,7 +204,8 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
 
     await testDb.insert(device).values({
       id: TEST_DEVICE_ID,
-      installationId: 'inst-kano-001',
+      installationId: crypto.randomUUID(),
+      userId: KANO_OFFICER_ID,
       platform: 'android',
       registeredAt: new Date().toISOString(),
     });
@@ -270,14 +270,11 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       code: 'DAM-TIGA',
       name: 'Tiga Dam',
       basinId: TEST_BASIN_ID,
-      stateId: KANO_STATE_ID,
       geom: sql`ST_SetSRID(ST_MakePoint(8.6, 11.5), 4326)`,
       crestLengthM: '7000.00',
-      structuralHeightM: '48.00',
-      spillwayCapacityM3S: '3000.00',
-      freeboardM: '3.50',
-      totalCapacityMcm: '1900.00',
-      deadStorageMcm: '100.00',
+      heightM: '48.00',
+      spillwayCapacityM3s: '3000.00',
+      reservoirCapacityMcm: '1900.00',
       createdBy: SYSTEM_USER_ID,
       updatedBy: SYSTEM_USER_ID,
     });

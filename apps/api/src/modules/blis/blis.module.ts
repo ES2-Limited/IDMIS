@@ -24,7 +24,7 @@ import { DamInspectionRepository } from './repositories/dam-inspection.repositor
 import { BlisAssetService } from './services/blis-asset.service';
 import { DamInspectionService } from './services/dam-inspection.service';
 import { BlisComputeQueryService } from './services/blis-compute-query.service';
-import { BlisPublicService, BlisStationStubService } from './public';
+import { BlisPublicService } from './public';
 
 // Import Handlers
 import { BasinImportHandler } from './imports/basin.handler';
@@ -54,7 +54,6 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     DamInspectionService,
     BlisComputeQueryService,
     BlisPublicService,
-    { provide: BlisStationStubService, useExisting: BlisPublicService },
     BasinImportHandler,
     StationImportHandler,
     DamImportHandler,
@@ -72,7 +71,6 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     DamInspectionService,
     BlisComputeQueryService,
     BlisPublicService,
-    BlisStationStubService,
   ],
 })
 export class BlisModule implements OnModuleInit {
