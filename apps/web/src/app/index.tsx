@@ -20,6 +20,8 @@ import { MeHome } from '../modules/me/MeHome';
 import { IndicatorsListView } from '../modules/me/IndicatorsListView';
 import { QuarterlyDataEntryView } from '../modules/me/QuarterlyDataEntryView';
 import { IndicatorMatrixView } from '../modules/me/IndicatorMatrixView';
+import { SurveysManagementView } from '../modules/me/SurveysManagementView';
+import { FieldSurveyCaptureForm } from '../modules/field/FieldSurveyCaptureForm';
 import { BlisHome } from '../modules/blis/BlisHome';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
@@ -121,6 +123,12 @@ const fieldCropProductionRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/field/capture/crop',
   component: CropProductionFieldForm,
+});
+
+const fieldSurveyRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/survey',
+  component: FieldSurveyCaptureForm,
 });
 
 const fieldRecordsRoute = createRoute({
@@ -327,6 +335,21 @@ const meMatrixRoute = createRoute({
   ),
 });
 
+const meSurveysRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/surveys',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Surveys & Questionnaire Builder</span>
+      </div>
+      <SurveysManagementView />
+    </div>
+  ),
+});
+
 // Module routes: BLIS
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -344,6 +367,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   fieldFeeCollectionRoute,
   fieldTrainingAttendanceRoute,
   fieldCropProductionRoute,
+  fieldSurveyRoute,
   fieldRecordsRoute,
   fieldSyncRoute,
   fieldProfileRoute,
@@ -361,6 +385,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   meIndicatorsRoute,
   meEntryRoute,
   meMatrixRoute,
+  meSurveysRoute,
   blisRoute,
 ]);
 

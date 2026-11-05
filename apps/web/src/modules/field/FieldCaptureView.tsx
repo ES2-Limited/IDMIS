@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { Link } from '@tanstack/react-router';
-import { UserPlus, MapPin, FileSpreadsheet, Droplets, GraduationCap, Sprout } from 'lucide-react';
+import {
+  UserPlus,
+  MapPin,
+  FileSpreadsheet,
+  Droplets,
+  GraduationCap,
+  Sprout,
+  ClipboardList,
+} from 'lucide-react';
 import { Card, CardContent, Badge } from '@idmis/ui';
 
 export function FieldCaptureView() {
@@ -58,6 +66,15 @@ export function FieldCaptureView() {
       icon: Sprout,
       color: 'lime',
       route: '/field/capture/crop',
+    },
+    {
+      id: 'survey',
+      title: 'M&E Beneficiary Survey',
+      category: 'Surveys',
+      description: 'Execute household living standards & WUA satisfaction questionnaires.',
+      icon: ClipboardList,
+      color: 'teal',
+      route: '/field/capture/survey',
     },
   ];
 
