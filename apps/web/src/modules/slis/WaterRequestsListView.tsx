@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { Search, CheckCircle2, XCircle, Clock } from 'lucide-react';
-import { Input, Badge } from '@idmis/ui';
+import {
+  Input,
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 
 export interface WaterRequestItem {
@@ -134,22 +142,35 @@ export function WaterRequestsListView() {
             className="pl-9 h-9 text-xs border-slate-200 bg-white"
           />
         </div>
-        <select
-          value={decisionFilter}
-          onChange={(e) => setDecisionFilter(e.target.value)}
-          aria-label="Filter by decision"
-          className="h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
-        >
-          <option value="all">All Decisions</option>
-          <option value="approved">Approved</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <div className="w-40 sm:w-48">
+          <Select value={decisionFilter} onValueChange={(val: string) => setDecisionFilter(val)}>
+            <SelectTrigger
+              aria-label="Filter by decision"
+              className="h-9 min-h-[36px] w-full bg-white border-slate-200 text-xs font-semibold rounded-xl hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <SelectValue placeholder="All Decisions" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Decisions
+              </SelectItem>
+              <SelectItem value="approved" className="text-xs font-medium py-2">
+                Approved
+              </SelectItem>
+              <SelectItem value="pending" className="text-xs font-medium py-2">
+                Pending
+              </SelectItem>
+              <SelectItem value="rejected" className="text-xs font-medium py-2">
+                Rejected
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table Data */}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        <table className="w-full text-left text-xs text-slate-600">
+        <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
           <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-400">
             <tr>
               <th className="py-3.5 px-4">Request Ref #</th>

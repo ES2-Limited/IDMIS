@@ -12,6 +12,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
@@ -152,17 +157,33 @@ export function PlotsMapView() {
                   className="pl-9 h-9 text-xs border-slate-200 bg-white"
                 />
               </div>
-              <select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                aria-label="Filter by irrigation service"
-                className="h-9 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
-              >
-                <option value="all">All Services</option>
-                <option value="gravity">Gravity Canal</option>
-                <option value="pump">Pump Lift</option>
-                <option value="conjunctive">Conjunctive</option>
-              </select>
+              <div className="w-36 sm:w-44">
+                <Select
+                  value={serviceFilter}
+                  onValueChange={(val: string) => setServiceFilter(val)}
+                >
+                  <SelectTrigger
+                    aria-label="Filter by irrigation service"
+                    className="h-9 min-h-[36px] w-full bg-white border-slate-200 text-xs font-semibold rounded-xl hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+                  >
+                    <SelectValue placeholder="All Services" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl shadow-xl border-slate-200">
+                    <SelectItem value="all" className="text-xs font-medium py-2">
+                      All Services
+                    </SelectItem>
+                    <SelectItem value="gravity" className="text-xs font-medium py-2">
+                      Gravity Canal
+                    </SelectItem>
+                    <SelectItem value="pump" className="text-xs font-medium py-2">
+                      Pump Lift
+                    </SelectItem>
+                    <SelectItem value="conjunctive" className="text-xs font-medium py-2">
+                      Conjunctive
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Parcels List Scrollable Container */}

@@ -8,6 +8,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@idmis/ui';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
@@ -193,37 +198,57 @@ export function FarmersListView() {
           />
         </div>
 
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Filter by approval status"
-            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
-          >
-            <option value="all">All Approval Statuses</option>
-            <option value="approved">Approved</option>
-            <option value="awaiting_review">Awaiting Review</option>
-            <option value="conflict">Action Needed / Conflict</option>
-          </select>
+        <div className="w-full sm:w-52">
+          <Select value={statusFilter} onValueChange={(val: string) => setStatusFilter(val)}>
+            <SelectTrigger
+              aria-label="Filter by approval status"
+              className="h-9 min-h-[36px] w-full bg-slate-50 border-slate-200 text-xs font-semibold rounded-xl hover:bg-white hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <SelectValue placeholder="All Approval Statuses" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Approval Statuses
+              </SelectItem>
+              <SelectItem value="approved" className="text-xs font-medium py-2">
+                Approved
+              </SelectItem>
+              <SelectItem value="awaiting_review" className="text-xs font-medium py-2">
+                Awaiting Review
+              </SelectItem>
+              <SelectItem value="conflict" className="text-xs font-medium py-2">
+                Action Needed / Conflict
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div>
-          <select
-            value={genderFilter}
-            onChange={(e) => setGenderFilter(e.target.value)}
-            aria-label="Filter by gender"
-            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
-          >
-            <option value="all">All Genders</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
+        <div className="w-full sm:w-40">
+          <Select value={genderFilter} onValueChange={(val: string) => setGenderFilter(val)}>
+            <SelectTrigger
+              aria-label="Filter by gender"
+              className="h-9 min-h-[36px] w-full bg-slate-50 border-slate-200 text-xs font-semibold rounded-xl hover:bg-white hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <SelectValue placeholder="All Genders" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Genders
+              </SelectItem>
+              <SelectItem value="male" className="text-xs font-medium py-2">
+                Male
+              </SelectItem>
+              <SelectItem value="female" className="text-xs font-medium py-2">
+                Female
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Table Data */}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        <table className="w-full text-left text-xs text-slate-600">
+        <table className="w-full text-left text-xs text-slate-600 min-w-[760px]">
           <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-400">
             <tr>
               <th className="py-3.5 px-4">Farmer Details</th>
