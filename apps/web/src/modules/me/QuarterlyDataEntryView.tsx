@@ -340,17 +340,17 @@ export function QuarterlyDataEntryView() {
       {/* Quarterly Matrix Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs min-w-[760px]">
+          <table className="w-full text-left border-collapse text-xs min-w-[860px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4 w-14">Code</th>
-                <th className="py-3 px-4">Indicator & Method</th>
+                <th className="py-3 px-4 min-w-[200px]">Indicator & Method</th>
                 <th className="py-3 px-4">Unit</th>
                 <th className="py-3 px-4">Annual Target</th>
                 <th className="py-3 px-4">Last Quarter</th>
                 <th className="py-3 px-4">This Quarter Value</th>
                 <th className="py-3 px-4">Review Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 text-right min-w-[170px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -389,35 +389,15 @@ export function QuarterlyDataEntryView() {
                     <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
                       {row.lastQuarterValue}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-4">
                       {isComputed ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-black text-blue-900 bg-blue-50/80 px-2 py-1 rounded-lg border border-blue-200 text-xs">
-                            {row.thisQuarterValue}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRowForDetail(row)}
-                            className="text-blue-600 hover:text-blue-800 text-[11px] underline font-bold cursor-pointer"
-                          >
-                            Breakdown
-                          </button>
-                        </div>
+                        <span className="inline-block font-mono font-black text-blue-900 bg-blue-50/80 px-2 py-1 rounded-lg border border-blue-200 text-xs">
+                          {row.thisQuarterValue}
+                        </span>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
-                            {row.thisQuarterValue}
-                          </span>
-                          {row.status !== 'approved' && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(row)}
-                              className="text-amber-700 hover:text-amber-900 text-[11px] underline font-bold cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </div>
+                        <span className="inline-block font-mono font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+                          {row.thisQuarterValue}
+                        </span>
                       )}
                     </td>
                     <td className="py-3.5 px-4">
@@ -448,47 +428,49 @@ export function QuarterlyDataEntryView() {
                         </Badge>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                      {isComputed ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRowForDetail(row)}
-                          className="text-xs font-semibold gap-1 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
-                        >
-                          <Cpu className="h-3 w-3" /> Source
-                        </Button>
-                      ) : (
-                        <>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {isComputed ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleOpenEdit(row)}
-                            className="text-xs font-semibold gap-1 text-slate-700 cursor-pointer"
+                            onClick={() => setSelectedRowForDetail(row)}
+                            className="h-7 px-2.5 text-xs font-semibold gap-1 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
                           >
-                            <FileText className="h-3 w-3" /> Value & Note
+                            <Cpu className="h-3 w-3" /> Breakdown
                           </Button>
-                          {row.status === 'submitted' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setReturnRow(row)}
-                                className="text-xs font-semibold text-amber-800 border-amber-200 hover:bg-amber-50 cursor-pointer gap-1"
-                              >
-                                <Undo2 className="h-3 w-3" /> Return
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveRow(row.id)}
-                                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1 cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-3 w-3" /> Approve
-                              </Button>
-                            </>
-                          )}
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenEdit(row)}
+                              className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 cursor-pointer"
+                            >
+                              <FileText className="h-3 w-3" /> Edit
+                            </Button>
+                            {row.status === 'submitted' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setReturnRow(row)}
+                                  className="h-7 px-2.5 text-xs font-semibold text-amber-800 border-amber-200 hover:bg-amber-50 cursor-pointer gap-1"
+                                >
+                                  <Undo2 className="h-3 w-3" /> Return
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproveRow(row.id)}
+                                  className="h-7 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1 cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" /> Approve
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
