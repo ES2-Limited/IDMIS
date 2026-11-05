@@ -26,6 +26,7 @@ import {
   UpdateTrainingInputSchema,
   StreamFlowReadingResponseSchema,
   RecordStreamFlowInputSchema,
+  UpdateStreamFlowInputSchema,
   ReviewQueueItemSchema,
   SyncPushResponseSchema,
   SyncPullResponseSchema,
@@ -113,6 +114,7 @@ export const slisSchemas: Record<string, unknown> = {
   UpdateTrainingInput: toJsonSchema(UpdateTrainingInputSchema),
   StreamFlowReadingResponse: toJsonSchema(StreamFlowReadingResponseSchema),
   CreateStreamFlowReadingInput: toJsonSchema(RecordStreamFlowInputSchema),
+  UpdateStreamFlowInput: toJsonSchema(UpdateStreamFlowInputSchema),
   ReviewQueueItemResponse: toJsonSchema(ReviewQueueItemSchema),
   SyncConflictResponse: toJsonSchema(SyncConflictResponseSchema),
   SyncQuarantineResponse: toJsonSchema(SyncQuarantineResponseSchema),
@@ -1029,6 +1031,30 @@ export const slisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    patch: {
+      summary: 'Update stream flow reading by ID',
+      tags: ['slis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateStreamFlowInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Updated stream flow reading',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/StreamFlowReadingResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
       },
     },
   },

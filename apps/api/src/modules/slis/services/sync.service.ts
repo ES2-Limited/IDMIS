@@ -418,6 +418,20 @@ export class SyncService {
           stateId?: string | null;
         };
       }
+      if (action === 'update') {
+        const res = await this.streamFlowService.updateStreamFlow(
+          recordId,
+          baseVersion,
+          data as unknown as Parameters<typeof this.streamFlowService.updateStreamFlow>[2],
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
     }
 
     if (entity === 'training') {

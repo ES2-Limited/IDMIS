@@ -1,9 +1,11 @@
-import { and, eq, gt, gte, lte, type SQL } from '@idmis/db';
+import { and, eq, gt, gte, lte, sql, type SQL } from '@idmis/db';
 import { db, streamFlowReading, SYSTEM_USER_ID } from '@idmis/db';
 import { Injectable } from '@nestjs/common';
 import type { RequestScope, ListStreamFlowReadingsQuery, RecordStatus } from '@idmis/contracts';
 import { applyScope } from '../../../platform/auth';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
+import { txStorage } from '../../../platform/database/transaction.helper';
+import { ConflictProblemException } from '../../../platform/filters';
 
 export interface RecordStreamFlowData {
   id?: string;
@@ -18,6 +20,7 @@ export interface RecordStreamFlowData {
   deviceId?: string | null;
   importBatchId?: string | null;
   createdBy?: string | null;
+  updatedBy?: string | null;
 }
 
 @Injectable()
@@ -110,6 +113,40 @@ export class StreamFlowRepository {
       })
       .returning();
 
+    return rows[0]!;
+  }
+
+  async update(
+    id: string,
+    expectedVersion: number,
+    data: Partial<RecordStreamFlowData>,
+    txDb?: DatabaseOrTx,
+  ) {
+    const client = txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
+    const updateValues: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      version: sql`${streamFlowReading.version} + 1`,
+    };
+    if (data.stationId !== undefined) updateValues.stationId = data.stationId;
+    if (data.readAt !== undefined) updateValues.readAt = data.readAt;
+    if (data.value !== undefined) updateValues.value = String(data.value);
+    if (data.unit !== undefined) updateValues.unit = data.unit;
+    if (data.updatedBy !== undefined) updateValues.updatedBy = data.updatedBy;
+
+    const rows = await client
+      .update(streamFlowReading)
+      .set(updateValues)
+      .where(and(eq(streamFlowReading.id, id), eq(streamFlowReading.version, expectedVersion)))
+      .returning();
+
+    if (rows.length === 0) {
+      const current = await this.findById(id, undefined, client);
+      throw new ConflictProblemException({
+        detail: 'Optimistic concurrency conflict on stream flow reading update',
+        current,
+        currentVersion: current ? Number(current.version) : 0,
+      });
+    }
     return rows[0]!;
   }
 }

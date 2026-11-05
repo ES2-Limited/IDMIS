@@ -1,12 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   permissions,
   type ListStreamFlowReadingsQuery,
   type RecordStreamFlowInput,
+  type UpdateStreamFlowInput,
   type StreamFlowReadingResponse,
 } from '@idmis/contracts';
 import { StreamFlowRepository } from '../repositories/stream-flow.repository';
-import { BlisStationStubService } from '../../blis/public';
+import { BlisPublicService } from '../../blis/public';
 import { assertInScope, type UserAuthz } from '../../../platform/auth';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
@@ -15,7 +16,7 @@ import { enqueueOutboxEvent } from '../../../platform/outbox/outbox.service';
 export class StreamFlowService {
   constructor(
     private readonly streamFlowRepo: StreamFlowRepository,
-    private readonly blisStationStub: BlisStationStubService,
+    private readonly blisPublicService: BlisPublicService,
   ) {}
 
   private mapToResponse(row: Record<string, unknown>): StreamFlowReadingResponse {
@@ -65,9 +66,12 @@ export class StreamFlowService {
       organisationId: input.schemeId,
     });
 
-    const stationExists = await this.blisStationStub.stationExists(input.stationId);
-    if (!stationExists) {
-      throw new NotFoundException(`Station ${input.stationId} not found`);
+    const stationValidation = await this.blisPublicService.validateStation(input.stationId);
+    if (!stationValidation.valid) {
+      if (stationValidation.reason === 'inactive') {
+        throw new BadRequestException(`Station ${input.stationId} is inactive`);
+      }
+      throw new BadRequestException(`Station ${input.stationId} does not exist`);
     }
 
     const streamFlowId = input.id ?? crypto.randomUUID();
@@ -111,6 +115,60 @@ export class StreamFlowService {
           action: 'create',
           entity: 'slis.stream_flow_reading',
           entityId: streamFlowId,
+          after: input,
+        },
+      },
+    );
+  }
+
+  async updateStreamFlow(
+    id: string,
+    expectedVersion: number,
+    input: UpdateStreamFlowInput,
+    authz: UserAuthz,
+    actorUserId: string,
+  ) {
+    const scope = authz.scopeFor(permissions.SLIS_STREAM_FLOW_RECORD);
+    const existing = await this.streamFlowRepo.findById(id, scope);
+    if (!existing) {
+      throw new NotFoundException(`Stream flow reading ${id} not found`);
+    }
+
+    if (input.stationId && input.stationId !== existing.stationId) {
+      const stationValidation = await this.blisPublicService.validateStation(input.stationId);
+      if (!stationValidation.valid) {
+        if (stationValidation.reason === 'inactive') {
+          throw new BadRequestException(`Station ${input.stationId} is inactive`);
+        }
+        throw new BadRequestException(`Station ${input.stationId} does not exist`);
+      }
+    }
+
+    return runInTransaction(
+      async (tx) => {
+        const updated = await this.streamFlowRepo.update(
+          id,
+          expectedVersion,
+          {
+            stationId: input.stationId,
+            readAt: input.readAt,
+            value: input.value,
+            unit: input.unit,
+            updatedBy: actorUserId,
+          },
+          tx,
+        );
+
+        return this.mapToResponse(updated);
+      },
+      {
+        audit: {
+          actorType: 'user',
+          actorUserId,
+          action: 'update',
+          entity: 'slis.stream_flow_reading',
+          entityId: id,
+          before: existing,
           after: input,
         },
       },

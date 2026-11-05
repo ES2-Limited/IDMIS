@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ImportColumnDefinition } from '../core/import';
+import { FlowRateSchema } from './common';
 
 export const SLIS_IMPORT_DATASETS = [
   'slis.farmer',
@@ -9,6 +10,7 @@ export const SLIS_IMPORT_DATASETS = [
   'slis.water_request',
   'slis.crop_production',
   'slis.training',
+  'slis.stream_flow_reading',
 ] as const;
 
 export const SlisImportDatasetSchema = z.enum(SLIS_IMPORT_DATASETS);
@@ -136,6 +138,18 @@ export const TrainingImportRowSchema = z.object({
   gender: z.enum(['female', 'male']).optional(),
 });
 export type TrainingImportRow = z.infer<typeof TrainingImportRowSchema>;
+
+/**
+ * Stream flow reading import row schema.
+ */
+export const StreamFlowImportRowSchema = z.object({
+  schemeCode: z.string().optional(),
+  stationId: z.string().uuid(),
+  readAt: z.iso.datetime(),
+  value: FlowRateSchema,
+  unit: z.string().min(1).max(20).default('m3/s'),
+});
+export type StreamFlowImportRow = z.infer<typeof StreamFlowImportRowSchema>;
 
 /**
  * Column definitions catalogue for generating downloadable CSV/XLSX templates.
@@ -478,6 +492,43 @@ export const SLIS_IMPORT_TEMPLATES: Record<SlisImportDataset, ImportColumnDefini
       required: false,
       type: 'string',
       example: 'male',
+    },
+  ],
+  'slis.stream_flow_reading': [
+    {
+      name: 'schemeCode',
+      header: 'Scheme Code',
+      required: false,
+      type: 'string',
+      example: 'KRIS',
+    },
+    {
+      name: 'stationId',
+      header: 'Station ID',
+      required: true,
+      type: 'string',
+      example: '018f3a5e-9000-7000-8000-000000000001',
+    },
+    {
+      name: 'readAt',
+      header: 'Read At',
+      required: true,
+      type: 'string',
+      example: '2026-03-15T08:00:00.000Z',
+    },
+    {
+      name: 'value',
+      header: 'Flow Rate Value (m3/s)',
+      required: true,
+      type: 'number',
+      example: 45.125,
+    },
+    {
+      name: 'unit',
+      header: 'Unit',
+      required: false,
+      type: 'string',
+      example: 'm3/s',
     },
   ],
 };
