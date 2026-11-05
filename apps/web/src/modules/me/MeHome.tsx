@@ -1,4 +1,4 @@
-import { Table, ClipboardList, Target, ArrowUpRight, FileBarChart, BarChart3 } from 'lucide-react';
+import { Table, ClipboardList, Target, ArrowUpRight, TrendingUp, BarChart3 } from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
@@ -43,7 +43,7 @@ export function MeHome() {
         'Audit signature sign-off',
       ],
       linkText: 'Open Quarterly Grid',
-      to: '/me/indicators',
+      to: '/me/entry',
     },
     {
       title: 'Field Surveys & Beneficiaries',
@@ -62,7 +62,7 @@ export function MeHome() {
         'Surveyor ID validation',
       ],
       linkText: 'Conduct Survey',
-      to: '/me/indicators',
+      to: '/me/surveys',
     },
   ];
 
@@ -107,10 +107,12 @@ export function MeHome() {
                 Results Framework
               </Button>
             </Link>
-            <Button className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md cursor-pointer">
-              <FileBarChart className="h-3.5 w-3.5 mr-1.5" />
-              Export Summary
-            </Button>
+            <Link to="/me/matrix">
+              <Button className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md cursor-pointer">
+                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                Indicator Matrix
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
