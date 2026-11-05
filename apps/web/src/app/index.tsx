@@ -17,6 +17,7 @@ import { WaterRequestsListView } from '../modules/slis/WaterRequestsListView';
 import { ReviewConflictsListView } from '../modules/slis/ReviewConflictsListView';
 import { SlisReportsView } from '../modules/slis/SlisReportsView';
 import { MeHome } from '../modules/me/MeHome';
+import { IndicatorsListView } from '../modules/me/IndicatorsListView';
 import { BlisHome } from '../modules/blis/BlisHome';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
@@ -279,6 +280,21 @@ const meRoute = createRoute({
   component: MeHome,
 });
 
+const meIndicatorsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/indicators',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-amber-800 font-bold">Results Framework & Indicators</span>
+      </div>
+      <IndicatorsListView />
+    </div>
+  ),
+});
+
 // Module routes: BLIS
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -310,6 +326,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   slisReviewRoute,
   slisReportsRoute,
   meRoute,
+  meIndicatorsRoute,
   blisRoute,
 ]);
 
