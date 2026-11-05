@@ -228,6 +228,22 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       label: 'Hydrological Station',
     });
 
+    const hazardLookupTypeId = crypto.randomUUID();
+    await testDb.insert(lookupType).values({
+      id: hazardLookupTypeId,
+      key: 'dam_hazard_class',
+      name: 'Dam Hazard Class',
+      module: 'blis',
+    });
+
+    const hazardValueId = crypto.randomUUID();
+    await testDb.insert(lookupValue).values({
+      id: hazardValueId,
+      lookupTypeId: hazardLookupTypeId,
+      code: 'high',
+      label: 'High',
+    });
+
     await testDb.insert(basin).values({
       id: TEST_BASIN_ID,
       code: 'CHAD-B',
@@ -296,7 +312,7 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       observedAt: '2026-03-15T08:00:00.000Z',
       value: '45.5000',
       unit: 'm3/s',
-      quality: 'good',
+      quality: 'checked',
       source: 'manual',
       createdBy: SYSTEM_USER_ID,
     });
@@ -308,7 +324,7 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       damId: TEST_DAM_ID,
       inspectedOn: '2026-03-01',
       meetsStandard: true,
-      hazardClassId: null,
+      hazardClassId: hazardValueId,
       nextDueOn: '2027-03-01',
       status: 'approved',
       approvedAt: '2026-03-02T10:00:00.000Z',
@@ -377,7 +393,7 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       expect(readings[0]?.stationId).toBe(ACTIVE_STATION_ID);
       expect(readings[0]?.value).toBe('45.5000');
       expect(readings[0]?.unit).toBe('m3/s');
-      expect(readings[0]?.quality).toBe('good');
+      expect(readings[0]?.quality).toBe('checked');
     });
 
     it('getDamSafetyStatus queries blis.mv_dam_status for dam', async () => {
