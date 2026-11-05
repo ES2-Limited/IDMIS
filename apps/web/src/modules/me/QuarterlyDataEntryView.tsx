@@ -10,6 +10,7 @@ import {
   UploadCloud,
   FileText,
   CheckCheck,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   Button,
@@ -216,8 +217,14 @@ export function QuarterlyDataEntryView() {
     );
   };
 
+  // Review management modal state
+  const [reviewingRow, setReviewingRow] = React.useState<EntryIndicatorRow | null>(null);
+
   const handleApproveRow = (id: string) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'approved' as const } : r)));
+    if (reviewingRow?.id === id) {
+      setReviewingRow((prev) => (prev ? { ...prev, status: 'approved' as const } : null));
+    }
   };
 
   const handleConfirmReturn = () => {
@@ -229,6 +236,7 @@ export function QuarterlyDataEntryView() {
     );
     setReturnRow(null);
     setReturnComment('');
+    setReviewingRow(null);
   };
 
   return (
@@ -429,46 +437,34 @@ export function QuarterlyDataEntryView() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end">
                         {isComputed ? (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedRowForDetail(row)}
-                            className="h-7 px-2.5 text-xs font-semibold gap-1 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
+                            className="h-7 px-3 text-xs font-semibold gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
                           >
                             <Cpu className="h-3 w-3" /> Breakdown
                           </Button>
+                        ) : row.status === 'submitted' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setReviewingRow(row)}
+                            className="h-7 px-3 text-xs font-bold gap-1.5 text-teal-800 border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 cursor-pointer"
+                          >
+                            <SlidersHorizontal className="h-3 w-3 text-teal-700" /> Review
+                          </Button>
                         ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenEdit(row)}
-                              className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 cursor-pointer"
-                            >
-                              <FileText className="h-3 w-3" /> Edit
-                            </Button>
-                            {row.status === 'submitted' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setReturnRow(row)}
-                                  className="h-7 px-2.5 text-xs font-semibold text-amber-800 border-amber-200 hover:bg-amber-50 cursor-pointer gap-1"
-                                >
-                                  <Undo2 className="h-3 w-3" /> Return
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApproveRow(row.id)}
-                                  className="h-7 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1 cursor-pointer"
-                                >
-                                  <CheckCircle2 className="h-3 w-3" /> Approve
-                                </Button>
-                              </>
-                            )}
-                          </>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenEdit(row)}
+                            className="h-7 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                          >
+                            <FileText className="h-3 w-3 text-slate-500" /> Edit
+                          </Button>
                         )}
                       </div>
                     </td>
@@ -686,6 +682,89 @@ export function QuarterlyDataEntryView() {
               >
                 Confirm Return
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Review & Decision Modal for Submitted Indicators */}
+      {reviewingRow && (
+        <Dialog open={!!reviewingRow} onOpenChange={(open) => !open && setReviewingRow(null)}>
+          <DialogContent className="max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <DialogHeader className="border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-1.5 text-teal-700 text-xs font-bold mb-1">
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Indicator Review & Approval
+              </div>
+              <DialogTitle className="text-base font-black text-slate-900">
+                #{reviewingRow.code}: {reviewingRow.name}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Reporting Quarter:</span>
+                  <span className="font-bold text-slate-800">{selectedQuarter}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Submitted Value:</span>
+                  <span className="font-mono font-black text-slate-900 text-sm">
+                    {reviewingRow.thisQuarterValue} {reviewingRow.unit}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Annual Target:</span>
+                  <span className="font-mono font-bold text-slate-600">
+                    {reviewingRow.annualTarget} {reviewingRow.unit}
+                  </span>
+                </div>
+                {reviewingRow.notes && (
+                  <div className="pt-1 border-t border-slate-200">
+                    <span className="text-slate-500 block mb-0.5 font-medium">Officer Notes:</span>
+                    <p className="text-slate-800 italic">{reviewingRow.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-teal-50/60 border border-teal-200 text-teal-800 text-[11px] leading-relaxed">
+                <span className="font-bold block mb-0.5">Approval Instructions:</span>
+                Approving this indicator will lock the figure into quarterly aggregation reports.
+                Returning will reopen editing for field scheme officers.
+              </div>
+            </div>
+
+            <DialogFooter className="border-t border-slate-100 pt-3 flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setReturnRow(reviewingRow);
+                  setReviewingRow(null);
+                }}
+                className="text-xs font-bold text-amber-800 border-amber-200 hover:bg-amber-50 gap-1 cursor-pointer"
+              >
+                <Undo2 className="h-3 w-3" /> Return to Officer
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReviewingRow(null)}
+                  className="text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    handleApproveRow(reviewingRow.id);
+                    setReviewingRow(null);
+                  }}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold gap-1 cursor-pointer"
+                >
+                  <CheckCircle2 className="h-3 w-3" /> Approve Value
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
