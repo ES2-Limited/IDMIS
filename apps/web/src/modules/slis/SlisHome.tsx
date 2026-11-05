@@ -1,4 +1,12 @@
-import { Users, MapPin, AlertTriangle, Sprout, ArrowUpRight, FileSearch } from 'lucide-react';
+import {
+  Users,
+  MapPin,
+  AlertTriangle,
+  Sprout,
+  ArrowUpRight,
+  FileSearch,
+  FileSpreadsheet,
+} from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
@@ -98,6 +106,15 @@ export function SlisHome() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/slis/reports">
+              <Button
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-emerald-300" />
+                Reports & Summaries
+              </Button>
+            </Link>
             <Link to="/slis/plots">
               <Button
                 variant="outline"
