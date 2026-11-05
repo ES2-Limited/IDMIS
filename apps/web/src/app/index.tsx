@@ -18,6 +18,7 @@ import { ReviewConflictsListView } from '../modules/slis/ReviewConflictsListView
 import { SlisReportsView } from '../modules/slis/SlisReportsView';
 import { MeHome } from '../modules/me/MeHome';
 import { IndicatorsListView } from '../modules/me/IndicatorsListView';
+import { QuarterlyDataEntryView } from '../modules/me/QuarterlyDataEntryView';
 import { BlisHome } from '../modules/blis/BlisHome';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
@@ -295,6 +296,21 @@ const meIndicatorsRoute = createRoute({
   ),
 });
 
+const meEntryRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/entry',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Quarterly Monitoring Data Entry</span>
+      </div>
+      <QuarterlyDataEntryView />
+    </div>
+  ),
+});
+
 // Module routes: BLIS
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -327,6 +343,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   slisReportsRoute,
   meRoute,
   meIndicatorsRoute,
+  meEntryRoute,
   blisRoute,
 ]);
 

@@ -7,6 +7,7 @@ import {
   FileText,
   MapPin,
   TrendingUp,
+  Target,
   Waves,
   LayoutDashboard,
   ShieldAlert,
@@ -111,14 +112,20 @@ export function SideNav() {
   } else if (currentPath.startsWith('/me')) {
     moduleName = 'M&E Module';
     navItems = [
-      { label: 'Results Framework', path: '/me', icon: LayoutDashboard },
+      { label: 'Overview', path: '/me', icon: LayoutDashboard },
+      {
+        label: 'Results Framework',
+        path: '/me/indicators',
+        icon: Target,
+        permission: 'me.kpi.read',
+      },
+      { label: 'Quarterly Entry', path: '/me/entry', icon: FileText, permission: 'me.kpi.read' },
       {
         label: 'Indicator Matrix',
         path: '/me/matrix',
         icon: TrendingUp,
         permission: 'me.kpi.read',
       },
-      { label: 'Quarterly Entry', path: '/me/entry', icon: FileText, permission: 'me.kpi.read' },
       { label: 'Surveys', path: '/me/surveys', icon: Database, permission: 'me.survey.read' },
     ];
   } else if (currentPath.startsWith('/blis')) {

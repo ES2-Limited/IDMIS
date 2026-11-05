@@ -43,7 +43,7 @@ export function MeHome() {
         'Audit signature sign-off',
       ],
       linkText: 'Open Quarterly Grid',
-      to: '/me/indicators',
+      to: '/me/entry',
     },
     {
       title: 'Field Surveys & Beneficiaries',
@@ -62,7 +62,7 @@ export function MeHome() {
         'Surveyor ID validation',
       ],
       linkText: 'Conduct Survey',
-      to: '/me/indicators',
+      to: '/me/surveys',
     },
   ];
 
