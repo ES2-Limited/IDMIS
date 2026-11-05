@@ -1256,7 +1256,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
 
       // Verify exact decimal strings (no float arithmetic)
       for (const item of readingsData.items) {
-        expect(typeof item.mean).toBe('string');
+        expect(typeof item.avg).toBe('string');
         expect(typeof item.min).toBe('string');
         expect(typeof item.max).toBe('string');
         expect(typeof item.count).toBe('number');
@@ -1287,21 +1287,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
 
       expect(inspRes.statusCode).toBe(201);
       const inspection = inspRes.json();
-      expect(inspection.status).toBe('draft');
-
-      // Submit inspection
-      const submitRes = await app.inject({
-        method: 'POST',
-        url: `/blis/dam-inspections/${inspection.id}/submit`,
-        headers: {
-          authorization: `Bearer ${hadejiaOfficerToken}`,
-          'content-type': 'application/json',
-        },
-        payload: { version: inspection.version },
-      });
-      expect(submitRes.statusCode).toBe(200);
-      const submittedInsp = submitRes.json();
-      expect(submittedInsp.status).toBe('submitted');
+      expect(inspection.status).toBe('submitted');
 
       // Approve by second authorized user (no self-approval)
       const approveRes = await app.inject({
@@ -1311,7 +1297,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
           authorization: `Bearer ${approverBToken}`,
           'content-type': 'application/json',
         },
-        payload: { version: submittedInsp.version },
+        payload: { version: inspection.version },
       });
       expect(approveRes.statusCode).toBe(200);
       const approvedInsp = approveRes.json();

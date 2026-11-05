@@ -1,19 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  db,
-  mapLayer,
-  station,
-  dam,
-  basin,
-  organisation,
-  plot,
-  eq,
-  and,
-  isNull,
-  inArray,
-  sql,
-  type SQL,
-} from '@idmis/db';
+import { db, mapLayer, basin, eq, and, isNull, inArray, sql, type SQL } from '@idmis/db';
 import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { txStorage } from '../../../platform/database/transaction.helper';
@@ -62,14 +48,14 @@ export class MapRepository {
         const blisScope = authz.can(permissions.BLIS_MEASUREMENT_READ)
           ? authz.scopeFor(permissions.BLIS_MEASUREMENT_READ)
           : authz.scopeFor(permissions.BLIS_BASIN_READ);
-        const scopeConditions: SQL[] = [isNull(station.deletedAt)];
+        const scopeConditions: SQL[] = [sql`s.deleted_at IS NULL`];
 
         if (!blisScope.isNational) {
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
             scopeConditions.push(
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
-                WHERE b.id = ${station.basinId}
+                WHERE b.id = s.basin_id
                   AND b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})
                   AND b.deleted_at IS NULL
               )`,
@@ -112,14 +98,14 @@ export class MapRepository {
         const blisScope = authz.can(permissions.BLIS_DAM_MANAGE)
           ? authz.scopeFor(permissions.BLIS_DAM_MANAGE)
           : authz.scopeFor(permissions.BLIS_BASIN_READ);
-        const scopeConditions: SQL[] = [isNull(dam.deletedAt)];
+        const scopeConditions: SQL[] = [sql`d.deleted_at IS NULL`];
 
         if (!blisScope.isNational) {
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
             scopeConditions.push(
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
-                WHERE b.id = ${dam.basinId}
+                WHERE b.id = d.basin_id
                   AND b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})
                   AND b.deleted_at IS NULL
               )`,
@@ -181,7 +167,7 @@ export class MapRepository {
 
       case 'plots': {
         const slisScope = authz.scopeFor(permissions.SLIS_PLOT_READ);
-        const scopeConditions: SQL[] = [isNull(plot.deletedAt)];
+        const scopeConditions: SQL[] = [sql`p.deleted_at IS NULL`];
 
         if (!slisScope.isNational) {
           if (slisScope.schemeIds && slisScope.schemeIds.length > 0) {
@@ -225,10 +211,7 @@ export class MapRepository {
         const coreScope = authz.can(permissions.CORE_ORGANISATION_READ)
           ? authz.scopeFor(permissions.CORE_ORGANISATION_READ)
           : authz.scopeFor(permissions.SLIS_PLOT_READ);
-        const scopeConditions: SQL[] = [
-          eq(organisation.type, 'scheme'),
-          isNull(organisation.deletedAt),
-        ];
+        const scopeConditions: SQL[] = [sql`o.type = 'scheme'`, sql`o.deleted_at IS NULL`];
 
         if (!coreScope.isNational) {
           if (coreScope.schemeIds && coreScope.schemeIds.length > 0) {
