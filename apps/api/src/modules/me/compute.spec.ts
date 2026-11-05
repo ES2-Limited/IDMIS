@@ -1660,7 +1660,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
 
       const EXPECTED_KANO_SCHEME_ROWS: Array<{
         code: string;
-        value: string;
+        value: string | null;
         target: string | null;
         endTarget: string | null;
         pctOfEndTarget: string | null;
@@ -1724,11 +1724,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '5',
-          value: '0.0000',
+          value: null,
           target: null,
           endTarget: '8.0000',
-          pctOfEndTarget: '0.00',
-          status: 'computed',
+          pctOfEndTarget: null,
+          status: 'not_available',
         },
         {
           code: '6',
@@ -1740,11 +1740,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '7',
-          value: '0.0000',
+          value: null,
           target: null,
           endTarget: '7.0000',
-          pctOfEndTarget: '0.00',
-          status: 'computed',
+          pctOfEndTarget: null,
+          status: 'not_available',
         },
         {
           code: '8',
