@@ -14,7 +14,21 @@ import {
   Sprout,
   Filter,
 } from 'lucide-react';
-import { Card, CardContent, Input, Badge, Button, Tabs, TabsList, TabsTrigger } from '@idmis/ui';
+import {
+  Card,
+  CardContent,
+  Input,
+  Badge,
+  Button,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import { localDb, type LocalRecord } from '@idmis/sync';
 import { useSync } from '../../sync';
 
@@ -207,20 +221,39 @@ export function FieldRecordsView() {
             className="pl-9 bg-white rounded-xl text-xs h-10 border-slate-200"
           />
         </div>
-        <select
-          value={entityFilter}
-          onChange={(e) => setEntityFilter(e.target.value)}
-          aria-label="Filter records by type"
-          className="h-10 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
-        >
-          <option value="all">All Types</option>
-          <option value="farmer">Farmers</option>
-          <option value="farm">Plots</option>
-          <option value="water_request">Water</option>
-          <option value="fee_collection">Fees</option>
-          <option value="crop_production">Crops</option>
-          <option value="training_attendance">Trainings</option>
-        </select>
+        <div className="w-36 sm:w-44">
+          <Select value={entityFilter} onValueChange={(val: string) => setEntityFilter(val)}>
+            <SelectTrigger
+              aria-label="Filter records by type"
+              className="h-10 min-h-[40px] w-full bg-white border-slate-200 text-xs font-semibold rounded-xl hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+            >
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200">
+              <SelectItem value="all" className="text-xs font-medium py-2">
+                All Types
+              </SelectItem>
+              <SelectItem value="farmer" className="text-xs font-medium py-2">
+                Farmers
+              </SelectItem>
+              <SelectItem value="farm" className="text-xs font-medium py-2">
+                Plots
+              </SelectItem>
+              <SelectItem value="water_request" className="text-xs font-medium py-2">
+                Water
+              </SelectItem>
+              <SelectItem value="fee_collection" className="text-xs font-medium py-2">
+                Fees
+              </SelectItem>
+              <SelectItem value="crop_production" className="text-xs font-medium py-2">
+                Crops
+              </SelectItem>
+              <SelectItem value="training_attendance" className="text-xs font-medium py-2">
+                Trainings
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Tabs */}
