@@ -13,9 +13,12 @@ export class BlisComputeQueryService {
    * Indicator 5: Dams meeting international safety standards (blis.dams_safe).
    * Count of dams whose latest approved inspection on or before period end meets standard.
    */
-  async getDamsSafe(periodEnd: string, scope: BlisScopeParams): Promise<{ total: string }> {
+  async getDamsSafe(
+    periodEnd: string,
+    scope: BlisScopeParams,
+  ): Promise<{ total: string | null; status: 'computed' | 'not_available'; message?: string }> {
     if (scope.scopeType === 'scheme' || scope.scopeType === 'sector') {
-      return { total: '0' };
+      return { total: null, status: 'not_available', message: 'not applicable at scheme level' };
     }
 
     const periodEndEod = `${periodEnd}T23:59:59.999Z`;
@@ -78,16 +81,19 @@ export class BlisComputeQueryService {
       .innerJoin(latestInspectionSubquery, eq(latestInspectionSubquery.damId, dam.id))
       .where(and(...scopeConditions, eq(latestInspectionSubquery.meetsStandard, true)));
 
-    return { total: String(row?.count ?? 0) };
+    return { total: String(row?.count ?? 0), status: 'computed' };
   }
 
   /**
    * Indicator 7: Rivers with discharge gauging stations (blis.rivers_gauged).
    * Distinct lower(trim(river)) of active stations of type 'discharge' installed on or before period end.
    */
-  async getRiversGauged(periodEnd: string, scope: BlisScopeParams): Promise<{ total: string }> {
+  async getRiversGauged(
+    periodEnd: string,
+    scope: BlisScopeParams,
+  ): Promise<{ total: string | null; status: 'computed' | 'not_available'; message?: string }> {
     if (scope.scopeType === 'scheme' || scope.scopeType === 'sector') {
-      return { total: '0' };
+      return { total: null, status: 'not_available', message: 'not applicable at scheme level' };
     }
 
     const scopeConditions: SQL[] = [
@@ -136,6 +142,6 @@ export class BlisComputeQueryService {
       .from(station)
       .where(and(...scopeConditions));
 
-    return { total: String(row?.count ?? 0) };
+    return { total: String(row?.count ?? 0), status: 'computed' };
   }
 }

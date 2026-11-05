@@ -6,25 +6,28 @@
  * - No component condition may have rating 'poor' or 'critical'.
  */
 export function calculateMeetsStandard(
-  components: Array<{ component: string; ratingCode?: string }>,
+  components: Array<{ component: string; ratingCode?: string | null }>,
 ): boolean {
   if (!components || components.length === 0) {
     return false;
   }
 
-  const ratedComponents = new Set(components.map((c) => c.component));
+  const ratedComponents = new Set<string>();
 
-  // Must have dam_body and spillway_1
-  if (!ratedComponents.has('dam_body') || !ratedComponents.has('spillway_1')) {
-    return false;
-  }
-
-  // No component rated poor or critical
+  // A component counts as rated only if it has a non-empty ratingCode
   for (const c of components) {
     const code = c.ratingCode?.toLowerCase().trim();
-    if (code === 'poor' || code === 'critical') {
-      return false;
+    if (code) {
+      ratedComponents.add(c.component);
+      if (code === 'poor' || code === 'critical') {
+        return false;
+      }
     }
+  }
+
+  // Must have rated dam_body and spillway_1
+  if (!ratedComponents.has('dam_body') || !ratedComponents.has('spillway_1')) {
+    return false;
   }
 
   return true;

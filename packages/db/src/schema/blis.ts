@@ -411,7 +411,6 @@ export const mvDamStatus = blisSchema.table(
     hazardClassId: uuid('hazard_class_id'),
     hazardClass: text('hazard_class'),
     nextDueOn: date('next_due_on', { mode: 'string' }),
-    isOverdue: boolean('is_overdue').notNull(),
     approvedAt: timestamp('approved_at', { withTimezone: true, mode: 'string' }).notNull(),
   },
   (table) => [uniqueIndex('mv_dam_status_dam_id_unique').on(table.damId)],

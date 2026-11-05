@@ -9,7 +9,6 @@ SELECT DISTINCT ON (i.dam_id)
   i.hazard_class_id,
   lv.label AS hazard_class,
   i.next_due_on,
-  (i.next_due_on IS NOT NULL AND i.next_due_on < CURRENT_DATE) AS is_overdue,
   i.approved_at
 FROM "blis"."dam_safety_inspection" i
 LEFT JOIN "core"."lookup_value" lv ON lv.id = i.hazard_class_id

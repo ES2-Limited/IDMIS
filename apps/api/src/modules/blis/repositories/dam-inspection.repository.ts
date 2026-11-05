@@ -6,6 +6,7 @@ import {
   dam,
   basin,
   lookupValue,
+  mvDamStatus,
   eq,
   and,
   isNull,
@@ -14,7 +15,7 @@ import {
   inArray,
   desc,
 } from '@idmis/db';
-import type { RequestScope, ListDamInspectionsQuery } from '@idmis/contracts';
+import type { RequestScope, ListDamInspectionsQuery, MvDamStatus } from '@idmis/contracts';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
@@ -353,5 +354,29 @@ export class DamInspectionRepository {
   async refreshMvDamStatus(txDb?: DatabaseOrTx): Promise<void> {
     const client = this.getDb(txDb);
     await client.execute(sql`SELECT blis.refresh_mv_dam_status()`);
+  }
+
+  async getLatestDamStatus(damId: string, txDb?: DatabaseOrTx): Promise<MvDamStatus | null> {
+    const client = this.getDb(txDb);
+    const [row] = await client
+      .select({
+        damId: mvDamStatus.damId,
+        inspectionId: mvDamStatus.inspectionId,
+        inspectedOn: mvDamStatus.inspectedOn,
+        meetsStandard: mvDamStatus.meetsStandard,
+        hazardClassId: mvDamStatus.hazardClassId,
+        hazardClass: mvDamStatus.hazardClass,
+        nextDueOn: mvDamStatus.nextDueOn,
+        approvedAt: mvDamStatus.approvedAt,
+        isOverdue: sql<boolean>`COALESCE(${mvDamStatus.nextDueOn} < (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos')::date, false)`,
+      })
+      .from(mvDamStatus)
+      .where(eq(mvDamStatus.damId, damId));
+
+    if (!row) return null;
+    return {
+      ...row,
+      isOverdue: Boolean(row.isOverdue),
+    };
   }
 }

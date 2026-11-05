@@ -127,8 +127,18 @@ export class ComputeRegistry {
     });
 
     // 5. Dams meeting international safety standards
-    this.handlers.set('blis.dams_safe', async (ctx) => {
+    this.handlers.set('blis.dams_safe', async (ctx): Promise<ComputeSlotOutput[]> => {
       const res = await this.blisQuery.getDamsSafe(ctx.periodEnd, ctx.scope);
+      if (res.status === 'not_available') {
+        return [
+          {
+            disaggregation: {},
+            value: null,
+            status: 'not_available',
+            message: res.message || 'not applicable at scheme level',
+          },
+        ];
+      }
       return [{ disaggregation: {}, value: res.total, status: 'computed' }];
     });
 
@@ -143,8 +153,18 @@ export class ComputeRegistry {
     });
 
     // 7. Rivers with discharge gauging stations
-    this.handlers.set('blis.rivers_gauged', async (ctx) => {
+    this.handlers.set('blis.rivers_gauged', async (ctx): Promise<ComputeSlotOutput[]> => {
       const res = await this.blisQuery.getRiversGauged(ctx.periodEnd, ctx.scope);
+      if (res.status === 'not_available') {
+        return [
+          {
+            disaggregation: {},
+            value: null,
+            status: 'not_available',
+            message: res.message || 'not applicable at scheme level',
+          },
+        ];
+      }
       return [{ disaggregation: {}, value: res.total, status: 'computed' }];
     });
 

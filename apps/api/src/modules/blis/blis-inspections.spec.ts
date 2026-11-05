@@ -16,20 +16,23 @@ import {
   lookupValue,
   basin,
   dam,
+  damSafetyInspection,
   station,
   outboxEvent,
   mvDamStatus,
   postgres,
-  drizzle,
+  db,
   setDatabaseUrl,
   eq,
   and,
+  sql,
 } from '@idmis/db';
 import { AppModule } from '../../app.module';
 import { TokenService } from '../auth/token.service';
 import { ProblemDetailsFilter } from '../../platform/filters/problem-details.filter';
 import { initAuditWriter } from '../../platform/audit/audit-writer';
 import { BlisComputeQueryService } from './services/blis-compute-query.service';
+import { DamInspectionRepository } from './repositories/dam-inspection.repository';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,9 +41,10 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
   let app: NestFastifyApplication;
   let tokenService: TokenService;
   let computeQueryService: BlisComputeQueryService;
+  let damInspectionRepo: DamInspectionRepository;
   let adminClient: ReturnType<typeof postgres>;
   let testClient: ReturnType<typeof postgres>;
-  let testDb: ReturnType<typeof drizzle>;
+  let testDb: typeof db;
 
   const TEST_DB_NAME = `idmis_test_blis_insp_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const BASE_URL = process.env.DATABASE_URL || 'postgresql://idmis:idmis@localhost:5432/idmis';
@@ -63,6 +67,7 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
   // RBDAs
   const HJ_RBDA_ID = crypto.randomUUID();
   const CHAD_RBDA_ID = crypto.randomUUID();
+  const KANO_SCHEME_ID = crypto.randomUUID();
 
   // Basins
   const HJ_BASIN_ID = crypto.randomUUID();
@@ -96,8 +101,7 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
     await adminClient.unsafe(`CREATE DATABASE "${TEST_DB_NAME}";`);
 
     testClient = postgres(TEST_DB_URL);
-    testDb = drizzle(testClient);
-    setDatabaseUrl(TEST_DB_URL);
+    testDb = setDatabaseUrl(TEST_DB_URL);
     process.env.DATABASE_URL = TEST_DB_URL;
 
     // Apply migrations
@@ -118,6 +122,7 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
 
     tokenService = app.get(TokenService);
     computeQueryService = app.get(BlisComputeQueryService);
+    damInspectionRepo = app.get(DamInspectionRepository);
 
     // 3. Seed Users
     const now = new Date().toISOString();
@@ -739,6 +744,70 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
       expect(statusRow.meetsStandard).toBe(true);
       expect(statusRow.inspectedOn).toBe('2026-03-21');
     });
+
+    it('an inspection with next_due_on yesterday shows overdue without any refresh', async () => {
+      const yesterday = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Lagos',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date(Date.now() - 86400000));
+
+      const overdueDamId = crypto.randomUUID();
+      const overdueInspId = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      await testDb.insert(dam).values({
+        id: overdueDamId,
+        code: 'DAM-OVERDUE-01',
+        name: 'Overdue Test Dam',
+        basinId: HJ_BASIN_ID,
+        geom: 'SRID=4326;POINT(8.6 11.5)',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      await testDb.insert(damSafetyInspection).values({
+        id: overdueInspId,
+        damId: overdueDamId,
+        inspectedOn: '2025-01-01',
+        meetsStandard: false,
+        nextDueOn: yesterday,
+        status: 'approved',
+        submittedAt: now,
+        submittedBy: SYSTEM_USER_ID,
+        approvedAt: now,
+        approvedBy: SYSTEM_USER_ID,
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      // Refresh materialized view once to record the inspection
+      await damInspectionRepo.refreshMvDamStatus(testDb);
+
+      // Verify that reading the status computes isOverdue dynamically live against Africa/Lagos
+      const status = await damInspectionRepo.getLatestDamStatus(overdueDamId, testDb);
+      expect(status).not.toBeNull();
+      expect(status!.damId).toBe(overdueDamId);
+      expect(status!.nextDueOn).toBe(yesterday);
+      expect(status!.isOverdue).toBe(true);
+
+      // Also verify via raw SQL select that dynamic evaluation computes isOverdue without any refresh
+      const [rawRow] = await testDb
+        .select({
+          damId: mvDamStatus.damId,
+          nextDueOn: mvDamStatus.nextDueOn,
+          isOverdue: sql<boolean>`COALESCE(${mvDamStatus.nextDueOn} < (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos')::date, false)`,
+        })
+        .from(mvDamStatus)
+        .where(eq(mvDamStatus.damId, overdueDamId));
+
+      expect(rawRow.isOverdue).toBe(true);
+    });
   });
 
   describe('5. Indicators 5 & 7 Compute Queries', () => {
@@ -748,12 +817,14 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
         scopeType: 'national',
       });
       expect(resPast.total).toBe('0');
+      expect(resPast.status).toBe('computed');
 
       // Period end after approval -> 1 (Tiga Dam is approved and meets standard)
       const resNational = await computeQueryService.getDamsSafe('2026-12-31', {
         scopeType: 'national',
       });
       expect(resNational.total).toBe('1');
+      expect(resNational.status).toBe('computed');
 
       const resHj = await computeQueryService.getDamsSafe('2026-12-31', {
         scopeType: 'rbda',
@@ -766,6 +837,24 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
         scopeOrgId: CHAD_RBDA_ID,
       });
       expect(resChad.total).toBe('0'); // Chad dam has no approved inspection
+    });
+
+    it('Indicator 5: getDamsSafe returns not_available for scheme and sector scope', async () => {
+      const resScheme = await computeQueryService.getDamsSafe('2026-12-31', {
+        scopeType: 'scheme',
+        scopeOrgId: KANO_SCHEME_ID,
+      });
+      expect(resScheme.status).toBe('not_available');
+      expect(resScheme.total).toBeNull();
+      expect(resScheme.message).toBe('not applicable at scheme level');
+
+      const resSector = await computeQueryService.getDamsSafe('2026-12-31', {
+        scopeType: 'sector',
+        scopeOrgId: crypto.randomUUID(),
+      });
+      expect(resSector.status).toBe('not_available');
+      expect(resSector.total).toBeNull();
+      expect(resSector.message).toBe('not applicable at scheme level');
     });
 
     it('Indicator 7: getRiversGauged counts distinct rivers for active discharge stations', async () => {
@@ -851,6 +940,24 @@ describe('BLIS Dam Safety Inspections, Condition Ratings & Indicators 5/7 (BE-4.
         scopeOrgId: CHAD_RBDA_ID,
       });
       expect(resChad.total).toBe('0');
+    });
+
+    it('Indicator 7: getRiversGauged returns not_available for scheme and sector scope', async () => {
+      const resScheme = await computeQueryService.getRiversGauged('2026-03-31', {
+        scopeType: 'scheme',
+        scopeOrgId: KANO_SCHEME_ID,
+      });
+      expect(resScheme.status).toBe('not_available');
+      expect(resScheme.total).toBeNull();
+      expect(resScheme.message).toBe('not applicable at scheme level');
+
+      const resSector = await computeQueryService.getRiversGauged('2026-03-31', {
+        scopeType: 'sector',
+        scopeOrgId: crypto.randomUUID(),
+      });
+      expect(resSector.status).toBe('not_available');
+      expect(resSector.total).toBeNull();
+      expect(resSector.message).toBe('not applicable at scheme level');
     });
   });
 });

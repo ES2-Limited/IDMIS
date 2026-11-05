@@ -46,4 +46,9 @@ describe('calculateMeetsStandard', () => {
   it('returns false for empty components', () => {
     expect(calculateMeetsStandard([])).toBe(false);
   });
+
+  it('returns false when dam_body and spillway_1 are present but unrated', () => {
+    const components = [{ component: 'dam_body' }, { component: 'spillway_1' }];
+    expect(calculateMeetsStandard(components)).toBe(false);
+  });
 });
