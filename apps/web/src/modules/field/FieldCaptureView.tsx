@@ -30,7 +30,7 @@ export function FieldCaptureView() {
       description: 'Record seasonal canal water allocations and delivery schedules.',
       icon: Droplets,
       color: 'blue',
-      route: '/slis',
+      route: '/field/capture/water',
     },
     {
       id: 'fee',
@@ -39,7 +39,7 @@ export function FieldCaptureView() {
       description: 'Record paper receipt book reference or offline payment acknowledgment.',
       icon: FileSpreadsheet,
       color: 'amber',
-      route: '/slis',
+      route: '/field/capture/fee',
     },
     {
       id: 'training',
@@ -48,7 +48,7 @@ export function FieldCaptureView() {
       description: 'Log farmer participatory irrigation management training attendance.',
       icon: GraduationCap,
       color: 'purple',
-      route: '/slis',
+      route: '/field/capture/training',
     },
     {
       id: 'crop',
@@ -57,7 +57,7 @@ export function FieldCaptureView() {
       description: 'Capture seasonal harvest yield estimates and crop varieties.',
       icon: Sprout,
       color: 'lime',
-      route: '/slis',
+      route: '/field/capture/crop',
     },
   ];
 
