@@ -21,8 +21,8 @@ export class ReadingRepository {
     );
 
     const condition = isUuid
-      ? sql`${parameter.id} = ${paramCodeOrId}::uuid OR ${parameter.code} = ${paramCodeOrId}`
-      : eq(parameter.code, paramCodeOrId.toUpperCase());
+      ? sql`${parameter.id} = ${paramCodeOrId}::uuid OR lower(${parameter.code}) = lower(${paramCodeOrId})`
+      : sql`lower(${parameter.code}) = lower(${paramCodeOrId})`;
 
     const [row] = await client
       .select({

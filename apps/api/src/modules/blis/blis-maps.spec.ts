@@ -328,7 +328,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       .insert(parameter)
       .values({
         id: crypto.randomUUID(),
-        code: 'water_level',
+        code: 'WL',
         name: 'Water Level',
         defaultUnit: 'm',
       })
@@ -1184,7 +1184,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
             rowNumber: rowNum++,
             rawData: {
               stationId: stId,
-              parameterCode: 'water_level',
+              parameterCode: 'WL',
               observedAt,
               value: val,
               unit: 'm',
@@ -1246,7 +1246,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       // -----------------------------------------------------------------------
       const readingsRes = await app.inject({
         method: 'GET',
-        url: `/blis/stations/${ST_DISCHARGE_1_ID}/readings?parameter=water_level&interval=month&from=2026-01-01&to=2026-12-31`,
+        url: `/blis/stations/${ST_DISCHARGE_1_ID}/readings?parameter=WL&interval=month&from=2026-01-01&to=2026-12-31`,
         headers: { authorization: `Bearer ${hadejiaOfficerToken}` },
       });
 

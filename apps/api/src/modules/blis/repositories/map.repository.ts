@@ -10,12 +10,20 @@ import {
   eq,
   and,
   isNull,
+  inArray,
   sql,
   type SQL,
 } from '@idmis/db';
 import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { txStorage } from '../../../platform/database/transaction.helper';
+
+function sqlUuidArray(ids: string[]): SQL {
+  return sql`ARRAY[${sql.join(
+    ids.map((id) => sql`${id}::uuid`),
+    sql`, `,
+  )}]`;
+}
 
 type DatabaseOrTx = typeof db;
 
@@ -62,7 +70,7 @@ export class MapRepository {
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
                 WHERE b.id = ${station.basinId}
-                  AND b.rbda_id = ANY(${blisScope.rbdaIds}::uuid[])
+                  AND b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})
                   AND b.deleted_at IS NULL
               )`,
             );
@@ -112,7 +120,7 @@ export class MapRepository {
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
                 WHERE b.id = ${dam.basinId}
-                  AND b.rbda_id = ANY(${blisScope.rbdaIds}::uuid[])
+                  AND b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})
                   AND b.deleted_at IS NULL
               )`,
             );
@@ -155,12 +163,12 @@ export class MapRepository {
       }
 
       case 'basins': {
-        const blisScope = authz.scopeFor('blis.basin:read');
+        const blisScope = authz.scopeFor(permissions.BLIS_BASIN_READ);
         const scopeConditions: SQL[] = [isNull(basin.deletedAt)];
 
         if (!blisScope.isNational) {
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
-            scopeConditions.push(sql`b.rbda_id = ANY(${blisScope.rbdaIds}::uuid[])`);
+            scopeConditions.push(sql`b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})`);
           } else {
             return null;
           }
@@ -177,7 +185,7 @@ export class MapRepository {
 
         if (!slisScope.isNational) {
           if (slisScope.schemeIds && slisScope.schemeIds.length > 0) {
-            scopeConditions.push(sql`p.scheme_id = ANY(${slisScope.schemeIds}::uuid[])`);
+            scopeConditions.push(sql`p.scheme_id = ANY(${sqlUuidArray(slisScope.schemeIds)})`);
           } else {
             return null;
           }
@@ -224,13 +232,13 @@ export class MapRepository {
 
         if (!coreScope.isNational) {
           if (coreScope.schemeIds && coreScope.schemeIds.length > 0) {
-            scopeConditions.push(sql`o.id = ANY(${coreScope.schemeIds}::uuid[])`);
+            scopeConditions.push(sql`o.id = ANY(${sqlUuidArray(coreScope.schemeIds)})`);
           } else if (coreScope.stateIds && coreScope.stateIds.length > 0) {
             scopeConditions.push(
               sql`EXISTS (
                 SELECT 1 FROM core.organisation_state os
                 WHERE os.organisation_id = o.id
-                  AND os.state_id = ANY(${coreScope.stateIds}::uuid[])
+                  AND os.state_id = ANY(${sqlUuidArray(coreScope.stateIds)})
               )`,
             );
           } else {
@@ -300,7 +308,7 @@ export class MapRepository {
                 .where(
                   and(
                     eq(basin.id, layerRow.basinId),
-                    sql`${basin.rbdaId} = ANY(${blisScope.rbdaIds}::uuid[])`,
+                    inArray(basin.rbdaId, blisScope.rbdaIds),
                     isNull(basin.deletedAt),
                   ),
                 )

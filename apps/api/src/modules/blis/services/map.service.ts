@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import crypto from 'node:crypto';
-import { mapLayer, basin, eq, and, isNull, sql } from '@idmis/db';
+import { mapLayer, basin, eq, and, isNull, inArray, sql } from '@idmis/db';
 import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { MapRepository } from '../repositories/map.repository';
@@ -55,7 +55,7 @@ export class MapService {
           .where(
             and(
               eq(basin.id, input.basinId),
-              sql`${basin.rbdaId} = ANY(${blisScope.rbdaIds}::uuid[])`,
+              inArray(basin.rbdaId, blisScope.rbdaIds),
               isNull(basin.deletedAt),
             ),
           )
@@ -209,7 +209,7 @@ export class MapService {
           .where(
             and(
               eq(basin.id, input.basinId),
-              sql`${basin.rbdaId} = ANY(${blisScope.rbdaIds}::uuid[])`,
+              inArray(basin.rbdaId, blisScope.rbdaIds),
               isNull(basin.deletedAt),
             ),
           )
