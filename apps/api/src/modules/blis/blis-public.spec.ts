@@ -22,10 +22,11 @@ import {
   lookupValue,
   basin,
   dam,
+  damSafetyInspection,
   station,
+  parameter,
+  measurement,
   streamFlowReading,
-  mvLatestReading,
-  mvDamStatus,
   postgres,
   drizzle,
   setDatabaseUrl,
@@ -279,27 +280,45 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
       updatedBy: SYSTEM_USER_ID,
     });
 
-    // Materialised View Rows (Direct Seed for fast lookup tests)
-    await testDb.insert(mvLatestReading).values({
+    // Parameter
+    await testDb.insert(parameter).values({
+      id: TEST_PARAM_ID,
+      code: 'WL',
+      name: 'Water Level',
+      defaultUnit: 'm3/s',
+    });
+
+    // Measurement & Refresh mv_latest_reading
+    await testDb.insert(measurement).values({
+      id: crypto.randomUUID(),
       stationId: ACTIVE_STATION_ID,
       parameterId: TEST_PARAM_ID,
       observedAt: '2026-03-15T08:00:00.000Z',
       value: '45.5000',
       unit: 'm3/s',
       quality: 'good',
+      source: 'manual',
+      createdBy: SYSTEM_USER_ID,
     });
+    await testClient`SELECT blis.refresh_mv_latest_reading();`;
 
-    await testDb.insert(mvDamStatus).values({
+    // Dam Safety Inspection & Refresh mv_dam_status
+    await testDb.insert(damSafetyInspection).values({
+      id: TEST_INSPECTION_ID,
       damId: TEST_DAM_ID,
-      inspectionId: TEST_INSPECTION_ID,
       inspectedOn: '2026-03-01',
       meetsStandard: true,
       hazardClassId: null,
-      hazardClass: 'High',
       nextDueOn: '2027-03-01',
-      isOverdue: false,
+      status: 'approved',
       approvedAt: '2026-03-02T10:00:00.000Z',
+      approvedBy: SYSTEM_USER_ID,
+      submittedAt: '2026-03-01T12:00:00.000Z',
+      submittedBy: SYSTEM_USER_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
     });
+    await testClient`SELECT blis.refresh_mv_dam_status();`;
   });
 
   afterAll(async () => {
