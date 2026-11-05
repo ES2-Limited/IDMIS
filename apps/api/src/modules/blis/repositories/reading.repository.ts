@@ -134,7 +134,7 @@ export class ReadingRepository {
       count: number;
     }>(sql`
       SELECT
-        to_char(date_trunc(${intervalSql}, m.observed_at AT TIME ZONE 'Africa/Lagos'), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS bucket,
+        to_char(date_trunc(${intervalSql}, m.observed_at AT TIME ZONE 'Africa/Lagos'), 'YYYY-MM-DD"T"HH24:MI:SS+01:00') AS bucket,
         ROUND(MIN(m.value), 4)::text AS min,
         ROUND(MAX(m.value), 4)::text AS max,
         ROUND(AVG(m.value), 4)::text AS avg,

@@ -46,7 +46,7 @@ describe('Worker BLIS Measurement Commit Job (BE-4.3)', () => {
       userId: 'test-user',
       isActive: true,
       can: vi.fn().mockReturnValue(true),
-      scopeFor: vi.fn(),
+      scopeFor: vi.fn().mockReturnValue({ isNational: true }),
     } as unknown as Awaited<ReturnType<typeof resolveUserAuthz>>);
 
     const mockDb = {
@@ -74,7 +74,7 @@ describe('Worker BLIS Measurement Commit Job (BE-4.3)', () => {
       userId: 'test-user',
       isActive: true,
       can: vi.fn().mockReturnValue(true),
-      scopeFor: vi.fn(),
+      scopeFor: vi.fn().mockReturnValue({ isNational: true }),
     } as unknown as Awaited<ReturnType<typeof resolveUserAuthz>>);
 
     let batchSelectCalled = false;
@@ -164,5 +164,44 @@ describe('Worker BLIS Measurement Commit Job (BE-4.3)', () => {
     expect(mockDb.execute).toHaveBeenCalled();
     // Outbox event inserted
     expect(mockDb.insert).toHaveBeenCalled();
+  });
+
+  it('fails commit with 0 rows if scope was revoked between preview and commit', async () => {
+    vi.mocked(resolveUserAuthz).mockResolvedValue({
+      userId: 'test-user',
+      isActive: true,
+      can: vi.fn().mockReturnValue(true),
+      scopeFor: vi.fn().mockReturnValue({
+        isNational: false,
+        rbdaIds: ['different-rbda'],
+        stateIds: [],
+        schemeIds: [],
+      }),
+    } as unknown as Awaited<ReturnType<typeof resolveUserAuthz>>);
+
+    const mockDb = {
+      execute: vi.fn().mockImplementation((queryObj) => {
+        const queryStr = String(queryObj?.query || queryObj?.strings?.join('') || '');
+        if (queryStr.includes('core.import_row')) {
+          return Promise.resolve([{ station_id: 'out-of-scope-station' }]);
+        }
+        return Promise.resolve([]);
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
+    const res = await processMeasurementCommitJob({
+      batchId: '018f3a5e-0000-7000-8000-000000000004',
+      userId: 'test-user',
+      dbClient: mockDb as unknown as NonNullable<MeasurementCommitJobOptions['dbClient']>,
+    });
+
+    expect(res.status).toBe('commit_failed');
+    expect(res.committedRows).toBe(0);
+    expect(mockDb.update).toHaveBeenCalled();
   });
 });

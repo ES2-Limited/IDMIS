@@ -35,6 +35,55 @@ export async function processMeasurementCommitJob(
     return { status: 'commit_failed', committedRows: 0 };
   }
 
+  // 1b. Re-resolve user's CURRENT scopeFor(BLIS_MEASUREMENT_IMPORT) and re-check every row's station
+  const scope = authz.scopeFor(permissions.BLIS_MEASUREMENT_IMPORT);
+  if (!scope.isNational) {
+    const rbdaConditions: ReturnType<typeof sql>[] = [];
+    if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+      rbdaConditions.push(
+        sql`b.rbda_id = ANY(ARRAY[${sql.join(
+          scope.rbdaIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )}])`,
+      );
+    }
+    if (scope.stateIds && scope.stateIds.length > 0) {
+      rbdaConditions.push(
+        sql`l.state_id = ANY(ARRAY[${sql.join(
+          scope.stateIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )}])`,
+      );
+    }
+
+    const scopePredicate =
+      rbdaConditions.length > 0 ? sql.join(rbdaConditions, sql` OR `) : sql`FALSE`;
+
+    const outOfScopeRows = await dbClient.execute<{ station_id: string }>(sql`
+      SELECT DISTINCT (r.parsed_data->>'stationId')::uuid AS station_id
+      FROM core.import_row r
+      LEFT JOIN blis.station s ON s.id = (r.parsed_data->>'stationId')::uuid
+      LEFT JOIN blis.basin b ON b.id = s.basin_id
+      LEFT JOIN core.ward w ON w.id = s.ward_id
+      LEFT JOIN core.lga l ON l.id = w.lga_id
+      WHERE r.batch_id = ${batchId}::uuid
+        AND r.status = 'valid'
+        AND NOT (${scopePredicate});
+    `);
+
+    if (outOfScopeRows.length > 0) {
+      await dbClient
+        .update(importBatch)
+        .set({
+          status: 'commit_failed',
+          errorMessage:
+            'One or more stations in batch are outside your assigned scope at commit time',
+        })
+        .where(eq(importBatch.id, batchId));
+      return { status: 'commit_failed', committedRows: 0 };
+    }
+  }
+
   // 2. Verify batch exists and is in committing status
   const [batch] = await dbClient
     .select()

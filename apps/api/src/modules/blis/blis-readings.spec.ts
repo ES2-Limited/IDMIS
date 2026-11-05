@@ -325,22 +325,6 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
       },
     ]);
 
-    // 11. Create Sessions and Access Tokens
-    async function createToken(userId: string) {
-      const sessId = crypto.randomUUID();
-      const famId = crypto.randomUUID();
-      await testDb.insert(session).values({
-        id: sessId,
-        familyId: famId,
-        userId,
-        refreshTokenHash: crypto.randomUUID(),
-        expiresAt: new Date(Date.now() + 86400000).toISOString(),
-        createdAt: now,
-      });
-      const { accessToken } = await tokenService.createAccessToken(userId, sessId);
-      return accessToken;
-    }
-
     nationalToken = await createToken(NATIONAL_ADMIN_ID);
     hjOfficerToken = await createToken(HJ_OFFICER_ID);
   });
@@ -353,6 +337,22 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
       await adminClient.end();
     }
   });
+
+  async function createToken(userId: string) {
+    const sessId = crypto.randomUUID();
+    const famId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await testDb.insert(session).values({
+      id: sessId,
+      familyId: famId,
+      userId,
+      refreshTokenHash: crypto.randomUUID(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      createdAt: now,
+    });
+    const { accessToken } = await tokenService.createAccessToken(userId, sessId);
+    return accessToken;
+  }
 
   // Helper to create an Excel file in mock storage
   async function createMockExcelFile(
@@ -436,6 +436,54 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
         })
         .where(eq(importBatch.id, batchId));
       return { status: 'commit_failed', committedRows: 0 };
+    }
+
+    const scope = authz.scopeFor(permissions.BLIS_MEASUREMENT_IMPORT);
+    if (!scope.isNational) {
+      const rbdaConditions: ReturnType<typeof sql>[] = [];
+      if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+        rbdaConditions.push(
+          sql`b.rbda_id = ANY(ARRAY[${sql.join(
+            scope.rbdaIds.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )}])`,
+        );
+      }
+      if (scope.stateIds && scope.stateIds.length > 0) {
+        rbdaConditions.push(
+          sql`l.state_id = ANY(ARRAY[${sql.join(
+            scope.stateIds.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )}])`,
+        );
+      }
+
+      const scopePredicate =
+        rbdaConditions.length > 0 ? sql.join(rbdaConditions, sql` OR `) : sql`FALSE`;
+
+      const outOfScopeRows = await dbClient.execute<{ station_id: string }>(sql`
+        SELECT DISTINCT (r.parsed_data->>'stationId')::uuid AS station_id
+        FROM core.import_row r
+        LEFT JOIN blis.station s ON s.id = (r.parsed_data->>'stationId')::uuid
+        LEFT JOIN blis.basin b ON b.id = s.basin_id
+        LEFT JOIN core.ward w ON w.id = s.ward_id
+        LEFT JOIN core.lga l ON l.id = w.lga_id
+        WHERE r.batch_id = ${batchId}::uuid
+          AND r.status = 'valid'
+          AND NOT (${scopePredicate});
+      `);
+
+      if (outOfScopeRows.length > 0) {
+        await dbClient
+          .update(importBatch)
+          .set({
+            status: 'commit_failed',
+            errorMessage:
+              'One or more stations in batch are outside your assigned scope at commit time',
+          })
+          .where(eq(importBatch.id, batchId));
+        return { status: 'commit_failed', committedRows: 0 };
+      }
     }
 
     const [batch] = await dbClient
@@ -623,6 +671,7 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
         payload: {
           fileId,
           dataset: 'blis.measurement',
+          rbdaId: HJ_RBDA_ID,
         },
       });
       expect(initRes.statusCode).toBe(201);
@@ -647,6 +696,92 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
         headers: { authorization: `Bearer ${hjOfficerToken}` },
       });
       expect(commitRes.statusCode).toBe(400);
+    });
+
+    it('fails commit and writes 0 rows when user scope is revoked between preview and commit', async () => {
+      // 1. Create a temporary user with HJ RBDA scope using BASIN_OFFICER_ROLE_ID
+      const tempUserId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      await testDb.insert(appUser).values({
+        id: tempUserId,
+        email: `temp-officer-${Date.now()}@test.idmis.gov.ng`,
+        fullName: 'Temp Officer',
+        passwordHash: 'dummy',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      const [tempAssignment] = await testDb
+        .insert(assignment)
+        .values({
+          id: crypto.randomUUID(),
+          userId: tempUserId,
+          roleId: BASIN_OFFICER_ROLE_ID,
+          module: 'blis',
+          scopeType: 'rbda',
+          scopeOrgId: HJ_RBDA_ID,
+          createdAt: now,
+          createdBy: SYSTEM_USER_ID,
+          updatedAt: now,
+          updatedBy: SYSTEM_USER_ID,
+        })
+        .returning();
+
+      const tempToken = await createToken(tempUserId);
+
+      // 2. Upload valid HJ station file and validate
+      const validFileId = await createMockExcelFile('blis.measurement', [
+        {
+          stationCode: 'ST-001', // HJ station
+          parameterCode: 'WL',
+          observedAt: '2026-06-15T10:00:00Z',
+          value: '15.2000',
+          unit: 'm',
+          quality: 'raw',
+        },
+      ]);
+
+      const initRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${tempToken}` },
+        payload: {
+          fileId: validFileId,
+          dataset: 'blis.measurement',
+          rbdaId: HJ_RBDA_ID,
+        },
+      });
+      expect(initRes.statusCode).toBe(201);
+      const batch = await pollBatch(JSON.parse(initRes.body).id, tempToken);
+      expect(batch.status).toBe('validated');
+      expect(batch.validRows).toBe(1);
+
+      // 3. Revoke user scope: delete the assignment so user has no RBDA scope
+      await testDb.delete(assignment).where(eq(assignment.id, tempAssignment.id));
+
+      // 4. Worker commit job runs
+      const commitRes = await executeBatchCommit(batch.id, tempUserId, testDb);
+      expect(commitRes.status).toBe('commit_failed');
+      expect(commitRes.committedRows).toBe(0);
+
+      // 5. Verify 0 rows inserted in blis.measurement
+      const [countRow] = await testDb.execute<{ count: number }>(sql`
+        SELECT COUNT(*)::int AS count
+        FROM blis.measurement
+        WHERE import_batch_id = ${batch.id}::uuid;
+      `);
+      expect(countRow?.count ?? 0).toBe(0);
+
+      // Verify batch marked commit_failed
+      const [finalBatch] = await testDb
+        .select()
+        .from(importBatch)
+        .where(eq(importBatch.id, batch.id))
+        .limit(1);
+      expect(finalBatch.status).toBe('commit_failed');
+      expect(finalBatch.committedRows).toBe(0);
     });
 
     it('rejects row with invalid unit and no supported conversion', async () => {
@@ -964,6 +1099,8 @@ describe('BLIS Time-Series Readings & Worker Ingestion (BE-4.3)', () => {
       expect(body.interval).toBe('month');
       expect(body.parameterCode).toBe('WL');
       expect(body.items.length).toBe(12);
+      // January bucket label must be Africa/Lagos offset (+01:00) instead of 'Z'
+      expect(body.items[0].bucket).toBe('2026-01-01T00:00:00+01:00');
 
       // Verify EXPLAIN shows partition pruning (only measurement_2026 is scanned)
       const explainRes = await testClient<{ 'QUERY PLAN': string }[]>`
