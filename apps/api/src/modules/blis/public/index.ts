@@ -21,8 +21,11 @@ export class BlisStationStubService {
 }
 
 export * from '../services/blis-asset.service';
+export * from '../services/blis-compute-query.service';
+export * from '../services/dam-inspection.service';
 export * from '../repositories/basin.repository';
 export * from '../repositories/station.repository';
 export * from '../repositories/reservoir.repository';
 export * from '../repositories/dam.repository';
+export * from '../repositories/dam-inspection.repository';
 export * from '../repositories/basin-morphometry.repository';

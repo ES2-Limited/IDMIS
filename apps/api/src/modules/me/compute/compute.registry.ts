@@ -15,6 +15,7 @@ import {
   type SQL,
 } from '@idmis/db';
 import { SlisComputeQueryService } from '../../slis/public';
+import { BlisComputeQueryService } from '../../blis/public';
 
 export interface ComputeContext {
   year: number;
@@ -42,7 +43,10 @@ export class ComputeRegistry {
   private readonly logger = new Logger(ComputeRegistry.name);
   private readonly handlers = new Map<string, ComputeHandler>();
 
-  constructor(private readonly slisQuery: SlisComputeQueryService) {
+  constructor(
+    private readonly slisQuery: SlisComputeQueryService,
+    private readonly blisQuery: BlisComputeQueryService,
+  ) {
     this.registerHandlers();
   }
 
@@ -122,6 +126,12 @@ export class ComputeRegistry {
       ];
     });
 
+    // 5. Dams meeting international safety standards
+    this.handlers.set('blis.dams_safe', async (ctx) => {
+      const res = await this.blisQuery.getDamsSafe(ctx.periodEnd, ctx.scope);
+      return [{ disaggregation: {}, value: res.total, status: 'computed' }];
+    });
+
     // 6. Staff trained in dam safety assurance and management
     this.handlers.set('slis.trained_dam_safety', async (ctx): Promise<ComputeSlotOutput[]> => {
       const res = await this.slisQuery.getTrainedDamSafety(ctx.periodEnd, ctx.scope);
@@ -130,6 +140,12 @@ export class ComputeRegistry {
         { disaggregation: { gender: 'female' }, value: res.female, status: 'computed' },
         { disaggregation: { gender: 'male' }, value: res.male, status: 'computed' },
       ];
+    });
+
+    // 7. Rivers with discharge gauging stations
+    this.handlers.set('blis.rivers_gauged', async (ctx) => {
+      const res = await this.blisQuery.getRiversGauged(ctx.periodEnd, ctx.scope);
+      return [{ disaggregation: {}, value: res.total, status: 'computed' }];
     });
 
     // 10. Operational WUAs created or strengthened

@@ -35,6 +35,7 @@ export const KNOWN_EVENT_TYPES = [
 
   // BLIS domain events
   'blis.measurement.loaded',
+  'blis.dam.inspected',
 ] as const;
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number];
@@ -156,3 +157,14 @@ export const BlisMeasurementLoadedEventPayloadSchema = z.object({
 export type BlisMeasurementLoadedEventPayload = z.infer<
   typeof BlisMeasurementLoadedEventPayloadSchema
 >;
+
+// BLIS Dam Inspected
+export const BlisDamInspectedEventPayloadSchema = z.object({
+  damId: z.string().uuid(),
+  inspectionId: z.string().uuid(),
+  inspectedOn: z.string(),
+  meetsStandard: z.boolean(),
+  approvedBy: z.string().uuid(),
+  approvedAt: z.string(),
+});
+export type BlisDamInspectedEventPayload = z.infer<typeof BlisDamInspectedEventPayloadSchema>;

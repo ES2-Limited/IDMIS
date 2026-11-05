@@ -1492,22 +1492,8 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(computedManualAttempt.statusCode).toBe(400);
 
-      // 3. Enter every manual indicator (5, 7, 8, 9, 15) through POST values -> submit -> approve by a different user
+      // 3. Enter remaining manual indicators (8, 9, 15) through POST values -> submit -> approve by a different user
       const manualEntries = [
-        {
-          code: '5',
-          schemeVal: '6.0000',
-          schemeTarget: '8.0000',
-          stateVal: '12.0000',
-          stateTarget: '16.0000',
-        },
-        {
-          code: '7',
-          schemeVal: '4.0000',
-          schemeTarget: '7.0000',
-          stateVal: '8.0000',
-          stateTarget: '14.0000',
-        },
         {
           code: '8',
           schemeVal: '5.0000',
@@ -1738,11 +1724,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '5',
-          value: '6.0000',
-          target: '8.0000',
+          value: '0.0000',
+          target: null,
           endTarget: '8.0000',
-          pctOfEndTarget: '75.00',
-          status: 'manual',
+          pctOfEndTarget: '0.00',
+          status: 'computed',
         },
         {
           code: '6',
@@ -1754,11 +1740,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '7',
-          value: '4.0000',
-          target: '7.0000',
+          value: '0.0000',
+          target: null,
           endTarget: '7.0000',
-          pctOfEndTarget: '57.14',
-          status: 'manual',
+          pctOfEndTarget: '0.00',
+          status: 'computed',
         },
         {
           code: '8',
@@ -1903,9 +1889,9 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         { code: '2c', value: '44.5000', target: null, status: 'computed' },
         { code: '3', value: '30.0000', target: null, status: 'computed' },
         { code: '4', value: '85.0000', target: null, status: 'computed' },
-        { code: '5', value: '12.0000', target: '16.0000', status: 'manual' },
+        { code: '5', value: '0.0000', target: null, status: 'computed' },
         { code: '6', value: '2.0000', target: null, status: 'computed' },
-        { code: '7', value: '8.0000', target: '14.0000', status: 'manual' },
+        { code: '7', value: '0.0000', target: null, status: 'computed' },
         { code: '8', value: '10.0000', target: '14.0000', status: 'manual' },
         { code: '9', value: '6.0000', target: '10.0000', status: 'manual' },
         { code: '10', value: '2.0000', target: null, status: 'computed' },

@@ -530,8 +530,8 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
 
       const ind5 = allRows.find((r) => r.code === '5');
       expect(ind5).toBeDefined();
-      expect(ind5?.method).toBe('manual');
-      expect(ind5?.computeKey).toBeNull();
+      expect(ind5?.method).toBe('computed');
+      expect(ind5?.computeKey).toBe('blis.dams_safe');
       expect(ind5?.endTarget).toBe('8.0000');
 
       // 2. Re-running changes nothing and produces no duplicates
