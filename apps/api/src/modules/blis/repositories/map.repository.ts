@@ -13,7 +13,9 @@ import {
   sql,
   type SQL,
 } from '@idmis/db';
+import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
+import { txStorage } from '../../../platform/database/transaction.helper';
 
 type DatabaseOrTx = typeof db;
 
@@ -29,11 +31,16 @@ export interface TileQueryParam {
 export class MapRepository {
   private readonly logger = new Logger(MapRepository.name);
 
+  getDb(txDb?: DatabaseOrTx): DatabaseOrTx {
+    return txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
+  }
+
   /**
    * Generates a Mapbox Vector Tile (.mvt) for a given layer and tile coordinate.
    * Returns a Buffer with MVT binary data, or null if empty.
    */
-  async getVectorTile(params: TileQueryParam, txDb: DatabaseOrTx = db): Promise<Buffer | null> {
+  async getVectorTile(params: TileQueryParam, txDb?: DatabaseOrTx): Promise<Buffer | null> {
+    const client = this.getDb(txDb);
     const { layer, z, x, y, authz } = params;
 
     // Tolerance for geometry simplification based on zoom level (in meters in Web Mercator EPSG:3857)
@@ -44,8 +51,9 @@ export class MapRepository {
 
     switch (layer.toLowerCase()) {
       case 'stations': {
-        const blisScope =
-          authz.scopeFor('blis.measurement:read') || authz.scopeFor('blis.basin:read');
+        const blisScope = authz.can(permissions.BLIS_MEASUREMENT_READ)
+          ? authz.scopeFor(permissions.BLIS_MEASUREMENT_READ)
+          : authz.scopeFor(permissions.BLIS_BASIN_READ);
         const scopeConditions: SQL[] = [isNull(station.deletedAt)];
 
         if (!blisScope.isNational) {
@@ -93,7 +101,9 @@ export class MapRepository {
       }
 
       case 'dams': {
-        const blisScope = authz.scopeFor('blis.dam:manage') || authz.scopeFor('blis.basin:read');
+        const blisScope = authz.can(permissions.BLIS_DAM_MANAGE)
+          ? authz.scopeFor(permissions.BLIS_DAM_MANAGE)
+          : authz.scopeFor(permissions.BLIS_BASIN_READ);
         const scopeConditions: SQL[] = [isNull(dam.deletedAt)];
 
         if (!blisScope.isNational) {
@@ -162,7 +172,7 @@ export class MapRepository {
       }
 
       case 'plots': {
-        const slisScope = authz.scopeFor('slis.plot:read');
+        const slisScope = authz.scopeFor(permissions.SLIS_PLOT_READ);
         const scopeConditions: SQL[] = [isNull(plot.deletedAt)];
 
         if (!slisScope.isNational) {
@@ -173,7 +183,7 @@ export class MapRepository {
           }
         }
 
-        // Zero PII: only id, plot_code, scheme_id, sector_id, area_ha, is_active
+        // Zero PII: only id, plot_code, scheme_id, sector_id, area_ha, status
         tileSql = sql`
           WITH tile_bounds AS (
             SELECT ST_TileEnvelope(${z}, ${x}, ${y}) AS env
@@ -185,7 +195,7 @@ export class MapRepository {
               p.scheme_id,
               p.sector_id,
               p.area_ha,
-              p.is_active,
+              p.status,
               ST_AsMVTGeom(
                 ST_Simplify(ST_Transform(p.geom, 3857), ${tolerance}),
                 tb.env,
@@ -204,8 +214,9 @@ export class MapRepository {
       }
 
       case 'schemes': {
-        const coreScope =
-          authz.scopeFor('core.organisation:read') || authz.scopeFor('slis.plot:read');
+        const coreScope = authz.can(permissions.CORE_ORGANISATION_READ)
+          ? authz.scopeFor(permissions.CORE_ORGANISATION_READ)
+          : authz.scopeFor(permissions.SLIS_PLOT_READ);
         const scopeConditions: SQL[] = [
           eq(organisation.type, 'scheme'),
           isNull(organisation.deletedAt),
@@ -257,7 +268,7 @@ export class MapRepository {
 
       default: {
         // Custom map layer by ID or Name
-        const [layerRow] = await txDb
+        const [layerRow] = await client
           .select({
             id: mapLayer.id,
             name: mapLayer.name,
@@ -278,10 +289,12 @@ export class MapRepository {
 
         // Scope check for custom layer: if basinId is present, must be in user's BLIS scope
         if (layerRow.basinId) {
-          const blisScope = authz.scopeFor('blis.map:read') || authz.scopeFor('blis.basin:read');
+          const blisScope = authz.can(permissions.BLIS_MAP_READ)
+            ? authz.scopeFor(permissions.BLIS_MAP_READ)
+            : authz.scopeFor(permissions.BLIS_BASIN_READ);
           if (!blisScope.isNational) {
             if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
-              const [basinMatch] = await txDb
+              const [basinMatch] = await client
                 .select({ id: basin.id })
                 .from(basin)
                 .where(
@@ -327,7 +340,7 @@ export class MapRepository {
       }
     }
 
-    const res = await txDb.execute(tileSql);
+    const res = await client.execute(tileSql);
     const row = res[0] as { mvt: Buffer | string | null } | undefined;
 
     if (!row || !row.mvt) {

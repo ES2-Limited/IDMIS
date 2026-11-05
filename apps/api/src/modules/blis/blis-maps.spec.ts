@@ -1209,7 +1209,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       // Run worker commit directly
       await testDb.execute(sql`
         INSERT INTO blis.measurement (
-          id, station_id, parameter_id, observed_at, value, unit, quality, source, import_batch_id
+          id, station_id, parameter_id, observed_at, value, unit, quality, source, import_batch_id, created_by
         )
         SELECT
           r.id,
@@ -1220,7 +1220,8 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
           r.parsed_data->>'unit',
           r.parsed_data->>'quality',
           'import',
-          r.batch_id
+          r.batch_id,
+          ${HADEJIA_OFFICER_ID}::uuid
         FROM core.import_row r
         WHERE r.batch_id = ${batchId}::uuid AND r.status = 'valid'
         ON CONFLICT (station_id, parameter_id, observed_at)

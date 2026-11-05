@@ -22,6 +22,9 @@ import {
   MvDamStatusSchema,
   RawReadingsResponseSchema,
   AggregatedReadingsResponseSchema,
+  MapLayerSchema,
+  UploadGeoJsonInputSchema,
+  UploadShapefileInputSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -90,6 +93,9 @@ export const blisSchemas: Record<string, unknown> = {
   MvDamStatus: toJsonSchema(MvDamStatusSchema),
   RawReadingsResponse: toJsonSchema(RawReadingsResponseSchema),
   AggregatedReadingsResponse: toJsonSchema(AggregatedReadingsResponseSchema),
+  MapLayer: toJsonSchema(MapLayerSchema),
+  UploadGeoJsonInput: toJsonSchema(UploadGeoJsonInputSchema),
+  UploadShapefileInput: toJsonSchema(UploadShapefileInputSchema),
 };
 
 export const blisPaths: Record<string, Record<string, unknown>> = {
@@ -1054,6 +1060,119 @@ export const blisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // MAPS & VECTOR TILES
+  // -------------------------------------------------------------
+  '/map/tiles/{layer}/{z}/{x}/{y}': {
+    get: {
+      summary: 'Get vector tile for layer',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'layer', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'z', in: 'path', required: true, schema: { type: 'integer' } },
+        { name: 'x', in: 'path', required: true, schema: { type: 'integer' } },
+        { name: 'y', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Vector tile binary',
+          content: {
+            'application/vnd.mapbox-vector-tile': {
+              schema: { type: 'string', format: 'binary' },
+            },
+          },
+        },
+        '204': {
+          description: 'Tile is empty',
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/blis/map/tiles/{layer}/{z}/{x}/{y}': {
+    get: {
+      summary: 'Get vector tile for BLIS layer',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'layer', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'z', in: 'path', required: true, schema: { type: 'integer' } },
+        { name: 'x', in: 'path', required: true, schema: { type: 'integer' } },
+        { name: 'y', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Vector tile binary',
+          content: {
+            'application/vnd.mapbox-vector-tile': {
+              schema: { type: 'string', format: 'binary' },
+            },
+          },
+        },
+        '204': {
+          description: 'Tile is empty',
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/blis/map/layers/geojson': {
+    post: {
+      summary: 'Upload GeoJSON layer',
+      tags: ['blis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UploadGeoJsonInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Layer created',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MapLayer' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/blis/map/layers/shapefile': {
+    post: {
+      summary: 'Upload Shapefile layer',
+      tags: ['blis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UploadShapefileInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Layer created',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MapLayer' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
       },
     },
   },

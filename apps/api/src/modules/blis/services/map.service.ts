@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import crypto from 'node:crypto';
-import { db, mapLayer, basin, eq, and, isNull, sql } from '@idmis/db';
+import { mapLayer, basin, eq, and, isNull, sql } from '@idmis/db';
+import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { MapRepository } from '../repositories/map.repository';
 import { extractAndValidateShapefileZip } from '../utils/shapefile.helper';
@@ -40,12 +41,15 @@ export class MapService {
     }
 
     if (input.basinId) {
-      const blisScope = authz.scopeFor('blis.map:manage') || authz.scopeFor('blis.basin:manage');
+      const blisScope = authz.can(permissions.BLIS_MAP_MANAGE)
+        ? authz.scopeFor(permissions.BLIS_MAP_MANAGE)
+        : authz.scopeFor(permissions.BLIS_BASIN_READ);
       if (!blisScope.isNational && (!blisScope.rbdaIds || !blisScope.rbdaIds.length)) {
         throw new BadRequestException('Basin is outside your authorized scope');
       }
       if (!blisScope.isNational) {
-        const [b] = await db
+        const client = this.mapRepo.getDb();
+        const [b] = await client
           .select({ id: basin.id })
           .from(basin)
           .where(
@@ -188,6 +192,32 @@ export class MapService {
   async uploadShapefile(input: UploadShapefileInput, authz: UserAuthz, userId: string) {
     if (!input.name || input.name.trim().length === 0) {
       throw new BadRequestException('Layer name is required');
+    }
+
+    if (input.basinId) {
+      const blisScope = authz.can(permissions.BLIS_MAP_MANAGE)
+        ? authz.scopeFor(permissions.BLIS_MAP_MANAGE)
+        : authz.scopeFor(permissions.BLIS_BASIN_READ);
+      if (!blisScope.isNational && (!blisScope.rbdaIds || !blisScope.rbdaIds.length)) {
+        throw new BadRequestException('Basin is outside your authorized scope');
+      }
+      if (!blisScope.isNational) {
+        const client = this.mapRepo.getDb();
+        const [b] = await client
+          .select({ id: basin.id })
+          .from(basin)
+          .where(
+            and(
+              eq(basin.id, input.basinId),
+              sql`${basin.rbdaId} = ANY(${blisScope.rbdaIds}::uuid[])`,
+              isNull(basin.deletedAt),
+            ),
+          )
+          .limit(1);
+        if (!b) {
+          throw new BadRequestException('Basin is outside your authorized RBDA scope');
+        }
+      }
     }
 
     if (!input.zipBase64 && !input.fileId) {

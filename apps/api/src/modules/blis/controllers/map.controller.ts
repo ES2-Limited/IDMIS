@@ -43,34 +43,6 @@ export class MapController {
       .header('Cache-Control', 'public, max-age=3600')
       .send(tileBuffer);
   }
-
-  /**
-   * Upload GeoJSON layer.
-   */
-  @Post('layers/geojson')
-  @Can(permissions.BLIS_MAP_MANAGE)
-  @HttpCode(HttpStatus.CREATED)
-  async uploadGeoJson(
-    @Body() input: UploadGeoJsonInput,
-    @CurrentAuthz() authz: UserAuthz,
-    @CurrentUser() user: RequestUser,
-  ) {
-    return this.mapService.uploadGeoJson(input, authz, user.id);
-  }
-
-  /**
-   * Upload zipped Shapefile layer (.shp, .shx, .dbf, .prj).
-   */
-  @Post('layers/shapefile')
-  @Can(permissions.BLIS_MAP_MANAGE)
-  @HttpCode(HttpStatus.CREATED)
-  async uploadShapefile(
-    @Body() input: UploadShapefileInput,
-    @CurrentAuthz() authz: UserAuthz,
-    @CurrentUser() user: RequestUser,
-  ) {
-    return this.mapService.uploadShapefile(input, authz, user.id);
-  }
 }
 
 @Controller('blis/map')
