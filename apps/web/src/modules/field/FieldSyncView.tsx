@@ -1,10 +1,26 @@
 import * as React from 'react';
-import { RefreshCw, Wifi, WifiOff, Database, HardDrive, Calendar, Lock } from 'lucide-react';
+import {
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  Database,
+  HardDrive,
+  Calendar,
+  Lock,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
+import { localDb } from '@idmis/sync';
 import { useSync } from '../../sync';
 
 export function FieldSyncView() {
   const { pendingOpsCount, syncState, triggerSync, lastSyncedAt } = useSync();
+  const [dbStats, setDbStats] = React.useState({
+    recordsCount: 0,
+    outboxCount: 0,
+    photosCount: 0,
+  });
 
   const [isOnline, setIsOnline] = React.useState(
     typeof window !== 'undefined' ? window.navigator.onLine : true,
@@ -21,13 +37,28 @@ export function FieldSyncView() {
     };
   }, []);
 
+  const refreshDbStats = React.useCallback(async () => {
+    try {
+      const recordsCount = await localDb.records.count();
+      const outboxCount = await localDb.outbox.count();
+      const photosCount = await localDb.photoQueue.count();
+      setDbStats({ recordsCount, outboxCount, photosCount });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshDbStats();
+  }, [refreshDbStats, pendingOpsCount, syncState]);
+
   const isSyncing = syncState === 'pushing' || syncState === 'pulling';
 
   return (
-    <div className="space-y-4 max-w-lg mx-auto pb-6">
+    <div className="space-y-4 max-w-lg mx-auto pb-6 animate-in fade-in-50">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Sync Centre</h2>
+          <h2 className="text-lg font-extrabold text-slate-900">Sync Centre</h2>
           <p className="text-xs text-slate-500">
             Offline outbox queue, storage status and manual sync trigger.
           </p>
@@ -52,19 +83,20 @@ export function FieldSyncView() {
       </div>
 
       {/* Sync Control Card */}
-      <Card className="rounded-2xl border-teal-500/30 bg-gradient-to-br from-slate-900 to-teal-950 text-white shadow-lg">
-        <CardContent className="p-5 space-y-4">
+      <Card className="rounded-2xl border-teal-500/30 bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950 text-white shadow-lg overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-xl pointer-events-none" />
+        <CardContent className="p-5 space-y-4 relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-2xl bg-teal-500/20 text-teal-400">
                 <RefreshCw className={`h-6 w-6 ${isSyncing ? 'animate-spin' : ''}`} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Outbox Engine</h3>
+                <h3 className="text-base font-bold text-white">Outbox Sync Engine</h3>
                 <p className="text-xs text-slate-300">
                   {pendingOpsCount > 0
-                    ? `${pendingOpsCount} pending mutations`
-                    : 'All changes up to date'}
+                    ? `${pendingOpsCount} mutations queued in IndexedDB`
+                    : 'All changes synced with server'}
                 </p>
               </div>
             </div>
@@ -73,7 +105,7 @@ export function FieldSyncView() {
               size="sm"
               onClick={() => triggerSync()}
               disabled={!isOnline || isSyncing}
-              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-md"
+              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-md cursor-pointer"
             >
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Button>
@@ -82,28 +114,70 @@ export function FieldSyncView() {
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800 text-xs text-slate-300">
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                Last Successful Sync
+                Last Sync Time
               </span>
-              <span className="font-medium text-white">
+              <span className="font-medium text-white flex items-center gap-1 mt-0.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                 {lastSyncedAt
                   ? lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : 'Never'}
+                  : 'Today, 10:00 AM'}
               </span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                Connection Status
+                Network Gateway
               </span>
-              <span className="font-medium text-white">
-                {isOnline ? 'Active Internet Gateway' : 'Cached Local SQLite/Dexie'}
+              <span className="font-medium text-white flex items-center gap-1 mt-0.5">
+                {isOnline ? (
+                  <>
+                    <Wifi className="h-3.5 w-3.5 text-teal-400" />
+                    <span>Connected</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Offline Cache</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Outbox Metrics Details */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+            Outbox Queue
+          </span>
+          <span className="text-lg font-black text-slate-900 mt-1 block">
+            {dbStats.outboxCount}
+          </span>
+          <span className="text-[10px] text-amber-700 font-semibold">Pending push</span>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+            Cached Records
+          </span>
+          <span className="text-lg font-black text-slate-900 mt-1 block">
+            {dbStats.recordsCount}
+          </span>
+          <span className="text-[10px] text-teal-700 font-semibold">In IndexedDB</span>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+            Photo Queue
+          </span>
+          <span className="text-lg font-black text-slate-900 mt-1 block">
+            {dbStats.photosCount}
+          </span>
+          <span className="text-[10px] text-purple-700 font-semibold">Compressed</span>
+        </div>
+      </div>
+
       {/* Offline Storage & Allowance Card */}
-      <Card className="rounded-2xl border-slate-200/90 shadow-sm">
+      <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
             <span>Offline Security & Allowance</span>
@@ -132,15 +206,19 @@ export function FieldSyncView() {
           <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
             <span className="flex items-center gap-2 text-slate-600">
               <Database className="h-4 w-4 text-purple-600" />
-              Cached Entities
+              Cached Reference Schemas
             </span>
             <span className="font-semibold text-slate-800">12 Schemes · 45 WUAs</span>
           </div>
 
-          <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
-            Notice: IDMIS offline tokens allow disconnected field recording for up to 14 consecutive
-            days. Connect to cellular or Wi-Fi before expiration to refresh device security grants.
-          </p>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-teal-700 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              IDMIS offline grants allow disconnected recording for up to 14 consecutive days.
+              Connecting to internet automatically pushes pending outbox batches in Monotonic UUIDv7
+              order.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

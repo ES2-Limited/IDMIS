@@ -20,6 +20,10 @@ import { FieldSyncView } from '../modules/field/FieldSyncView';
 import { FieldProfileView } from '../modules/field/FieldProfileView';
 import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
 import { PlotMappingView } from '../modules/slis/field/PlotMappingView';
+import { WaterRequestFieldForm } from '../modules/field/WaterRequestFieldForm';
+import { FeeCollectionFieldForm } from '../modules/field/FeeCollectionFieldForm';
+import { TrainingAttendanceFieldForm } from '../modules/field/TrainingAttendanceFieldForm';
+import { CropProductionFieldForm } from '../modules/field/CropProductionFieldForm';
 
 export const queryClient = new QueryClient();
 
@@ -85,6 +89,30 @@ const fieldPlotMapRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/field/capture/plot',
   component: PlotMappingView,
+});
+
+const fieldWaterRequestRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/water',
+  component: WaterRequestFieldForm,
+});
+
+const fieldFeeCollectionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/fee',
+  component: FeeCollectionFieldForm,
+});
+
+const fieldTrainingAttendanceRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/training',
+  component: TrainingAttendanceFieldForm,
+});
+
+const fieldCropProductionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/crop',
+  component: CropProductionFieldForm,
 });
 
 const fieldRecordsRoute = createRoute({
@@ -214,6 +242,10 @@ const authenticatedChildren = appShellRoute.addChildren([
   fieldCaptureRoute,
   fieldFarmerRegisterRoute,
   fieldPlotMapRoute,
+  fieldWaterRequestRoute,
+  fieldFeeCollectionRoute,
+  fieldTrainingAttendanceRoute,
+  fieldCropProductionRoute,
   fieldRecordsRoute,
   fieldSyncRoute,
   fieldProfileRoute,
