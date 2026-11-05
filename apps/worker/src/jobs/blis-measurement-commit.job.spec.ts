@@ -180,16 +180,17 @@ describe('Worker BLIS Measurement Commit Job (BE-4.3)', () => {
     } as unknown as Awaited<ReturnType<typeof resolveUserAuthz>>);
 
     const mockDb = {
-      execute: vi.fn().mockImplementation((queryObj) => {
-        const queryStr = String(queryObj?.query || queryObj?.strings?.join('') || '');
-        if (queryStr.includes('core.import_row')) {
-          return Promise.resolve([{ station_id: 'out-of-scope-station' }]);
-        }
-        return Promise.resolve([]);
-      }),
+      execute: vi.fn().mockResolvedValue([{ station_id: 'out-of-scope-station' }]),
       update: vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
         }),
       }),
     };
