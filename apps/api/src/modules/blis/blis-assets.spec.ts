@@ -1363,8 +1363,8 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         .values({
           dataset: 'slis.farmer',
           fileId: slisFarmerFileId,
-          schemeId: crypto.randomUUID(),
-          stateId: crypto.randomUUID(),
+          schemeId: null,
+          stateId: null,
           createdBy: SYSTEM_USER_ID,
           status: 'uploaded',
         })
@@ -1381,6 +1381,35 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
   });
 
   describe('9. Blocker 2 Fix: PostGIS Geometry Validation and Round-trip', () => {
+    let geoBasinId: string;
+
+    beforeAll(async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/blis/basins',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'GEO-BASIN-TEST',
+          name: 'Geometry Test Basin',
+          rbdaId: HJ_RBDA_ID,
+          geom: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [8.0, 11.0],
+                [9.0, 11.0],
+                [9.0, 12.0],
+                [8.0, 12.0],
+                [8.0, 11.0],
+              ],
+            ],
+          },
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      geoBasinId = JSON.parse(res.payload).id;
+    });
+
     it('rejects invalid GeoJSON with 400', async () => {
       const res = await app.inject({
         method: 'POST',
@@ -1389,7 +1418,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-INVALID-GEOJSON',
           name: 'Invalid GeoJSON Station',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: 'not-valid-json',
         },
@@ -1403,7 +1432,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-INVALID-GEOJSON-2',
           name: 'Invalid Object Station',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: { foo: 'bar' },
         },
@@ -1419,7 +1448,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-EMPTY-GEOM',
           name: 'Empty Geom Station',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: { type: 'Point', coordinates: [] },
         },
@@ -1449,7 +1478,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-WRONG-TYPE',
           name: 'Wrong Type Station',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: {
             type: 'Polygon',
@@ -1491,7 +1520,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-OUTSIDE-LON',
           name: 'Outside Nigeria Lon',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: { type: 'Point', coordinates: [50.0, 10.0] },
         },
@@ -1506,7 +1535,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-OUTSIDE-LAT',
           name: 'Outside Nigeria Lat',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: { type: 'Point', coordinates: [8.5, 2.0] },
         },
@@ -1552,7 +1581,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         payload: {
           code: 'ST-ROUNDTRIP',
           name: 'Roundtrip Station',
-          basinId: createdBasinId,
+          basinId: geoBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           geom: { type: 'Point', coordinates: targetCoords },
         },
