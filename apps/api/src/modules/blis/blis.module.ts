@@ -10,6 +10,7 @@ import { StationController } from './controllers/station.controller';
 import { ReservoirController } from './controllers/reservoir.controller';
 import { DamController } from './controllers/dam.controller';
 import { DamInspectionController } from './controllers/dam-inspection.controller';
+import { MapController, BlisMapController } from './controllers/map.controller';
 
 // Repositories
 import { BasinRepository } from './repositories/basin.repository';
@@ -19,12 +20,14 @@ import { ReservoirRepository } from './repositories/reservoir.repository';
 import { DamRepository } from './repositories/dam.repository';
 import { ReadingRepository } from './repositories/reading.repository';
 import { DamInspectionRepository } from './repositories/dam-inspection.repository';
+import { MapRepository } from './repositories/map.repository';
 
 // Services
 import { BlisAssetService } from './services/blis-asset.service';
 import { DamInspectionService } from './services/dam-inspection.service';
 import { BlisComputeQueryService } from './services/blis-compute-query.service';
 import { BlisPublicService } from './public';
+import { MapService } from './services/map.service';
 
 // Import Handlers
 import { BasinImportHandler } from './imports/basin.handler';
@@ -41,6 +44,8 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     ReservoirController,
     DamController,
     DamInspectionController,
+    MapController,
+    BlisMapController,
   ],
   providers: [
     BasinRepository,
@@ -50,10 +55,12 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     DamRepository,
     ReadingRepository,
     DamInspectionRepository,
+    MapRepository,
     BlisAssetService,
     DamInspectionService,
     BlisComputeQueryService,
     BlisPublicService,
+    MapService,
     BasinImportHandler,
     StationImportHandler,
     DamImportHandler,
@@ -67,10 +74,12 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     DamRepository,
     ReadingRepository,
     DamInspectionRepository,
+    MapRepository,
     BlisAssetService,
     DamInspectionService,
     BlisComputeQueryService,
     BlisPublicService,
+    MapService,
   ],
 })
 export class BlisModule implements OnModuleInit {
