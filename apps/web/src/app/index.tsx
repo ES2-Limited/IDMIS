@@ -11,6 +11,10 @@ import { UserManagementView } from '../modules/core/UserManagementView';
 import { OrganisationsTreeView } from '../modules/core/OrganisationsTreeView';
 import { ImportCenterView } from '../imports/ImportCenterView';
 import { SlisHome } from '../modules/slis/SlisHome';
+import { FarmersListView } from '../modules/slis/FarmersListView';
+import { PlotsMapView } from '../modules/slis/PlotsMapView';
+import { WaterRequestsListView } from '../modules/slis/WaterRequestsListView';
+import { ReviewConflictsListView } from '../modules/slis/ReviewConflictsListView';
 import { MeHome } from '../modules/me/MeHome';
 import { BlisHome } from '../modules/blis/BlisHome';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
@@ -200,9 +204,9 @@ const slisFarmersRoute = createRoute({
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
         <span>SLIS Module</span>
         <span>/</span>
-        <span className="text-emerald-700 font-bold">Farmers & Households</span>
+        <span className="text-teal-700 font-bold">Farmers & Households</span>
       </div>
-      <SlisHome />
+      <FarmersListView />
     </div>
   ),
 });
@@ -215,9 +219,39 @@ const slisPlotsRoute = createRoute({
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
         <span>SLIS Module</span>
         <span>/</span>
-        <span className="text-emerald-700 font-bold">Plots & Command Areas</span>
+        <span className="text-teal-700 font-bold">Plots & Command Areas</span>
       </div>
-      <SlisHome />
+      <PlotsMapView />
+    </div>
+  ),
+});
+
+const slisWaterRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/slis/water',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>SLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-700 font-bold">Water Allocation Requests</span>
+      </div>
+      <WaterRequestsListView />
+    </div>
+  ),
+});
+
+const slisReviewRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/slis/review',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>SLIS Module</span>
+        <span>/</span>
+        <span className="text-rose-700 font-bold">Review & Conflicts</span>
+      </div>
+      <ReviewConflictsListView />
     </div>
   ),
 });
@@ -256,6 +290,8 @@ const authenticatedChildren = appShellRoute.addChildren([
   slisRoute,
   slisFarmersRoute,
   slisPlotsRoute,
+  slisWaterRoute,
+  slisReviewRoute,
   meRoute,
   blisRoute,
 ]);

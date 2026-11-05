@@ -1,0 +1,428 @@
+import * as React from 'react';
+import { Search, Eye, EyeOff, UploadCloud, ChevronRight, ShieldCheck, MapPin } from 'lucide-react';
+import {
+  Button,
+  Input,
+  StatusChip,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@idmis/ui';
+import { useCan } from '../../auth';
+import { useScope } from '../../shell/ScopeContext';
+import { ImportWizard } from '../../imports/ImportWizard';
+
+export interface FarmerRecord {
+  id: string;
+  farmerCode: string;
+  firstName: string;
+  lastName: string;
+  otherNames?: string;
+  gender: 'male' | 'female';
+  birthYear: number;
+  phone: string;
+  village: string;
+  sectorName: string;
+  wuaName: string;
+  status: 'approved' | 'awaiting_review' | 'conflict' | 'draft';
+  householdCount: number;
+  nin: string;
+  bvn: string;
+  allocatedPlots: string[];
+}
+
+export const mockFarmers: FarmerRecord[] = [
+  {
+    id: '018f3a70-0001-7000-8000-000000000001',
+    farmerCode: 'NG-KRIS-00421',
+    firstName: 'Musa',
+    lastName: 'Danbatta',
+    otherNames: 'Ibrahim',
+    gender: 'male',
+    birthYear: 1982,
+    phone: '+234 803 123 4567',
+    village: 'Dan Hassan',
+    sectorName: 'Sector B4 (Kura)',
+    wuaName: 'Dan Hassan Water Users Association',
+    status: 'approved',
+    householdCount: 6,
+    nin: '23456789012',
+    bvn: '22114433221',
+    allocatedPlots: ['PLT-B4-082 (1.45 ha)', 'PLT-B4-083 (0.90 ha)'],
+  },
+  {
+    id: '018f3a70-0002-7000-8000-000000000002',
+    farmerCode: 'NG-KRIS-00422',
+    firstName: 'Amina',
+    lastName: 'Galadima',
+    otherNames: 'Bello',
+    gender: 'female',
+    birthYear: 1989,
+    phone: '+234 802 987 6543',
+    village: 'Gundutse',
+    sectorName: 'Sector A2 (Gari)',
+    wuaName: 'Gundutse Apex WUA Cluster',
+    status: 'approved',
+    householdCount: 4,
+    nin: '88776655443',
+    bvn: '22334455667',
+    allocatedPlots: ['PLT-A2-014 (2.10 ha)'],
+  },
+  {
+    id: '018f3a70-0003-7000-8000-000000000003',
+    farmerCode: 'NG-HVIP-00819',
+    firstName: 'Haruna',
+    lastName: 'Yusuf',
+    otherNames: 'Sani',
+    gender: 'male',
+    birthYear: 1976,
+    phone: '+234 814 555 7890',
+    village: 'Kafin Agur',
+    sectorName: 'Sector C1 (Hadejia)',
+    wuaName: 'Kafin Agur Irrigation Branch',
+    status: 'awaiting_review',
+    householdCount: 8,
+    nin: '44556677889',
+    bvn: '22998877665',
+    allocatedPlots: ['PLT-C1-019 (0.80 ha)'],
+  },
+  {
+    id: '018f3a70-0004-7000-8000-000000000004',
+    farmerCode: 'NG-HVIP-00820',
+    firstName: 'Fatima',
+    lastName: 'Mohammed',
+    gender: 'female',
+    birthYear: 1993,
+    phone: '+234 809 333 2211',
+    village: 'Auyo South',
+    sectorName: 'Sector D3 (Auyo)',
+    wuaName: 'Auyo South Women Farmers Cooperative',
+    status: 'conflict',
+    householdCount: 5,
+    nin: '55667788990',
+    bvn: '22446688002',
+    allocatedPlots: ['PLT-D3-104 (1.20 ha)'],
+  },
+];
+
+export function FarmersListView() {
+  const { currentScope } = useScope();
+  const canViewUnmasked = useCan('slis.farmer.identity.read_unmasked');
+  const [search, setSearch] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [genderFilter, setGenderFilter] = React.useState('all');
+  const [showUnmasked, setShowUnmasked] = React.useState(false);
+  const [selectedFarmer, setSelectedFarmer] = React.useState<FarmerRecord | null>(null);
+  const [isImportOpen, setIsImportOpen] = React.useState(false);
+
+  const maskIdentity = (val: string) => {
+    if (!val) return '—';
+    if (showUnmasked && canViewUnmasked) return val;
+    return `••••••••${val.slice(-4)}`;
+  };
+
+  const filtered = mockFarmers.filter((f) => {
+    if (statusFilter !== 'all' && f.status !== statusFilter) return false;
+    if (genderFilter !== 'all' && f.gender !== genderFilter) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      f.firstName.toLowerCase().includes(q) ||
+      f.lastName.toLowerCase().includes(q) ||
+      f.farmerCode.toLowerCase().includes(q) ||
+      f.village.toLowerCase().includes(q) ||
+      f.wuaName.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="space-y-5 animate-in fade-in-50">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+              {currentScope.name || 'All Schemes'}
+            </span>
+            <span className="text-xs text-slate-400">·</span>
+            <span className="text-xs text-slate-500 font-medium">SLIS Farmer Registry</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+            Farmers & Households
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {canViewUnmasked && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowUnmasked((p) => !p)}
+              className="text-xs h-9 font-semibold text-slate-700 hover:text-teal-800"
+            >
+              {showUnmasked ? (
+                <EyeOff className="h-4 w-4 mr-1.5" />
+              ) : (
+                <Eye className="h-4 w-4 mr-1.5" />
+              )}
+              {showUnmasked ? 'Mask Identity Numbers' : 'Reveal Unmasked Identity'}
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            onClick={() => setIsImportOpen(true)}
+            className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-9 px-3.5 shadow-sm"
+          >
+            <UploadCloud className="h-4 w-4 mr-1.5" />
+            Import Farmers
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="relative sm:col-span-2">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by code, farmer name, village..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-xs border-slate-200"
+          />
+        </div>
+
+        <div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by approval status"
+            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
+          >
+            <option value="all">All Approval Statuses</option>
+            <option value="approved">Approved</option>
+            <option value="awaiting_review">Awaiting Review</option>
+            <option value="conflict">Action Needed / Conflict</option>
+          </select>
+        </div>
+
+        <div>
+          <select
+            value={genderFilter}
+            onChange={(e) => setGenderFilter(e.target.value)}
+            aria-label="Filter by gender"
+            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-700"
+          >
+            <option value="all">All Genders</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table Data */}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+        <table className="w-full text-left text-xs text-slate-600">
+          <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <tr>
+              <th className="py-3.5 px-4">Farmer Details</th>
+              <th className="py-3.5 px-4">Location & Sector</th>
+              <th className="py-3.5 px-4">National Identity</th>
+              <th className="py-3.5 px-4">WUA & Plots</th>
+              <th className="py-3.5 px-4">Status</th>
+              <th className="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtered.map((farmer) => (
+              <tr key={farmer.id} className="hover:bg-slate-50/60 transition-colors">
+                <td className="py-3.5 px-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-teal-50 border border-teal-200/80 text-teal-800 flex items-center justify-center font-bold text-xs shrink-0">
+                      {farmer.firstName.charAt(0)}
+                      {farmer.lastName.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900">
+                        {farmer.firstName} {farmer.otherNames ? `${farmer.otherNames} ` : ''}
+                        {farmer.lastName}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        {farmer.farmerCode}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                <td className="py-3.5 px-4">
+                  <div className="font-semibold text-slate-800">{farmer.village}</div>
+                  <div className="text-[11px] text-slate-400">{farmer.sectorName}</div>
+                </td>
+
+                <td className="py-3.5 px-4">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                      <span className="text-slate-400 font-bold">NIN:</span>
+                      <span className="font-semibold text-slate-700">
+                        {maskIdentity(farmer.nin)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                      <span className="text-slate-400 font-bold">BVN:</span>
+                      <span className="font-semibold text-slate-700">
+                        {maskIdentity(farmer.bvn)}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+
+                <td className="py-3.5 px-4">
+                  <div className="font-semibold text-slate-800 truncate max-w-xs">
+                    {farmer.wuaName}
+                  </div>
+                  <div className="text-[11px] text-teal-700 font-medium">
+                    {farmer.allocatedPlots.length} parcel(s) assigned
+                  </div>
+                </td>
+
+                <td className="py-3.5 px-4">
+                  <StatusChip status={farmer.status}>
+                    {farmer.status === 'approved'
+                      ? 'Approved'
+                      : farmer.status === 'awaiting_review'
+                        ? 'Awaiting Review'
+                        : farmer.status === 'conflict'
+                          ? 'Held Conflict'
+                          : 'Draft'}
+                  </StatusChip>
+                </td>
+
+                <td className="py-3.5 px-4 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedFarmer(farmer)}
+                    className="h-8 px-2.5 text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50 font-bold"
+                  >
+                    View Details
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Farmer Detail Drawer / Dialog */}
+      {selectedFarmer && (
+        <Dialog open={Boolean(selectedFarmer)} onOpenChange={() => setSelectedFarmer(null)}>
+          <DialogContent className="max-w-xl p-6 rounded-3xl">
+            <DialogHeader className="border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full">
+                      {selectedFarmer.farmerCode}
+                    </span>
+                    <StatusChip status={selectedFarmer.status}>{selectedFarmer.status}</StatusChip>
+                  </div>
+                  <DialogTitle className="text-xl font-black text-slate-900 mt-1">
+                    {selectedFarmer.firstName} {selectedFarmer.otherNames} {selectedFarmer.lastName}
+                  </DialogTitle>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2 text-xs text-slate-700">
+              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/60">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Gender & Age
+                  </span>
+                  <span className="font-semibold text-slate-900 capitalize">
+                    {selectedFarmer.gender} · Born {selectedFarmer.birthYear}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Telephone
+                  </span>
+                  <span className="font-semibold text-slate-900">{selectedFarmer.phone}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Village & Ward
+                  </span>
+                  <span className="font-semibold text-slate-900">{selectedFarmer.village}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Household Members
+                  </span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedFarmer.householdCount} Dependents
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+                <span className="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-teal-700" />
+                  National Identity Documents
+                </span>
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">National Identity Number (NIN)</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {maskIdentity(selectedFarmer.nin)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500 font-medium">Bank Verification Number (BVN)</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {maskIdentity(selectedFarmer.bvn)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+                <span className="text-xs font-bold text-slate-900 block flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-emerald-700" />
+                  Allocated Farmland Parcels
+                </span>
+                <div className="space-y-1">
+                  {selectedFarmer.allocatedPlots.map((plot, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-xl bg-emerald-50/50 border border-emerald-100 text-emerald-950 font-medium"
+                    >
+                      <span>{plot}</span>
+                      <span className="text-[10px] font-bold text-emerald-700">Irrigated</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* 5-step Reusable Import Wizard */}
+      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+        <DialogContent className="max-w-4xl p-6 rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b border-slate-100 pb-3">
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Import Farmers Spreadsheet
+            </DialogTitle>
+          </DialogHeader>
+          <ImportWizard
+            initialDatasetId="farmer"
+            onCancel={() => setIsImportOpen(false)}
+            onBatchCommitted={() => setIsImportOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
