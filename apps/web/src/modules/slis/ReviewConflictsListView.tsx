@@ -22,6 +22,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 
@@ -349,31 +354,66 @@ export function ReviewConflictsListView() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Filter className="h-3.5 w-3.5 text-slate-400" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 font-semibold focus:outline-none"
-            >
-              <option value="all">All Types</option>
-              <option value="plot">Plots</option>
-              <option value="farmer">Farmers</option>
-              <option value="water_request">Water Requests</option>
-              <option value="crop_production">Crop Production</option>
-              <option value="fee_collection">Fee Collections</option>
-            </select>
+            <div className="w-32 sm:w-36">
+              <Select value={typeFilter} onValueChange={(val: string) => setTypeFilter(val)}>
+                <SelectTrigger
+                  aria-label="Filter by type"
+                  className="h-8 min-h-[32px] w-full bg-slate-50 border-slate-200 text-xs font-semibold rounded-lg hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+                >
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl shadow-xl border-slate-200">
+                  <SelectItem value="all" className="text-xs font-medium py-2">
+                    All Types
+                  </SelectItem>
+                  <SelectItem value="plot" className="text-xs font-medium py-2">
+                    Plots
+                  </SelectItem>
+                  <SelectItem value="farmer" className="text-xs font-medium py-2">
+                    Farmers
+                  </SelectItem>
+                  <SelectItem value="water_request" className="text-xs font-medium py-2">
+                    Water Requests
+                  </SelectItem>
+                  <SelectItem value="crop_production" className="text-xs font-medium py-2">
+                    Crop Production
+                  </SelectItem>
+                  <SelectItem value="fee_collection" className="text-xs font-medium py-2">
+                    Fee Collections
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <select
-              value={collectorFilter}
-              onChange={(e) => setCollectorFilter(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 font-semibold focus:outline-none"
-            >
-              <option value="all">All Collectors</option>
-              <option value="Aliyu Garba">Aliyu Garba</option>
-              <option value="Ibrahim Sani">Ibrahim Sani</option>
-              <option value="Fatima Mohammed">Fatima Mohammed</option>
-            </select>
+            <div className="w-36 sm:w-40">
+              <Select
+                value={collectorFilter}
+                onValueChange={(val: string) => setCollectorFilter(val)}
+              >
+                <SelectTrigger
+                  aria-label="Filter by collector"
+                  className="h-8 min-h-[32px] w-full bg-slate-50 border-slate-200 text-xs font-semibold rounded-lg hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+                >
+                  <SelectValue placeholder="All Collectors" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl shadow-xl border-slate-200">
+                  <SelectItem value="all" className="text-xs font-medium py-2">
+                    All Collectors
+                  </SelectItem>
+                  <SelectItem value="Aliyu Garba" className="text-xs font-medium py-2">
+                    Aliyu Garba
+                  </SelectItem>
+                  <SelectItem value="Ibrahim Sani" className="text-xs font-medium py-2">
+                    Ibrahim Sani
+                  </SelectItem>
+                  <SelectItem value="Fatima Mohammed" className="text-xs font-medium py-2">
+                    Fatima Mohammed
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -381,7 +421,7 @@ export function ReviewConflictsListView() {
       {/* Main Review Records Table / List */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[760px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4 w-10">
@@ -736,8 +776,8 @@ export function ReviewConflictsListView() {
                   authoritative server version for each conflicting attribute:
                 </p>
 
-                <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                  <table className="w-full text-left border-collapse">
+                <div className="rounded-2xl border border-slate-200 overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[500px]">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         <th className="py-2.5 px-3">Attribute</th>

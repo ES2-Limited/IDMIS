@@ -10,7 +10,15 @@ import {
   TrendingUp,
   PieChart,
 } from 'lucide-react';
-import { Button, Badge } from '@idmis/ui';
+import {
+  Button,
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 
 export interface SectorReportRow {
@@ -248,15 +256,27 @@ export function SlisReportsView() {
 
         <div className="flex items-center gap-2">
           <Filter className="h-3.5 w-3.5 text-slate-400" />
-          <select
-            value={schemeFilter}
-            onChange={(e) => setSchemeFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-none"
-          >
-            <option value="all">All Schemes</option>
-            <option value="Hadejia Valley">Hadejia Valley (HVIP)</option>
-            <option value="Kano River">Kano River (KRIP)</option>
-          </select>
+          <div className="w-48 sm:w-56">
+            <Select value={schemeFilter} onValueChange={(val: string) => setSchemeFilter(val)}>
+              <SelectTrigger
+                aria-label="Filter by scheme"
+                className="h-8.5 min-h-[34px] w-full bg-slate-50 border-slate-200 text-xs font-semibold rounded-lg hover:border-teal-600 transition-all shadow-2xs cursor-pointer"
+              >
+                <SelectValue placeholder="All Schemes" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl shadow-xl border-slate-200">
+                <SelectItem value="all" className="text-xs font-medium py-2">
+                  All Schemes
+                </SelectItem>
+                <SelectItem value="Hadejia Valley" className="text-xs font-medium py-2">
+                  Hadejia Valley (HVIP)
+                </SelectItem>
+                <SelectItem value="Kano River" className="text-xs font-medium py-2">
+                  Kano River (KRIP)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -331,7 +351,7 @@ export function SlisReportsView() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[760px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Sector Identifier</th>
