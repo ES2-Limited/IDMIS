@@ -1,12 +1,4 @@
-import {
-  Table,
-  ClipboardList,
-  Target,
-  ArrowUpRight,
-  FileBarChart,
-  BarChart3,
-  CalendarCheck,
-} from 'lucide-react';
+import { Table, ClipboardList, Target, ArrowUpRight, FileBarChart, BarChart3 } from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
@@ -32,7 +24,7 @@ export function MeHome() {
         'Baseline milestones',
       ],
       linkText: 'Explore Framework',
-      to: '/me',
+      to: '/me/indicators',
     },
     {
       title: 'Quarterly Data Entry Grid',
@@ -51,7 +43,7 @@ export function MeHome() {
         'Audit signature sign-off',
       ],
       linkText: 'Open Quarterly Grid',
-      to: '/me',
+      to: '/me/indicators',
     },
     {
       title: 'Field Surveys & Beneficiaries',
@@ -70,7 +62,7 @@ export function MeHome() {
         'Surveyor ID validation',
       ],
       linkText: 'Conduct Survey',
-      to: '/me',
+      to: '/me/indicators',
     },
   ];
 
@@ -106,13 +98,15 @@ export function MeHome() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
-            >
-              <CalendarCheck className="h-3.5 w-3.5 mr-1.5 text-amber-400" />
-              Submission Deadlines
-            </Button>
+            <Link to="/me/indicators">
+              <Button
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+              >
+                <Target className="h-3.5 w-3.5 mr-1.5 text-amber-400" />
+                Results Framework
+              </Button>
+            </Link>
             <Button className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md cursor-pointer">
               <FileBarChart className="h-3.5 w-3.5 mr-1.5" />
               Export Summary
