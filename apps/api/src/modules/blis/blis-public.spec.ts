@@ -740,7 +740,7 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
 
       // 1. Direct import from internal BLIS path fails boundary rule
       const invalidCode = `
-        import { StationRepository } from '../blis/repositories/station.repository';
+        import { StationRepository } from '../blis/repositories/station.repository.ts';
         console.log(StationRepository);
       `;
       const invalidResults = await eslint.lintText(invalidCode, {
@@ -755,7 +755,7 @@ describe('BLIS Public Services & SLIS Stream-Flow Boundary Enforcement (BE-4.6)'
 
       // 2. Import through blis/public succeeds with 0 boundary errors
       const validCode = `
-        import { BlisPublicService } from '../blis/public';
+        import { BlisPublicService } from '../blis/public/index.ts';
         console.log(BlisPublicService);
       `;
       const validResults = await eslint.lintText(validCode, {
