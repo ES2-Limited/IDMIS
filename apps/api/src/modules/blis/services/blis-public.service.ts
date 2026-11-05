@@ -11,6 +11,7 @@ import {
   and,
   isNull,
   count,
+  sql,
 } from '@idmis/db';
 import type {
   StationLookup,
@@ -131,7 +132,7 @@ export class BlisPublicService {
         hazardClassId: mvDamStatus.hazardClassId,
         hazardClass: mvDamStatus.hazardClass,
         nextDueOn: mvDamStatus.nextDueOn,
-        isOverdue: mvDamStatus.isOverdue,
+        isOverdue: sql<boolean>`COALESCE(${mvDamStatus.nextDueOn} < (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos')::date, false)`,
         approvedAt: mvDamStatus.approvedAt,
       })
       .from(mvDamStatus)
@@ -204,7 +205,7 @@ export class BlisPublicService {
   /**
    * Public proxy for M&E Indicator 7 (rivers gauged).
    */
-  async getRiversGaugedCount(periodEnd: string, scope: BlisScopeParams): Promise<string> {
+  async getRiversGaugedCount(periodEnd: string, scope: BlisScopeParams): Promise<string | null> {
     const res = await this.computeQueryService.getRiversGauged(periodEnd, scope);
     return res.total;
   }
@@ -212,7 +213,10 @@ export class BlisPublicService {
   /**
    * Public proxy for M&E Indicator 5 (dams meeting safety standards).
    */
-  async getDamsMeetingStandardCount(periodEnd: string, scope: BlisScopeParams): Promise<string> {
+  async getDamsMeetingStandardCount(
+    periodEnd: string,
+    scope: BlisScopeParams,
+  ): Promise<string | null> {
     const res = await this.computeQueryService.getDamsSafe(periodEnd, scope);
     return res.total;
   }
