@@ -124,19 +124,28 @@ export class ImportService {
 
     const scope = authz.scopeFor(handler.permission);
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
+    const isBlis = input.dataset.startsWith('blis.');
+    const rbdaId = input.rbdaId ?? null;
 
     if (!scope.isNational && !baseScope.isNational) {
-      const hasRbdaAccess =
-        (scope.rbdaIds && scope.rbdaIds.length > 0) ||
-        (baseScope.rbdaIds && baseScope.rbdaIds.length > 0);
-      const hasStateAccess =
-        (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
-        (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
-      const hasSchemeAccess =
-        (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
-        (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
-      if (!hasRbdaAccess && !hasStateAccess && !hasSchemeAccess) {
-        throw new ForbiddenException('Target location is outside your assigned scope');
+      if (isBlis) {
+        if (!rbdaId) {
+          throw new BadRequestException('rbdaId is required for BLIS imports');
+        }
+        const userRbdaIds = [...(scope.rbdaIds ?? []), ...(baseScope.rbdaIds ?? [])];
+        if (!userRbdaIds.includes(rbdaId)) {
+          throw new ForbiddenException('Target location is outside your assigned scope');
+        }
+      } else {
+        const hasStateAccess =
+          (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
+          (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
+        const hasSchemeAccess =
+          (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
+          (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
+        if (!hasStateAccess && !hasSchemeAccess) {
+          throw new ForbiddenException('Target location is outside your assigned scope');
+        }
       }
     }
 
@@ -149,6 +158,7 @@ export class ImportService {
             fileId: input.fileId,
             schemeId: input.schemeId,
             stateId: derivedStateId,
+            rbdaId,
             createdBy: authz.userId,
           },
           txDb,
@@ -166,6 +176,7 @@ export class ImportService {
             fileId: created.fileId,
             schemeId: created.schemeId,
             stateId: created.stateId,
+            rbdaId: created.rbdaId,
             uploadedBy: authz.userId,
           },
         });
@@ -202,6 +213,10 @@ export class ImportService {
       throw new NotFoundException(`Import batch ${batchId} not found`);
     }
 
+    if (batch.createdBy === authz.userId) {
+      return batch;
+    }
+
     const handler = this.registry.get(batch.dataset);
     const scope = handler
       ? authz.scopeFor(handler.permission)
@@ -209,15 +224,21 @@ export class ImportService {
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
 
     if (!scope.isNational && !baseScope.isNational) {
-      const matchRbda =
-        (scope.rbdaIds && scope.rbdaIds.length > 0) ||
-        (baseScope.rbdaIds && baseScope.rbdaIds.length > 0);
-      const matchState =
-        (batch.stateId && scope.stateIds?.includes(batch.stateId)) ||
-        (batch.stateId && baseScope.stateIds?.includes(batch.stateId));
-      const matchScheme =
-        (batch.schemeId && scope.schemeIds?.includes(batch.schemeId)) ||
-        (batch.schemeId && baseScope.schemeIds?.includes(batch.schemeId));
+      const matchRbda = Boolean(
+        batch.rbdaId &&
+        ((scope.rbdaIds && scope.rbdaIds.includes(batch.rbdaId)) ||
+          (baseScope.rbdaIds && baseScope.rbdaIds.includes(batch.rbdaId))),
+      );
+      const matchState = Boolean(
+        batch.stateId &&
+        ((scope.stateIds && scope.stateIds.includes(batch.stateId)) ||
+          (baseScope.stateIds && baseScope.stateIds.includes(batch.stateId))),
+      );
+      const matchScheme = Boolean(
+        batch.schemeId &&
+        ((scope.schemeIds && scope.schemeIds.includes(batch.schemeId)) ||
+          (baseScope.schemeIds && baseScope.schemeIds.includes(batch.schemeId))),
+      );
       if (!matchRbda && !matchState && !matchScheme) {
         throw new NotFoundException(`Import batch ${batchId} not found`);
       }
@@ -618,7 +639,7 @@ export class ImportService {
           batch.schemeId ??
           null;
 
-        const rowRbdaId = (data.rbdaId as string | undefined) ?? null;
+        const rowRbdaId = (data.rbdaId as string | undefined) ?? batch.rbdaId ?? null;
 
         const rbdaMatch = Boolean(rowRbdaId && commitScope.rbdaIds?.includes(rowRbdaId));
         const stateMatch = Boolean(rowStateId && commitScope.stateIds?.includes(rowStateId));

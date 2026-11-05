@@ -14,6 +14,7 @@ import type {
 } from '../../core/imports/import-handler.interface';
 import { BlisAssetService } from '../services/blis-asset.service';
 import { isRbdaInScope } from '../utils/assert-blis-scope';
+import { parseWktToGeoJson } from './wkt.helper';
 import type { TransactionClient } from '../../../platform/database/transaction.helper';
 import type { UserAuthz } from '../../../platform/auth';
 
@@ -69,7 +70,8 @@ export class BasinImportHandler implements ImportDatasetHandler {
     }
 
     if (rawData.geomWkt) {
-      parsedData.geom = String(rawData.geomWkt).trim();
+      const parsedGeom = parseWktToGeoJson(String(rawData.geomWkt));
+      parsedData.geom = parsedGeom ?? String(rawData.geomWkt).trim();
     }
 
     return { rawData, parsedData, errors };
@@ -177,7 +179,7 @@ export class BasinImportHandler implements ImportDatasetHandler {
         hydrologicalUnit: parsedData.hydrologicalUnit as string | undefined,
         mainRiver: parsedData.mainRiver as string | undefined,
         rbdaId: (parsedData.rbdaId as string) || undefined,
-        geom: parsedData.geom as string | undefined,
+        geom: parsedData.geom as Record<string, unknown> | undefined,
       },
       authz,
       authz.userId,

@@ -14,6 +14,7 @@ import type {
 } from '../../core/imports/import-handler.interface';
 import { BlisAssetService } from '../services/blis-asset.service';
 import { isRbdaInScope } from '../utils/assert-blis-scope';
+import { parseWktToGeoJson } from './wkt.helper';
 import type { TransactionClient } from '../../../platform/database/transaction.helper';
 import type { UserAuthz } from '../../../platform/auth';
 
@@ -91,7 +92,12 @@ export class StationImportHandler implements ImportDatasetHandler {
     if (!geomWkt) {
       errors.push({ column: 'geomWkt', message: 'Geometry WKT is required' });
     } else {
-      parsedData.geom = geomWkt;
+      const parsedGeom = parseWktToGeoJson(geomWkt);
+      if (!parsedGeom) {
+        errors.push({ column: 'geomWkt', message: 'Invalid geometry WKT or GeoJSON format' });
+      } else {
+        parsedData.geom = parsedGeom;
+      }
     }
 
     if (rawData.altitudeM) {
@@ -253,7 +259,7 @@ export class StationImportHandler implements ImportDatasetHandler {
         stationTypeId: parsedData.stationTypeId as string,
         wardId: (parsedData.wardId as string) || undefined,
         river: (parsedData.river as string) || undefined,
-        geom: parsedData.geom as string,
+        geom: parsedData.geom as Record<string, unknown>,
         installedOn: (parsedData.installedOn as string) || undefined,
         isActive: true,
       },

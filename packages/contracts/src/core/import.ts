@@ -25,6 +25,7 @@ export const InitiateImportInputSchema = z.object({
   fileId: z.uuid(),
   schemeId: z.uuid().optional(),
   stateId: z.uuid().optional(),
+  rbdaId: z.uuid().optional(),
 });
 export type InitiateImportInput = z.infer<typeof InitiateImportInputSchema>;
 
@@ -34,6 +35,7 @@ export const ImportBatchResponseSchema = StandardResponseColumnsSchema.extend({
   status: ImportBatchStatusSchema,
   schemeId: z.uuid().nullable().optional(),
   stateId: z.uuid().nullable().optional(),
+  rbdaId: z.uuid().nullable().optional(),
   totalRows: z.number().int().default(0),
   validRows: z.number().int().default(0),
   errorRows: z.number().int().default(0),
@@ -50,6 +52,7 @@ export const ListImportBatchesQuerySchema = BaseListQuerySchema.extend({
   status: ImportBatchStatusSchema.optional(),
   schemeId: z.uuid().optional(),
   stateId: z.uuid().optional(),
+  rbdaId: z.uuid().optional(),
 });
 export type ListImportBatchesQuery = z.infer<typeof ListImportBatchesQuerySchema>;
 

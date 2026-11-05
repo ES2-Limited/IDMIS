@@ -310,6 +310,7 @@ export const importBatch = coreSchema.table(
     status: importBatchStatusEnum('status').notNull().default('uploaded'),
     schemeId: uuid('scheme_id').references(() => organisation.id),
     stateId: uuid('state_id').references(() => state.id),
+    rbdaId: uuid('rbda_id').references(() => organisation.id),
     totalRows: integer('total_rows').notNull().default(0),
     validRows: integer('valid_rows').notNull().default(0),
     errorRows: integer('error_rows').notNull().default(0),
@@ -332,6 +333,7 @@ export const importBatch = coreSchema.table(
     index('import_batch_created_by_idx').on(table.createdBy, table.createdAt),
     index('import_batch_state_id_idx').on(table.stateId),
     index('import_batch_scheme_id_idx').on(table.schemeId),
+    index('import_batch_rbda_id_idx').on(table.rbdaId),
     index('import_batch_status_idx').on(table.status),
   ],
 );

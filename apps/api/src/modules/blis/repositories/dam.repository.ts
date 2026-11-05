@@ -17,7 +17,7 @@ import type { RequestScope, ListDamsQuery } from '@idmis/contracts';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
-import { toGeometrySql, parseGeoJsonResult } from '../utils/geometry.helper';
+import { validateAndBuildGeometrySql } from '../utils/geometry.helper';
 
 export interface CreateDamData {
   id?: string;
@@ -153,7 +153,7 @@ export class DamRepository {
         nearestTown: dam.nearestTown,
         resettlementNotes: dam.resettlementNotes,
         notes: dam.notes,
-        geom: dam.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${dam.geom})::json`,
         altitudeM: dam.altitudeM,
         createdAt: dam.createdAt,
         createdBy: dam.createdBy,
@@ -167,10 +167,7 @@ export class DamRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async findByNameAndBasin(name: string, basinId: string, txDb?: DatabaseOrTx) {
@@ -207,7 +204,7 @@ export class DamRepository {
         nearestTown: dam.nearestTown,
         resettlementNotes: dam.resettlementNotes,
         notes: dam.notes,
-        geom: dam.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${dam.geom})::json`,
         altitudeM: dam.altitudeM,
         createdAt: dam.createdAt,
         createdBy: dam.createdBy,
@@ -221,10 +218,7 @@ export class DamRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async list(query: ListDamsQuery, scope?: RequestScope, txDb?: DatabaseOrTx) {
@@ -299,7 +293,7 @@ export class DamRepository {
         nearestTown: dam.nearestTown,
         resettlementNotes: dam.resettlementNotes,
         notes: dam.notes,
-        geom: dam.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${dam.geom})::json`,
         altitudeM: dam.altitudeM,
         createdAt: dam.createdAt,
         createdBy: dam.createdBy,
@@ -315,10 +309,7 @@ export class DamRepository {
       .offset(offset);
 
     return {
-      data: rows.map((r) => ({
-        ...r,
-        geom: parseGeoJsonResult(r.geom),
-      })),
+      data: rows,
       total: countRes?.count ?? 0,
       page,
       limit,
@@ -328,7 +319,7 @@ export class DamRepository {
   async create(data: CreateDamData, txDb?: DatabaseOrTx) {
     const client = this.getDb(txDb);
     const id = data.id ?? crypto.randomUUID();
-    const geomSql = toGeometrySql(data.geom);
+    const geomSql = validateAndBuildGeometrySql(data.geom, 'Point');
 
     const [created] = await client
       .insert(dam)
@@ -418,7 +409,7 @@ export class DamRepository {
     if (data.notes !== undefined) updateFields.notes = data.notes;
     if (data.altitudeM !== undefined) updateFields.altitudeM = data.altitudeM;
     if (data.geom !== undefined) {
-      updateFields.geom = toGeometrySql(data.geom);
+      updateFields.geom = validateAndBuildGeometrySql(data.geom, 'Point');
     }
 
     const [updated] = await client

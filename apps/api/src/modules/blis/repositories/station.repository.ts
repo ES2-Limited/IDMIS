@@ -17,7 +17,7 @@ import type { RequestScope, ListStationsQuery } from '@idmis/contracts';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
-import { toGeometrySql, parseGeoJsonResult } from '../utils/geometry.helper';
+import { validateAndBuildGeometrySql } from '../utils/geometry.helper';
 
 export interface CreateStationData {
   id?: string;
@@ -88,7 +88,7 @@ export class StationRepository {
         stationTypeId: station.stationTypeId,
         wardId: station.wardId,
         river: station.river,
-        geom: station.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${station.geom})::json`,
         installedOn: station.installedOn,
         description: station.description,
         isActive: station.isActive,
@@ -104,10 +104,7 @@ export class StationRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async findByCode(code: string, scope?: RequestScope, txDb?: DatabaseOrTx) {
@@ -127,7 +124,7 @@ export class StationRepository {
         stationTypeId: station.stationTypeId,
         wardId: station.wardId,
         river: station.river,
-        geom: station.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${station.geom})::json`,
         installedOn: station.installedOn,
         description: station.description,
         isActive: station.isActive,
@@ -143,10 +140,7 @@ export class StationRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async list(query: ListStationsQuery, scope?: RequestScope, txDb?: DatabaseOrTx) {
@@ -194,7 +188,7 @@ export class StationRepository {
         stationTypeId: station.stationTypeId,
         wardId: station.wardId,
         river: station.river,
-        geom: station.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${station.geom})::json`,
         installedOn: station.installedOn,
         description: station.description,
         isActive: station.isActive,
@@ -212,10 +206,7 @@ export class StationRepository {
       .offset(offset);
 
     return {
-      data: rows.map((r) => ({
-        ...r,
-        geom: parseGeoJsonResult(r.geom),
-      })),
+      data: rows,
       total: countRes?.count ?? 0,
       page,
       limit,
@@ -225,7 +216,7 @@ export class StationRepository {
   async create(data: CreateStationData, txDb?: DatabaseOrTx) {
     const client = this.getDb(txDb);
     const id = data.id ?? crypto.randomUUID();
-    const geomSql = toGeometrySql(data.geom);
+    const geomSql = validateAndBuildGeometrySql(data.geom, 'Point', { isStation: true });
 
     const [created] = await client
       .insert(station)
@@ -268,7 +259,7 @@ export class StationRepository {
     if (data.description !== undefined) updateFields.description = data.description;
     if (data.isActive !== undefined) updateFields.isActive = data.isActive;
     if (data.geom !== undefined) {
-      updateFields.geom = toGeometrySql(data.geom);
+      updateFields.geom = validateAndBuildGeometrySql(data.geom, 'Point', { isStation: true });
     }
 
     const [updated] = await client

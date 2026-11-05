@@ -14,6 +14,7 @@ import type {
 } from '../../core/imports/import-handler.interface';
 import { BlisAssetService } from '../services/blis-asset.service';
 import { isRbdaInScope } from '../utils/assert-blis-scope';
+import { parseWktToGeoJson } from './wkt.helper';
 import type { TransactionClient } from '../../../platform/database/transaction.helper';
 import type { UserAuthz } from '../../../platform/auth';
 
@@ -97,7 +98,8 @@ export class DamImportHandler implements ImportDatasetHandler {
       parsedData.storageCapacityMcm = String(rawData.storageCapacityMcm).trim();
 
     if (rawData.geomWkt) {
-      parsedData.geom = String(rawData.geomWkt).trim();
+      const parsedGeom = parseWktToGeoJson(String(rawData.geomWkt));
+      parsedData.geom = parsedGeom ?? String(rawData.geomWkt).trim();
     }
 
     return { rawData, parsedData, errors };
@@ -276,7 +278,7 @@ export class DamImportHandler implements ImportDatasetHandler {
         crestLengthM: (parsedData.crestLengthM as string) || undefined,
         heightM: (parsedData.heightM as string) || undefined,
         reservoirCapacityMcm: (parsedData.storageCapacityMcm as string) || undefined,
-        geom: parsedData.geom as string | undefined,
+        geom: parsedData.geom as Record<string, unknown> | undefined,
       },
       authz,
       authz.userId,

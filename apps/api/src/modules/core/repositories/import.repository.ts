@@ -16,6 +16,7 @@ export interface CreateImportBatchData {
   fileId: string;
   schemeId?: string | null;
   stateId?: string | null;
+  rbdaId?: string | null;
   createdBy: string;
 }
 
@@ -43,6 +44,7 @@ export class ImportRepository {
         fileId: data.fileId,
         schemeId: data.schemeId,
         stateId: data.stateId,
+        rbdaId: data.rbdaId,
         createdBy: data.createdBy,
         status: 'uploaded',
       })
@@ -66,7 +68,7 @@ export class ImportRepository {
 
     const conditions: SQL[] = [];
 
-    // Scope enforcement: stateIds and schemeIds
+    // Scope enforcement: stateIds, schemeIds, rbdaIds
     if (!scope.isNational) {
       const scopeConditions: SQL[] = [];
       if (scope.stateIds && scope.stateIds.length > 0) {
@@ -74,6 +76,9 @@ export class ImportRepository {
       }
       if (scope.schemeIds && scope.schemeIds.length > 0) {
         scopeConditions.push(inArray(importBatch.schemeId, scope.schemeIds));
+      }
+      if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+        scopeConditions.push(inArray(importBatch.rbdaId, scope.rbdaIds));
       }
       if (scopeConditions.length > 0) {
         conditions.push(or(...scopeConditions)!);
@@ -93,6 +98,9 @@ export class ImportRepository {
     }
     if (filters.schemeId) {
       conditions.push(eq(importBatch.schemeId, filters.schemeId));
+    }
+    if (filters.rbdaId) {
+      conditions.push(eq(importBatch.rbdaId, filters.rbdaId));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

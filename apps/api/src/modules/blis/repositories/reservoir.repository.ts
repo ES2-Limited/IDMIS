@@ -16,7 +16,7 @@ import type { RequestScope, ListReservoirsQuery } from '@idmis/contracts';
 import type { DatabaseOrTx } from '../../core/repositories/file.repository';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { ConflictProblemException } from '../../../platform/filters';
-import { toGeometrySql, parseGeoJsonResult } from '../utils/geometry.helper';
+import { validateAndBuildGeometrySql } from '../utils/geometry.helper';
 
 export interface CreateReservoirData {
   id?: string;
@@ -108,7 +108,7 @@ export class ReservoirRepository {
         fetchKm: reservoir.fetchKm,
         depthRatio: reservoir.depthRatio,
         volumeDevelopment: reservoir.volumeDevelopment,
-        geom: reservoir.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${reservoir.geom})::json`,
         createdAt: reservoir.createdAt,
         createdBy: reservoir.createdBy,
         updatedAt: reservoir.updatedAt,
@@ -121,10 +121,7 @@ export class ReservoirRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async findByNameAndBasin(name: string, basinId: string, txDb?: DatabaseOrTx) {
@@ -147,7 +144,7 @@ export class ReservoirRepository {
         fetchKm: reservoir.fetchKm,
         depthRatio: reservoir.depthRatio,
         volumeDevelopment: reservoir.volumeDevelopment,
-        geom: reservoir.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${reservoir.geom})::json`,
         createdAt: reservoir.createdAt,
         createdBy: reservoir.createdBy,
         updatedAt: reservoir.updatedAt,
@@ -162,10 +159,7 @@ export class ReservoirRepository {
       .limit(1);
 
     if (!row) return null;
-    return {
-      ...row,
-      geom: parseGeoJsonResult(row.geom),
-    };
+    return row;
   }
 
   async list(query: ListReservoirsQuery, scope?: RequestScope, txDb?: DatabaseOrTx) {
@@ -212,7 +206,7 @@ export class ReservoirRepository {
         fetchKm: reservoir.fetchKm,
         depthRatio: reservoir.depthRatio,
         volumeDevelopment: reservoir.volumeDevelopment,
-        geom: reservoir.geom,
+        geom: sql<unknown>`ST_AsGeoJSON(${reservoir.geom})::json`,
         createdAt: reservoir.createdAt,
         createdBy: reservoir.createdBy,
         updatedAt: reservoir.updatedAt,
@@ -227,10 +221,7 @@ export class ReservoirRepository {
       .offset(offset);
 
     return {
-      data: rows.map((r) => ({
-        ...r,
-        geom: parseGeoJsonResult(r.geom),
-      })),
+      data: rows,
       total: countRes?.count ?? 0,
       page,
       limit,
@@ -240,7 +231,7 @@ export class ReservoirRepository {
   async create(data: CreateReservoirData, txDb?: DatabaseOrTx) {
     const client = this.getDb(txDb);
     const id = data.id ?? crypto.randomUUID();
-    const geomSql = toGeometrySql(data.geom);
+    const geomSql = validateAndBuildGeometrySql(data.geom, 'MultiPolygon');
 
     const [created] = await client
       .insert(reservoir)
@@ -296,7 +287,7 @@ export class ReservoirRepository {
     if (data.volumeDevelopment !== undefined)
       updateFields.volumeDevelopment = data.volumeDevelopment;
     if (data.geom !== undefined) {
-      updateFields.geom = toGeometrySql(data.geom);
+      updateFields.geom = validateAndBuildGeometrySql(data.geom, 'MultiPolygon');
     }
 
     const [updated] = await client

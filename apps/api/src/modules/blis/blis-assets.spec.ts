@@ -20,6 +20,7 @@ import {
   reservoir,
   dam,
   file,
+  importBatch,
   postgres,
   drizzle,
   setDatabaseUrl,
@@ -376,8 +377,85 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
   let createdMorphometryId: string;
   let createdMorphometryVersion: number;
 
+  async function createImportExcel(dataset: string, rows: Record<string, unknown>[]) {
+    const workbook = new ExcelJS.Workbook();
+    workbook.description = JSON.stringify({ dataset, version: 1 });
+    workbook.keywords = `templateVersion:1;dataset:${dataset}`;
+    workbook.subject = '1';
+    const metaSheet = workbook.addWorksheet('_metadata');
+    metaSheet.state = 'veryHidden';
+    metaSheet.getCell('A1').value = 'template_version';
+    metaSheet.getCell('B1').value = 1;
+
+    const sheet = workbook.addWorksheet('Data');
+
+    if (rows.length > 0) {
+      const headers = Object.keys(rows[0]);
+      sheet.addRow(headers);
+      for (const row of rows) {
+        sheet.addRow(headers.map((h) => row[h]));
+      }
+    }
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const fileId = crypto.randomUUID();
+    const storageKey = `imports/${fileId}.xlsx`;
+    mockStorageFiles.set(storageKey, buffer);
+
+    await testDb.insert(file).values({
+      id: fileId,
+      storageKey,
+      originalName: `${dataset}.xlsx`,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sizeBytes: buffer.byteLength,
+      sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+      scanStatus: 'clean',
+      createdAt: new Date().toISOString(),
+      createdBy: SYSTEM_USER_ID,
+      updatedAt: new Date().toISOString(),
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    return fileId;
+  }
+
+  async function pollBatch(batchId: string, token: string) {
+    let b: {
+      id: string;
+      status: string;
+      totalRows: number;
+      validRows: number;
+      errorRows: number;
+    } = {
+      id: batchId,
+      status: 'pending',
+      totalRows: 0,
+      validRows: 0,
+      errorRows: 0,
+    };
+    for (let i = 0; i < 40; i++) {
+      const getRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${batchId}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      b = JSON.parse(getRes.payload) as {
+        id: string;
+        status: string;
+        totalRows: number;
+        validRows: number;
+        errorRows: number;
+      };
+      if (b.status === 'validated' || b.status === 'validation_failed') {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return b;
+  }
+
   describe('1. Basin CRUD, Geometry Formats, and RBDA Scoping', () => {
-    it('creates a basin within assigned RBDA using WKT geometry', async () => {
+    it('creates a basin within assigned RBDA using GeoJSON geometry', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/blis/basins',
@@ -389,7 +467,20 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
           hydrologicalUnit: 'HU-8',
           mainRiver: 'Hadejia',
           rbdaId: HJ_RBDA_ID,
-          geom: 'MULTIPOLYGON(((8.5 11.5, 8.6 11.5, 8.6 11.6, 8.5 11.6, 8.5 11.5)))',
+          geom: {
+            type: 'MultiPolygon',
+            coordinates: [
+              [
+                [
+                  [8.5, 11.5],
+                  [8.6, 11.5],
+                  [8.6, 11.6],
+                  [8.5, 11.6],
+                  [8.5, 11.5],
+                ],
+              ],
+            ],
+          },
         },
       });
 
@@ -630,7 +721,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
   });
 
   describe('3. Station CRUD, Geometry Formats, and Scoping', () => {
-    it('creates a station with WKT geometry in scope', async () => {
+    it('creates a station with GeoJSON Point geometry in scope', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/blis/stations',
@@ -641,7 +732,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
           basinId: createdBasinId,
           stationTypeId: ST_DISCHARGE_ID,
           river: 'Hadejia',
-          geom: 'POINT(8.85 11.80)',
+          geom: { type: 'Point', coordinates: [8.85, 11.8] },
           installedOn: '2021-03-10',
         },
       });
@@ -688,7 +779,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
           name: 'Illegal Cross Station',
           basinId: chadBasin.id,
           stationTypeId: ST_DISCHARGE_ID,
-          geom: 'POINT(12.5 11.5)',
+          geom: { type: 'Point', coordinates: [12.5, 11.5] },
         },
       });
 
@@ -756,7 +847,20 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
           river: 'Kano River',
           areaKm2: '178.000',
           volumeMcm: '1874.000',
-          geom: 'MULTIPOLYGON(((8.55 11.40, 8.65 11.40, 8.65 11.50, 8.55 11.50, 8.55 11.40)))',
+          geom: {
+            type: 'MultiPolygon',
+            coordinates: [
+              [
+                [
+                  [8.55, 11.4],
+                  [8.65, 11.4],
+                  [8.65, 11.5],
+                  [8.55, 11.5],
+                  [8.55, 11.4],
+                ],
+              ],
+            ],
+          },
         },
       });
 
@@ -822,7 +926,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
           crestLengthM: '6000.00',
           heightM: '48.00',
           reservoirCapacityMcm: '1874.000',
-          geom: 'POINT(8.60 11.45)',
+          geom: { type: 'Point', coordinates: [8.6, 11.45] },
         },
       });
 
@@ -921,83 +1025,6 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
   });
 
   describe('6. BLIS Import Handlers — Valid Files, RBDA Scoping & Undo', () => {
-    async function createImportExcel(dataset: string, rows: Record<string, unknown>[]) {
-      const workbook = new ExcelJS.Workbook();
-      workbook.description = JSON.stringify({ dataset, version: 1 });
-      workbook.keywords = `templateVersion:1;dataset:${dataset}`;
-      workbook.subject = '1';
-      const metaSheet = workbook.addWorksheet('_metadata');
-      metaSheet.state = 'veryHidden';
-      metaSheet.getCell('A1').value = 'template_version';
-      metaSheet.getCell('B1').value = 1;
-
-      const sheet = workbook.addWorksheet('Data');
-
-      if (rows.length > 0) {
-        const headers = Object.keys(rows[0]);
-        sheet.addRow(headers);
-        for (const row of rows) {
-          sheet.addRow(headers.map((h) => row[h]));
-        }
-      }
-
-      const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-      const fileId = crypto.randomUUID();
-      const storageKey = `imports/${fileId}.xlsx`;
-      mockStorageFiles.set(storageKey, buffer);
-
-      await testDb.insert(file).values({
-        id: fileId,
-        storageKey,
-        originalName: `${dataset}.xlsx`,
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        sizeBytes: buffer.byteLength,
-        sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
-        scanStatus: 'clean',
-        createdAt: new Date().toISOString(),
-        createdBy: SYSTEM_USER_ID,
-        updatedAt: new Date().toISOString(),
-        updatedBy: SYSTEM_USER_ID,
-      });
-
-      return fileId;
-    }
-
-    async function pollBatch(batchId: string, token: string) {
-      let b: {
-        id: string;
-        status: string;
-        totalRows: number;
-        validRows: number;
-        errorRows: number;
-      } = {
-        id: batchId,
-        status: 'pending',
-        totalRows: 0,
-        validRows: 0,
-        errorRows: 0,
-      };
-      for (let i = 0; i < 40; i++) {
-        const getRes = await app.inject({
-          method: 'GET',
-          url: `/imports/${batchId}`,
-          headers: { authorization: `Bearer ${token}` },
-        });
-        b = JSON.parse(getRes.payload) as {
-          id: string;
-          status: string;
-          totalRows: number;
-          validRows: number;
-          errorRows: number;
-        };
-        if (b.status === 'validated' || b.status === 'validation_failed') {
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 50));
-      }
-      return b;
-    }
-
     it('imports blis.basin: succeeds for valid in-scope rows, rejects out-of-scope rows, and supports undo', async () => {
       // 1. Out-of-scope file
       const outOfScopeFileId = await createImportExcel('blis.basin', [
@@ -1015,7 +1042,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: outOfScopeFileId, dataset: 'blis.basin' },
+        payload: { fileId: outOfScopeFileId, dataset: 'blis.basin', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes1.statusCode).toBe(201);
       const batch1 = await pollBatch(JSON.parse(uploadRes1.payload).id, hjOfficerToken);
@@ -1050,7 +1077,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: validFileId, dataset: 'blis.basin' },
+        payload: { fileId: validFileId, dataset: 'blis.basin', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes2.statusCode).toBe(201);
       const batch2 = await pollBatch(JSON.parse(uploadRes2.payload).id, hjOfficerToken);
@@ -1129,7 +1156,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: outOfScopeFileId, dataset: 'blis.station' },
+        payload: { fileId: outOfScopeFileId, dataset: 'blis.station', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes1.statusCode).toBe(201);
       const batch1 = await pollBatch(JSON.parse(uploadRes1.payload).id, hjOfficerToken);
@@ -1151,7 +1178,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: validFileId, dataset: 'blis.station' },
+        payload: { fileId: validFileId, dataset: 'blis.station', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes2.statusCode).toBe(201);
       const batch2 = await pollBatch(JSON.parse(uploadRes2.payload).id, hjOfficerToken);
@@ -1199,7 +1226,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: outOfScopeFileId, dataset: 'blis.dam' },
+        payload: { fileId: outOfScopeFileId, dataset: 'blis.dam', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes1.statusCode).toBe(201);
       const batch1 = await pollBatch(JSON.parse(uploadRes1.payload).id, hjOfficerToken);
@@ -1226,7 +1253,7 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         method: 'POST',
         url: '/imports',
         headers: { authorization: `Bearer ${hjOfficerToken}` },
-        payload: { fileId: validFileId, dataset: 'blis.dam' },
+        payload: { fileId: validFileId, dataset: 'blis.dam', rbdaId: HJ_RBDA_ID },
       });
       expect(uploadRes2.statusCode).toBe(201);
       const batch2 = await pollBatch(JSON.parse(uploadRes2.payload).id, hjOfficerToken);
@@ -1270,6 +1297,277 @@ describe('BLIS Assets Management — Basin, Morphometry, Station, Reservoir, Dam
         .where(and(eq(dam.name, 'Imported Tiga Secondary Dam'), isNull(dam.deletedAt)))
         .limit(1);
       expect(undoneDam).toBeUndefined();
+    });
+  });
+
+  describe('8. Blocker 1 Fix: Import Batch RBDA Scoping & Leak Prevention', () => {
+    it('prevents basin officer from RBDA A reading or committing a batch for RBDA B (404) or SLIS farmer batch', async () => {
+      // Create a valid file for Chad RBDA
+      const chadFileId = await createImportExcel('blis.basin', [
+        {
+          code: 'CHAD-ISOLATION-1',
+          name: 'Chad Isolation Basin',
+          rbdaCode: 'CHADRBDA',
+          geomWkt: 'MULTIPOLYGON(((12.5 11.5, 12.6 11.5, 12.6 11.6, 12.5 11.6, 12.5 11.5)))',
+        },
+      ]);
+
+      // 1. Chad officer initiates import for Chad RBDA
+      const chadUploadRes = await app.inject({
+        method: 'POST',
+        url: '/imports',
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+        payload: { fileId: chadFileId, dataset: 'blis.basin', rbdaId: CHAD_RBDA_ID },
+      });
+      expect(chadUploadRes.statusCode).toBe(201);
+      const chadBatch = JSON.parse(chadUploadRes.payload);
+
+      // Chad batch works for Chad officer
+      const chadGetRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${chadBatch.id}`,
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+      });
+      expect(chadGetRes.statusCode).toBe(200);
+
+      // 2. HJ officer (RBDA A) cannot read Chad batch (RBDA B) -> 404
+      const hjReadRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${chadBatch.id}`,
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+      });
+      expect(hjReadRes.statusCode).toBe(404);
+
+      // HJ officer cannot preview Chad batch -> 404
+      const hjPreviewRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${chadBatch.id}/preview`,
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+      });
+      expect(hjPreviewRes.statusCode).toBe(404);
+
+      // HJ officer cannot commit Chad batch -> 404
+      const hjCommitRes = await app.inject({
+        method: 'POST',
+        url: `/imports/${chadBatch.id}/commit`,
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+      });
+      expect(hjCommitRes.statusCode).toBe(404);
+
+      // 3. Create a SLIS farmer batch
+      const slisFarmerFileId = await createImportExcel('blis.basin', [
+        { code: 'DUMMY', name: 'Dummy' },
+      ]);
+      const [slisBatchRow] = await testDb
+        .insert(importBatch)
+        .values({
+          dataset: 'slis.farmer',
+          fileId: slisFarmerFileId,
+          schemeId: crypto.randomUUID(),
+          stateId: crypto.randomUUID(),
+          createdBy: SYSTEM_USER_ID,
+          status: 'uploaded',
+        })
+        .returning();
+
+      // HJ officer cannot read the SLIS farmer batch -> 404
+      const hjSlisReadRes = await app.inject({
+        method: 'GET',
+        url: `/imports/${slisBatchRow.id}`,
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+      });
+      expect(hjSlisReadRes.statusCode).toBe(404);
+    });
+  });
+
+  describe('9. Blocker 2 Fix: PostGIS Geometry Validation and Round-trip', () => {
+    it('rejects invalid GeoJSON with 400', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-INVALID-GEOJSON',
+          name: 'Invalid GeoJSON Station',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: 'not-valid-json',
+        },
+      });
+      expect(res.statusCode).toBe(400);
+
+      const res2 = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-INVALID-GEOJSON-2',
+          name: 'Invalid Object Station',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: { foo: 'bar' },
+        },
+      });
+      expect(res2.statusCode).toBe(400);
+    });
+
+    it('rejects empty geometry with 400', async () => {
+      const resPoint = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-EMPTY-GEOM',
+          name: 'Empty Geom Station',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: { type: 'Point', coordinates: [] },
+        },
+      });
+      expect(resPoint.statusCode).toBe(400);
+
+      const resPoly = await app.inject({
+        method: 'POST',
+        url: '/blis/basins',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'BASIN-EMPTY-GEOM',
+          name: 'Empty Geom Basin',
+          rbdaId: HJ_RBDA_ID,
+          geom: { type: 'Polygon', coordinates: [] },
+        },
+      });
+      expect(resPoly.statusCode).toBe(400);
+    });
+
+    it('rejects wrong geometry type for column with 400', async () => {
+      // Station column is Point: passing Polygon should fail with 400
+      const resStation = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-WRONG-TYPE',
+          name: 'Wrong Type Station',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [8.5, 11.5],
+                [8.6, 11.5],
+                [8.6, 11.6],
+                [8.5, 11.6],
+                [8.5, 11.5],
+              ],
+            ],
+          },
+        },
+      });
+      expect(resStation.statusCode).toBe(400);
+
+      // Basin column is MultiPolygon: passing Point should fail with 400
+      const resBasin = await app.inject({
+        method: 'POST',
+        url: '/blis/basins',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'BASIN-WRONG-TYPE',
+          name: 'Wrong Type Basin',
+          rbdaId: HJ_RBDA_ID,
+          geom: { type: 'Point', coordinates: [8.5, 11.5] },
+        },
+      });
+      expect(resBasin.statusCode).toBe(400);
+    });
+
+    it('rejects station outside Nigeria bounding box with 400', async () => {
+      // Longitude > 15.0
+      const resLonHigh = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-OUTSIDE-LON',
+          name: 'Outside Nigeria Lon',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: { type: 'Point', coordinates: [50.0, 10.0] },
+        },
+      });
+      expect(resLonHigh.statusCode).toBe(400);
+
+      // Latitude < 4.0
+      const resLatLow = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-OUTSIDE-LAT',
+          name: 'Outside Nigeria Lat',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: { type: 'Point', coordinates: [8.5, 2.0] },
+        },
+      });
+      expect(resLatLow.statusCode).toBe(400);
+    });
+
+    it('repairs self-intersecting polygon into valid geometry using ST_MakeValid', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/blis/basins',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'BASIN-SELF-INTERSECT',
+          name: 'Self Intersecting Basin',
+          rbdaId: HJ_RBDA_ID,
+          geom: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [8.5, 11.5],
+                [8.7, 11.7],
+                [8.7, 11.5],
+                [8.5, 11.7],
+                [8.5, 11.5],
+              ],
+            ],
+          },
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      const body = JSON.parse(res.payload);
+      expect(body.geom).toBeDefined();
+      expect(body.geom.type).toBe('MultiPolygon');
+    });
+
+    it('round-trip returns the exact same coordinates', async () => {
+      const targetCoords = [8.854321, 11.876543];
+      const createRes = await app.inject({
+        method: 'POST',
+        url: '/blis/stations',
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+        payload: {
+          code: 'ST-ROUNDTRIP',
+          name: 'Roundtrip Station',
+          basinId: createdBasinId,
+          stationTypeId: ST_DISCHARGE_ID,
+          geom: { type: 'Point', coordinates: targetCoords },
+        },
+      });
+      expect(createRes.statusCode).toBe(201);
+      const created = JSON.parse(createRes.payload);
+
+      const getRes = await app.inject({
+        method: 'GET',
+        url: `/blis/stations/${created.id}`,
+        headers: { authorization: `Bearer ${hjOfficerToken}` },
+      });
+      expect(getRes.statusCode).toBe(200);
+      const retrieved = JSON.parse(getRes.payload);
+      expect(retrieved.geom.coordinates).toEqual(targetCoords);
     });
   });
 });
