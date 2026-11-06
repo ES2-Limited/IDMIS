@@ -21,6 +21,9 @@ import { IndicatorsListView } from '../modules/me/IndicatorsListView';
 import { QuarterlyDataEntryView } from '../modules/me/QuarterlyDataEntryView';
 import { IndicatorMatrixView } from '../modules/me/IndicatorMatrixView';
 import { SurveysManagementView } from '../modules/me/SurveysManagementView';
+import { ScorecardsListView } from '../modules/me/ScorecardsListView';
+import { MatchingGrantsListView } from '../modules/me/MatchingGrantsListView';
+import { TechnologyAdoptionListView } from '../modules/me/TechnologyAdoptionListView';
 import { FieldSurveyCaptureForm } from '../modules/field/FieldSurveyCaptureForm';
 import { BlisHome } from '../modules/blis/BlisHome';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
@@ -350,6 +353,51 @@ const meSurveysRoute = createRoute({
   ),
 });
 
+const meScorecardsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/scorecards',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-amber-800 font-bold">Scheme Scorecards</span>
+      </div>
+      <ScorecardsListView />
+    </div>
+  ),
+});
+
+const meGrantsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/grants',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Matching Grants</span>
+      </div>
+      <MatchingGrantsListView />
+    </div>
+  ),
+});
+
+const meAdoptionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/me/adoption',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>M&E Module</span>
+        <span>/</span>
+        <span className="text-lime-800 font-bold">Technology Adoption</span>
+      </div>
+      <TechnologyAdoptionListView />
+    </div>
+  ),
+});
+
 // Module routes: BLIS
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -386,6 +434,9 @@ const authenticatedChildren = appShellRoute.addChildren([
   meEntryRoute,
   meMatrixRoute,
   meSurveysRoute,
+  meScorecardsRoute,
+  meGrantsRoute,
+  meAdoptionRoute,
   blisRoute,
 ]);
 
