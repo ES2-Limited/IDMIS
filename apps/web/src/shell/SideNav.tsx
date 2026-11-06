@@ -15,6 +15,7 @@ import {
   Award,
   Banknote,
   Sprout,
+  Compass,
   type LucideIcon,
 } from 'lucide-react';
 import { useCan } from '../auth';
@@ -139,7 +140,13 @@ export function SideNav() {
     navItems = [
       { label: 'Map Workspace', path: '/blis', icon: MapPin },
       {
-        label: 'Basins & Dams',
+        label: 'Basins & Hydrology',
+        path: '/blis/basins',
+        icon: Compass,
+        permission: 'blis.irrigation.read',
+      },
+      {
+        label: 'Dams & Reservoirs',
         path: '/blis/dams',
         icon: Waves,
         permission: 'blis.irrigation.read',
