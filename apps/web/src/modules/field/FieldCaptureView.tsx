@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Sprout,
   ClipboardList,
+  ShieldAlert,
 } from 'lucide-react';
 import { Card, CardContent, Badge } from '@idmis/ui';
 
@@ -75,6 +76,15 @@ export function FieldCaptureView() {
       icon: ClipboardList,
       color: 'teal',
       route: '/field/capture/survey',
+    },
+    {
+      id: 'dam-inspection',
+      title: 'Dam Safety Inspection',
+      category: 'BLIS Assets',
+      description: 'Surveillance audit of dam embankment, spillways, gates and mechanical works.',
+      icon: ShieldAlert,
+      color: 'rose',
+      route: '/field/capture/dam-inspection',
     },
   ];
 
