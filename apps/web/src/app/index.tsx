@@ -29,6 +29,8 @@ import { BlisMapWorkspaceView } from '../modules/blis/BlisMapWorkspaceView';
 import { DamsListView } from '../modules/blis/DamsListView';
 import { StationsListView } from '../modules/blis/StationsListView';
 import { BasinsListView } from '../modules/blis/BasinsListView';
+import { DamInspectionsListView } from '../modules/blis/DamInspectionsListView';
+import { FieldDamInspectionCaptureForm } from '../modules/field/FieldDamInspectionCaptureForm';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
@@ -135,6 +137,12 @@ const fieldSurveyRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/field/capture/survey',
   component: FieldSurveyCaptureForm,
+});
+
+const fieldDamInspectionRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/field/capture/dam-inspection',
+  component: FieldDamInspectionCaptureForm,
 });
 
 const fieldRecordsRoute = createRoute({
@@ -453,6 +461,21 @@ const blisStationsRoute = createRoute({
   ),
 });
 
+const blisInspectionsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/blis/inspections',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>BLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Dam Safety Surveillance & Inspections</span>
+      </div>
+      <DamInspectionsListView />
+    </div>
+  ),
+});
+
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
   fieldHomeRoute,
@@ -464,6 +487,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   fieldTrainingAttendanceRoute,
   fieldCropProductionRoute,
   fieldSurveyRoute,
+  fieldDamInspectionRoute,
   fieldRecordsRoute,
   fieldSyncRoute,
   fieldProfileRoute,
@@ -489,6 +513,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   blisBasinsRoute,
   blisDamsRoute,
   blisStationsRoute,
+  blisInspectionsRoute,
 ]);
 
 const routeTree = rootRoute.addChildren([signInRoute, unauthorizedRoute, authenticatedChildren]);
