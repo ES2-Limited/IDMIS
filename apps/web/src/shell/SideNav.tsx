@@ -12,6 +12,9 @@ import {
   LayoutDashboard,
   ShieldAlert,
   Database,
+  Award,
+  Banknote,
+  Sprout,
   type LucideIcon,
 } from 'lucide-react';
 import { useCan } from '../auth';
@@ -127,6 +130,9 @@ export function SideNav() {
         permission: 'me.kpi.read',
       },
       { label: 'Surveys', path: '/me/surveys', icon: Database, permission: 'me.survey.read' },
+      { label: 'Scorecards', path: '/me/scorecards', icon: Award, permission: 'me.kpi.read' },
+      { label: 'Matching Grants', path: '/me/grants', icon: Banknote, permission: 'me.kpi.read' },
+      { label: 'Tech Adoption', path: '/me/adoption', icon: Sprout, permission: 'me.kpi.read' },
     ];
   } else if (currentPath.startsWith('/blis')) {
     moduleName = 'BLIS Module';
