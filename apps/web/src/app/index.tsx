@@ -25,7 +25,7 @@ import { ScorecardsListView } from '../modules/me/ScorecardsListView';
 import { MatchingGrantsListView } from '../modules/me/MatchingGrantsListView';
 import { TechnologyAdoptionListView } from '../modules/me/TechnologyAdoptionListView';
 import { FieldSurveyCaptureForm } from '../modules/field/FieldSurveyCaptureForm';
-import { BlisHome } from '../modules/blis/BlisHome';
+import { BlisMapWorkspaceView } from '../modules/blis/BlisMapWorkspaceView';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
@@ -402,7 +402,7 @@ const meAdoptionRoute = createRoute({
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis',
-  component: BlisHome,
+  component: BlisMapWorkspaceView,
 });
 
 const authenticatedChildren = appShellRoute.addChildren([
