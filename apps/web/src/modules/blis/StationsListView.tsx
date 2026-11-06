@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from '@tanstack/react-router';
 import {
   Search,
   Plus,
@@ -7,6 +8,7 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertTriangle,
+  LineChart,
 } from 'lucide-react';
 import {
   Button,
@@ -376,15 +378,24 @@ export function StationsListView() {
                     </td>
                     <td className="py-3.5 px-4">{getStatusBadge(station.status)}</td>
                     <td className="py-3.5 px-4 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedStation(station)}
-                        className="min-h-[38px] text-xs gap-1 hover:text-teal-700"
-                      >
-                        Inspect
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          to="/blis/stations/readings"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-lg min-h-[38px] transition-colors"
+                        >
+                          <LineChart className="w-3.5 h-3.5" />
+                          Charts
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedStation(station)}
+                          className="min-h-[38px] text-xs gap-1 hover:text-teal-700"
+                        >
+                          Inspect
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -459,7 +470,14 @@ export function StationsListView() {
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex items-center justify-between gap-2">
+              <Link
+                to="/blis/stations/readings"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg min-h-[44px]"
+              >
+                <LineChart className="w-4 h-4" />
+                Launch Hydrograph Time-Series
+              </Link>
               <Button
                 variant="outline"
                 onClick={() => setSelectedStation(null)}

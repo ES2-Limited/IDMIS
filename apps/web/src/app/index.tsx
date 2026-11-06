@@ -29,6 +29,7 @@ import { BlisMapWorkspaceView } from '../modules/blis/BlisMapWorkspaceView';
 import { DamsListView } from '../modules/blis/DamsListView';
 import { StationsListView } from '../modules/blis/StationsListView';
 import { BasinsListView } from '../modules/blis/BasinsListView';
+import { BlisStationReadingsView } from '../modules/blis/BlisStationReadingsView';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
@@ -453,6 +454,21 @@ const blisStationsRoute = createRoute({
   ),
 });
 
+const blisReadingsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/blis/stations/readings',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>BLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Station Time-Series Hydrographs</span>
+      </div>
+      <BlisStationReadingsView />
+    </div>
+  ),
+});
+
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
   fieldHomeRoute,
@@ -489,6 +505,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   blisBasinsRoute,
   blisDamsRoute,
   blisStationsRoute,
+  blisReadingsRoute,
 ]);
 
 const routeTree = rootRoute.addChildren([signInRoute, unauthorizedRoute, authenticatedChildren]);
