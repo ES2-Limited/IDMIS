@@ -26,6 +26,9 @@ import { MatchingGrantsListView } from '../modules/me/MatchingGrantsListView';
 import { TechnologyAdoptionListView } from '../modules/me/TechnologyAdoptionListView';
 import { FieldSurveyCaptureForm } from '../modules/field/FieldSurveyCaptureForm';
 import { BlisMapWorkspaceView } from '../modules/blis/BlisMapWorkspaceView';
+import { DamsListView } from '../modules/blis/DamsListView';
+import { StationsListView } from '../modules/blis/StationsListView';
+import { BasinsListView } from '../modules/blis/BasinsListView';
 import { FieldHomeView } from '../modules/field/FieldHomeView';
 import { FieldCaptureView } from '../modules/field/FieldCaptureView';
 import { FieldRecordsView } from '../modules/field/FieldRecordsView';
@@ -405,6 +408,51 @@ const blisRoute = createRoute({
   component: BlisMapWorkspaceView,
 });
 
+const blisBasinsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/blis/basins',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>BLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Basin Catchments & Morphometry</span>
+      </div>
+      <BasinsListView />
+    </div>
+  ),
+});
+
+const blisDamsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/blis/dams',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>BLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Dams & Impoundment Reservoirs</span>
+      </div>
+      <DamsListView />
+    </div>
+  ),
+});
+
+const blisStationsRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/blis/stations',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>BLIS Module</span>
+        <span>/</span>
+        <span className="text-teal-800 font-bold">Hydromet Telemetry Stations</span>
+      </div>
+      <StationsListView />
+    </div>
+  ),
+});
+
 const authenticatedChildren = appShellRoute.addChildren([
   indexRoute,
   fieldHomeRoute,
@@ -438,6 +486,9 @@ const authenticatedChildren = appShellRoute.addChildren([
   meGrantsRoute,
   meAdoptionRoute,
   blisRoute,
+  blisBasinsRoute,
+  blisDamsRoute,
+  blisStationsRoute,
 ]);
 
 const routeTree = rootRoute.addChildren([signInRoute, unauthorizedRoute, authenticatedChildren]);
