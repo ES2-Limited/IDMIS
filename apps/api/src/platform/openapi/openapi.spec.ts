@@ -26,6 +26,7 @@ const APPROVED_TAGS = [
   'health',
   'slis',
   'me',
+  'blis',
 ] as const;
 
 describe('OpenAPI & Swagger UI (FEAT-DOCS)', () => {
