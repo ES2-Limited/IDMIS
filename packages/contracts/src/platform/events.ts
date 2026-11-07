@@ -32,6 +32,9 @@ export const KNOWN_EVENT_TYPES = [
   'slis.stream_flow.recorded',
   'slis.sync.conflict_detected',
   'slis.sync.conflict_resolved',
+
+  // BLIS domain events
+  'blis.measurement.loaded',
 ] as const;
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number];
@@ -139,3 +142,17 @@ export const ImportUndoneEventPayloadSchema = z.object({
   undoneBy: z.string().uuid().optional(),
 });
 export type ImportUndoneEventPayload = z.infer<typeof ImportUndoneEventPayloadSchema>;
+
+// BLIS Measurement Loaded
+export const BlisMeasurementLoadedEventPayloadSchema = z.object({
+  batchId: z.string().uuid(),
+  stationIds: z.array(z.string().uuid()),
+  timeRange: z.object({
+    from: z.string(),
+    to: z.string(),
+  }),
+  rowCount: z.number().int().nonnegative(),
+});
+export type BlisMeasurementLoadedEventPayload = z.infer<
+  typeof BlisMeasurementLoadedEventPayloadSchema
+>;

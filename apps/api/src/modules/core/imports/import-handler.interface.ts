@@ -37,6 +37,7 @@ export interface ImportDatasetHandler<TParsed = Record<string, unknown>> {
   readonly version: number;
   readonly permission: string;
   readonly columns: ImportColumnDefinition[];
+  readonly isAsyncCommit?: boolean;
   getExampleRow?(): Record<string, unknown>;
 
   parseRow(
@@ -75,4 +76,6 @@ export interface ImportDatasetHandler<TParsed = Record<string, unknown>> {
     authz: UserAuthz,
     tx: TransactionClient,
   ): Promise<UndoRowResult>;
+
+  undoBatch?(batchId: string, authz: UserAuthz, tx: TransactionClient): Promise<void>;
 }

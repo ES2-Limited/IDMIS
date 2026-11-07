@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import type { ImportColumnDefinition } from '../core/import';
+import { MeasurementQualityEnum } from './enums';
 
-export const BLIS_IMPORT_DATASETS = ['blis.basin', 'blis.station', 'blis.dam'] as const;
+export const BLIS_IMPORT_DATASETS = [
+  'blis.basin',
+  'blis.station',
+  'blis.dam',
+  'blis.measurement',
+] as const;
 export const BlisImportDatasetSchema = z.enum(BLIS_IMPORT_DATASETS);
 export type BlisImportDataset = z.infer<typeof BlisImportDatasetSchema>;
 
@@ -55,6 +61,19 @@ export const DamImportRowSchema = z.object({
   geomWkt: z.string().optional(),
 });
 export type DamImportRow = z.infer<typeof DamImportRowSchema>;
+
+/**
+ * 4. blis.measurement Import Row Schema
+ */
+export const MeasurementImportRowSchema = z.object({
+  stationCode: z.string().min(1).max(50),
+  parameterCode: z.string().min(1).max(50),
+  observedAt: z.string().min(1),
+  value: z.string().regex(/^-?\d+(\.\d+)?$/, 'Must be a valid decimal string'),
+  unit: z.string().min(1),
+  quality: MeasurementQualityEnum.default('raw'),
+});
+export type MeasurementImportRow = z.infer<typeof MeasurementImportRowSchema>;
 
 export const BLIS_IMPORT_TEMPLATES: Record<BlisImportDataset, ImportColumnDefinition[]> = {
   'blis.basin': [
@@ -196,6 +215,50 @@ export const BLIS_IMPORT_TEMPLATES: Record<BlisImportDataset, ImportColumnDefini
       type: 'string',
       required: false,
       example: 'POINT(8.60 11.45)',
+    },
+  ],
+  'blis.measurement': [
+    {
+      name: 'stationCode',
+      header: 'Station Code',
+      type: 'string',
+      required: true,
+      example: 'ST-001',
+    },
+    {
+      name: 'parameterCode',
+      header: 'Parameter Code',
+      type: 'string',
+      required: true,
+      example: 'WL',
+    },
+    {
+      name: 'observedAt',
+      header: 'Observed At (ISO)',
+      type: 'string',
+      required: true,
+      example: '2026-03-15T12:00:00Z',
+    },
+    {
+      name: 'value',
+      header: 'Value',
+      type: 'string',
+      required: true,
+      example: '14.2500',
+    },
+    {
+      name: 'unit',
+      header: 'Unit',
+      type: 'string',
+      required: true,
+      example: 'm',
+    },
+    {
+      name: 'quality',
+      header: 'Quality',
+      type: 'string',
+      required: false,
+      example: 'raw',
     },
   ],
 };

@@ -15,6 +15,8 @@ import {
   DamSchema,
   CreateDamInputSchema,
   UpdateDamInputSchema,
+  RawReadingsResponseSchema,
+  AggregatedReadingsResponseSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -76,6 +78,8 @@ export const blisSchemas: Record<string, unknown> = {
   Dam: toJsonSchema(DamSchema),
   CreateDamInput: toJsonSchema(CreateDamInputSchema),
   UpdateDamInput: toJsonSchema(UpdateDamInputSchema),
+  RawReadingsResponse: toJsonSchema(RawReadingsResponseSchema),
+  AggregatedReadingsResponse: toJsonSchema(AggregatedReadingsResponseSchema),
 };
 
 export const blisPaths: Record<string, Record<string, unknown>> = {
@@ -500,6 +504,60 @@ export const blisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/blis/stations/{id}/readings': {
+    get: {
+      summary: 'Get station time-series readings',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'parameter', in: 'query', required: true, schema: { type: 'string' } },
+        {
+          name: 'from',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'date-time' },
+        },
+        {
+          name: 'to',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'date-time' },
+        },
+        {
+          name: 'interval',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', enum: ['raw', 'day', 'month', 'year'], default: 'raw' },
+        },
+        {
+          name: 'quality',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', enum: ['raw', 'checked', 'suspect'] },
+        },
+        { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 100 } },
+        { name: 'cursor', in: 'query', required: false, schema: { type: 'string' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Station readings (raw or aggregated)',
+          content: {
+            'application/json': {
+              schema: {
+                oneOf: [
+                  { $ref: '#/components/schemas/RawReadingsResponse' },
+                  { $ref: '#/components/schemas/AggregatedReadingsResponse' },
+                ],
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
       },
     },
   },
