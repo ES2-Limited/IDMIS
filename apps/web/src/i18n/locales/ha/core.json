@@ -1,0 +1,25 @@
+{
+  "title": "Babban Gudanarwa & Shaida",
+  "description": "Gudanar da izinin tsari, tsarin hukumomi, Kungiyoyin Masu Amfani da Ruwa (WUA), da shigar da bayanai daga maƙunsar bayanai.",
+  "tabs": {
+    "users": "Masu Amfani da Mukamai",
+    "organisations": "Kungiyoyi da WUA",
+    "imports": "Cibiyar Shigar da Bayanai"
+  },
+  "users": {
+    "title": "Asusun Masu Amfani & Izinin Shiga",
+    "subtitle": "Matsayin izini na RBAC, iyakokin jiha da tsare-tsare, da izinin na'urorin da ba sa kan yanar gizo.",
+    "createUser": "Kirkiri Sabon Mai Amfani",
+    "searchPlaceholder": "Nemo masu amfani da suna, imel...",
+    "allRoles": "Duk Mukamai",
+    "allStatuses": "Duk Matsayoyi",
+    "activeOnly": "Masu Aiki Kadai",
+    "inactiveOnly": "Wadanda Ba Sa Aiki Kadai"
+  },
+  "organisations": {
+    "title": "Tsarin Hukumomi & Kungiyoyin Masu Amfani da Ruwa",
+    "subtitle": "Hukumomin Raya Koguna (RBDAs), ofisoshin ma'aikatu na jihohi, tsare-tsare, bangarori, da WUA.",
+    "addOrg": "Sanya Kungiya",
+    "treeHeader": "Bishiyar Tsarin Hukumomin Koguna"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "title": "Isi Nchịkwa & Njirimara",
+  "description": "Jikwaa ikike sistemụ, usoro nhazi, Òtù Ndị Na-eji Mmiri Eme Ihe (WUA), na mbubata data sitere na akwụkwọ mgbasa ozi.",
+  "tabs": {
+    "users": "Ndị Ọrụ & Ọkwa",
+    "organisations": "Òtù Dị Iche Iche & WUA",
+    "imports": "Ebe Mbubata Data"
+  },
+  "users": {
+    "title": "Akaụntụ Ndị Ọrụ & Ikike Nbanye",
+    "subtitle": "Ọrụ ikike RBAC, oke steeti na atụmatụ mmiri, yana ikike ngwaọrụ anọghị n'ịntanetị.",
+    "createUser": "Mepụta Onye Ọrụ Ọhụrụ",
+    "searchPlaceholder": "Chọọ ndị ọrụ site na aha, ozi-e...",
+    "allRoles": "Ọkwa Niile",
+    "allStatuses": "Ọnọdụ Niile",
+    "activeOnly": "Ndị Na-arụ Ọrụ Naanị",
+    "inactiveOnly": "Ndị Na-adịghị Arụ Ọrụ Naanị"
+  },
+  "organisations": {
+    "title": "Nhazi Òtù & Òtù Ndị Na-eji Mmiri Eme Ihe",
+    "subtitle": "Ndị Ọchịchị Mmepe Osimiri (RBDAs), ngalaba ministri steeti, atụmatụ, mpaghara, na WUA.",
+    "addOrg": "Tinye Òtù",
+    "treeHeader": "Osisi Nhazi Ndị Ọchịchị Osimiri"
+  }
+}

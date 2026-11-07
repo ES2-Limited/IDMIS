@@ -5,6 +5,18 @@ import commonEn from './locales/en/common.json';
 import authEn from './locales/en/auth.json';
 import coreEn from './locales/en/core.json';
 
+import commonHa from './locales/ha/common.json';
+import authHa from './locales/ha/auth.json';
+import coreHa from './locales/ha/core.json';
+
+import commonYo from './locales/yo/common.json';
+import authYo from './locales/yo/auth.json';
+import coreYo from './locales/yo/core.json';
+
+import commonIg from './locales/ig/common.json';
+import authIg from './locales/ig/auth.json';
+import coreIg from './locales/ig/core.json';
+
 export const defaultNS = 'common';
 export const resources = {
   'en-NG': {
@@ -16,6 +28,21 @@ export const resources = {
     common: commonEn,
     auth: authEn,
     core: coreEn,
+  },
+  ha: {
+    common: commonHa,
+    auth: authHa,
+    core: coreHa,
+  },
+  yo: {
+    common: commonYo,
+    auth: authYo,
+    core: coreYo,
+  },
+  ig: {
+    common: commonIg,
+    auth: authIg,
+    core: coreIg,
   },
 } as const;
 

@@ -1,0 +1,54 @@
+{
+  "brand": {
+    "title": "TRIMING IDMIS",
+    "subtitle": "Ma'aikatar Albarkatun Ruwa da Tsaftar Muhalli ta Tarayya",
+    "project": "Sauya Tsarin Gudanar da Ban-ruwa a Najeriya"
+  },
+  "actions": {
+    "save": "Ajiye",
+    "cancel": "Soke",
+    "confirm": "Tabbatar",
+    "delete": "Goge",
+    "edit": "Gyara",
+    "create": "Kirkira",
+    "manage": "Gudanar",
+    "submit": "Aika",
+    "back": "Koma baya",
+    "next": "Gaba",
+    "close": "Rufe",
+    "refresh": "Sabunta",
+    "search": "Nemo...",
+    "filter": "Tace",
+    "export": "Fitar da Bayanai",
+    "import": "Shigar da Bayanai",
+    "undo": "Soke Aikin"
+  },
+  "status": {
+    "active": "Mai aiki",
+    "inactive": "Ba ya aiki",
+    "draft": "Daftari",
+    "saved_on_device": "An ajiye a na'ura",
+    "syncing": "Ana aikawa",
+    "needs_fixing": "Yana bukatar gyara",
+    "awaiting_review": "Yana jiran bita",
+    "conflict": "Rikici",
+    "returned": "An mayar",
+    "approved": "An amince",
+    "committed": "An tabbatar",
+    "undone": "An mayar baya"
+  },
+  "navigation": {
+    "dashboard": "Babban Shafi",
+    "core": "Gudanarwa",
+    "slis": "SLIS (Filaye da Tsare-tsare)",
+    "me": "M&E (Manuniya)",
+    "blis": "BLIS (Bayanin Koguna)",
+    "users": "Masu Amfani da Mukamai",
+    "organisations": "Kungiyoyi da WUA",
+    "imports": "Cibiyar Shigar da Bayanai"
+  },
+  "currency": {
+    "symbol": "₦",
+    "name": "Naira"
+  }
+}

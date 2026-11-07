@@ -1,0 +1,54 @@
+{
+  "brand": {
+    "title": "TRIMING IDMIS",
+    "subtitle": "Ile-iṣẹ Ijọba Apapo fun Awọn Ohun elo Omi ati Imototo",
+    "project": "Iyipada Isakoso Irigeson ni Naijiria"
+  },
+  "actions": {
+    "save": "Fipamọ",
+    "cancel": "Fagilee",
+    "confirm": "Jẹrisi",
+    "delete": "Pa rẹ",
+    "edit": "Ṣatunkọ",
+    "create": "Ṣẹda",
+    "manage": "Ṣakoso",
+    "submit": "Fi silẹ",
+    "back": "Pada",
+    "next": "Itele",
+    "close": "Paade",
+    "refresh": "Sọji",
+    "search": "Wa...",
+    "filter": "Ajọ",
+    "export": "Gbejade",
+    "import": "Gbewọle",
+    "undo": "Fagilee Ipele"
+  },
+  "status": {
+    "active": "Nṣiṣẹ",
+    "inactive": "Kò ṣiṣẹ",
+    "draft": "Àkọsílẹ",
+    "saved_on_device": "Ti fipamọ sori ẹrọ",
+    "syncing": "Nṣiṣẹpọ",
+    "needs_fixing": "Nilo atunṣe",
+    "awaiting_review": "Nduro fun ayẹwo",
+    "conflict": "Rogbodiyan",
+    "returned": "Ti da pada",
+    "approved": "Ti fọwọsi",
+    "committed": "Ti fi lelẹ",
+    "undone": "Ti fagilee"
+  },
+  "navigation": {
+    "dashboard": "Oju-ile Eto",
+    "core": "Isakoso Gbogbogbo",
+    "slis": "SLIS (Ilẹ ati Eto Irigeson)",
+    "me": "M&E (Awọn Atọka)",
+    "blis": "BLIS (Alaye Odo ati Idido)",
+    "users": "Awọn Olumulo & Awọn Ipa",
+    "organisations": "Awọn Ajọ ati WUA",
+    "imports": "Gbongan Ikowọle Data"
+  },
+  "currency": {
+    "symbol": "₦",
+    "name": "Naira"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "title": "Isakoso Gbogbogbo & Idanimọ",
+  "description": "Ṣakoso awọn igbanilaaye eto, awọn ilana igbekalẹ, Awọn Ẹgbẹ Olumulo Omi (WUA), ati ikowọle data lọpọlọpọ.",
+  "tabs": {
+    "users": "Awọn Olumulo & Awọn Ipa",
+    "organisations": "Awọn Ajọ ati WUA",
+    "imports": "Gbongan Ikowọle Data"
+  },
+  "users": {
+    "title": "Awọn Akọọlẹ Olumulo & Wiwọle",
+    "subtitle": "Awọn ipa igbanilaaye RBAC, awọn aala ipinlẹ ati eto irigeson, ati awọn aṣẹ ẹrọ aisinipo.",
+    "createUser": "Ṣẹda Olumulo Titun",
+    "searchPlaceholder": "Wa awọn olumulo nipasẹ orukọ, imeeli...",
+    "allRoles": "Gbogbo Awọn Ipa",
+    "allStatuses": "Gbogbo Awọn Ipo",
+    "activeOnly": "Awọn ti Nṣiṣẹ Nikan",
+    "inactiveOnly": "Awọn ti Kò Ṣiṣẹ Nikan"
+  },
+  "organisations": {
+    "title": "Igbekalẹ Ajọ & Awọn Ẹgbẹ Olumulo Omi",
+    "subtitle": "Awọn Alaṣẹ Idagbasoke Agbada Odo (RBDAs), awọn tabili ile-iṣẹ ijọba ipinlẹ, awọn eto, awọn apakan, ati awọn WUA.",
+    "addOrg": "Fi Ajọ Kun",
+    "treeHeader": "Igi Igbekalẹ Agbada Odo"
+  }
+}

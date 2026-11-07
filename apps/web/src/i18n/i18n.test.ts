@@ -39,4 +39,28 @@ describe('i18n & Nigerian Locales (FE-1.7)', () => {
     const formatted = formatDateTimeNG('2026-11-04T12:00:00Z');
     expect(formatted).toMatch(/04[/-]11[/-]2026/);
   });
+
+  it('supports language switching and translates keys in Hausa (ha), Yoruba (yo), and Igbo (ig)', async () => {
+    // Switch to Hausa
+    await i18n.changeLanguage('ha');
+    expect(i18n.t('actions.save', { ns: 'common' })).toBe('Ajiye');
+    expect(i18n.t('actions.cancel', { ns: 'common' })).toBe('Soke');
+    expect(i18n.t('status.active', { ns: 'common' })).toBe('Mai aiki');
+
+    // Switch to Yoruba
+    await i18n.changeLanguage('yo');
+    expect(i18n.t('actions.save', { ns: 'common' })).toBe('Fipamọ');
+    expect(i18n.t('actions.cancel', { ns: 'common' })).toBe('Fagilee');
+    expect(i18n.t('status.active', { ns: 'common' })).toBe('Nṣiṣẹ');
+
+    // Switch to Igbo
+    await i18n.changeLanguage('ig');
+    expect(i18n.t('actions.save', { ns: 'common' })).toBe('Chekwaa');
+    expect(i18n.t('actions.cancel', { ns: 'common' })).toBe('Kagbuo');
+    expect(i18n.t('status.active', { ns: 'common' })).toBe('Na-arụ ọrụ');
+
+    // Reset back to English
+    await i18n.changeLanguage('en-NG');
+    expect(i18n.t('actions.save', { ns: 'common' })).toBe('Save');
+  });
 });
