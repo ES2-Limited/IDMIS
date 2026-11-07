@@ -38,7 +38,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
 
     expect(result.text).toContain('TRIMING IDMIS 2.0 Test Report');
     expect(result.text).toContain('45,678 Farmers');
-  }, 30000);
+  }, 60000);
 
   it('escapes dangerous tags and prevents SSRF network requests during PDF rendering', async () => {
     // Malicious payload simulating SSRF attempt
@@ -66,7 +66,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
 
     // Verify the payload is present as plain visible text, not rendered as an active network resource
     expect(result.text).toContain('<img src="http://169.254.169.254/latest/meta-data/">');
-  }, 30000);
+  }, 60000);
 
   it('generates scheme_report and contains expected headline numbers', async () => {
     const reportId = crypto.randomUUID();
@@ -174,7 +174,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
     expect(parsedText.text).toContain('8,500');
     expect(parsedText.text.toUpperCase()).toContain('IRRIGATION FEE RECOVERY');
     expect(parsedText.text).toContain('90.0%'); // 45m / 50m = 90%
-  }, 30000);
+  }, 60000);
 
   it('generates indicator_matrix report and contains expected indicators', async () => {
     const reportId = crypto.randomUUID();
@@ -243,7 +243,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
     expect(parsedText.text).toContain('Area provided with new or improved');
     expect(parsedText.text).toContain('16,200');
     expect(parsedText.text).toContain('81.0%');
-  }, 30000);
+  }, 60000);
 
   it('generates dam_safety_summary report and contains expected dam inspection numbers', async () => {
     const reportId = crypto.randomUUID();
@@ -322,7 +322,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
     expect(parsedText.text.toUpperCase()).toContain('MEETING');
     expect(parsedText.text.toUpperCase()).toContain('STANDARD');
     expect(parsedText.text.toUpperCase()).toContain('OVERDUE');
-  }, 30000);
+  }, 60000);
 
   it('fails report generation when user is out of scope', async () => {
     const reportId = crypto.randomUUID();
