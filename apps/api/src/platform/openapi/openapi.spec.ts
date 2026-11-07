@@ -28,6 +28,7 @@ const APPROVED_TAGS = [
   'me',
   'blis',
   'dashboards',
+  'reports',
 ] as const;
 
 describe('OpenAPI & Swagger UI (FEAT-DOCS)', () => {

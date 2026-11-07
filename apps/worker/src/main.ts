@@ -7,6 +7,7 @@ import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 import { processBlisPartitionJob } from './jobs/blis-partition.job';
 import { processMeasurementCommitJob } from './jobs/blis-measurement-commit.job';
+import { processPdfReportJob } from './jobs/pdf-report.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -185,7 +186,38 @@ measurementCommitWorker.on('error', (err) => {
   console.warn('[MeasurementCommitWorker] Error:', err.message);
 });
 
-// 6. Initialize outbox dispatcher & subscribers
+// 6. PDF Report Queue & Worker
+const pdfReportQueueName = process.env.REPORTS_PDF_QUEUE_NAME || 'reports-pdf';
+const pdfReportConcurrency = parseInt(process.env.REPORTS_PDF_CONCURRENCY || '1', 10);
+
+const pdfReportQueue = new Queue(pdfReportQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const pdfReportWorker = new Worker(
+  pdfReportQueueName,
+  async (job) => {
+    return processPdfReportJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: pdfReportConcurrency,
+  },
+);
+
+pdfReportWorker.on('error', (err) => {
+  console.warn('[PdfReportWorker] Error:', err.message);
+});
+
+// 7. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
 
 let isRunning = true;
@@ -214,6 +246,8 @@ const shutdown = async () => {
   isRunning = false;
   if (pollTimeout) clearTimeout(pollTimeout);
   try {
+    await pdfReportWorker.close();
+    await pdfReportQueue.close();
     await measurementCommitWorker.close();
     await measurementCommitQueue.close();
     await blisPartitionWorker.close();

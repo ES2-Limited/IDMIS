@@ -44,6 +44,10 @@ import { ImportController } from './controllers/import.controller';
 import { ImportHandlerRegistry } from './imports/import-handler.registry';
 import { WuaImportHandler } from './imports/wua.handler';
 
+import { ReportRepository } from './repositories/report.repository';
+import { ReportService } from './services/report.service';
+import { ReportController } from './controllers/report.controller';
+
 @Module({
   imports: [StorageModule],
   controllers: [
@@ -57,6 +61,7 @@ import { WuaImportHandler } from './imports/wua.handler';
     SettingController,
     AuditController,
     ImportController,
+    ReportController,
   ],
   providers: [
     EncryptionService,
@@ -83,6 +88,8 @@ import { WuaImportHandler } from './imports/wua.handler';
     ImportService,
     ImportHandlerRegistry,
     WuaImportHandler,
+    ReportRepository,
+    ReportService,
   ],
   exports: [
     EncryptionService,
@@ -109,6 +116,8 @@ import { WuaImportHandler } from './imports/wua.handler';
     ImportService,
     ImportHandlerRegistry,
     WuaImportHandler,
+    ReportRepository,
+    ReportService,
     StorageModule,
   ],
 })
