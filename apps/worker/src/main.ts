@@ -3,6 +3,7 @@ import { db } from '@idmis/db';
 import { defaultSubscriberRegistry } from './dispatcher/registry';
 import { dispatchBatch } from './dispatcher/dispatcher';
 import { registerAuthzSubscribers } from './subscribers/authz.subscriber';
+import { registerFileScanSubscribers } from './subscribers/file-scan.subscriber';
 import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 import { processBlisPartitionJob } from './jobs/blis-partition.job';
@@ -20,6 +21,9 @@ if (isProduction) {
   }
   if (!process.env.S3_SECRET_ACCESS_KEY) {
     throw new Error('S3_SECRET_ACCESS_KEY is required when NODE_ENV=production');
+  }
+  if (!process.env.CLAMAV_HOST) {
+    throw new Error('CLAMAV_HOST is required when NODE_ENV=production');
   }
 }
 
@@ -219,6 +223,7 @@ pdfReportWorker.on('error', (err) => {
 
 // 7. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
+registerFileScanSubscribers(defaultSubscriberRegistry);
 
 let isRunning = true;
 let pollTimeout: NodeJS.Timeout | null = null;

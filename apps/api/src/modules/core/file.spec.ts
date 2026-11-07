@@ -102,6 +102,7 @@ describe('File Storage API Specification (BE-1.7)', () => {
         email: 'file-admin@idmis.gov.ng',
         fullName: 'File Admin',
         passwordHash,
+        totpConfirmedAt: new Date().toISOString(),
         isActive: true,
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,

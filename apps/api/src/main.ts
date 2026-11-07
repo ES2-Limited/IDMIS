@@ -9,6 +9,7 @@ import {
 } from './platform/logger/logger.config';
 import { validateApiEnv } from './platform/config/env';
 import { ProblemDetailsFilter } from './platform/filters';
+import { registerRateLimit } from './platform/rate-limit/rate-limit.config';
 
 async function bootstrap() {
   const env = validateApiEnv();
@@ -20,6 +21,7 @@ async function bootstrap() {
   });
 
   registerRequestIdHook(fastifyAdapter.getInstance());
+  await registerRateLimit(fastifyAdapter.getInstance());
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, fastifyAdapter);
   app.useGlobalFilters(new ProblemDetailsFilter());

@@ -282,6 +282,7 @@ describe('Permissions & Scope Specification (BE-1.4)', () => {
           passwordHash: dummyHash,
           isActive: true,
           mustChangePassword: false,
+          totpConfirmedAt: new Date().toISOString(),
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
         })
