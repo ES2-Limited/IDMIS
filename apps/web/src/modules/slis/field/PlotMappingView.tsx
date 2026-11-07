@@ -13,6 +13,7 @@ import {
   SelectContent,
   SelectItem,
   Badge,
+  useToast,
 } from '@idmis/ui';
 import { CreatePlotInputSchema, type CreatePlotInput, type ServiceType } from '@idmis/contracts';
 import { generateUuidV7, localDb, LocalStore } from '@idmis/sync';
@@ -22,6 +23,7 @@ import { calculatePolygonAreaHa, createGeoJsonPolygon } from './spatial-utils';
 export function PlotMappingView() {
   const navigate = useNavigate();
   const { currentScope } = useScope();
+  const { success, warning, error: toastError } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
 
   // Form State
@@ -120,7 +122,10 @@ export function PlotMappingView() {
   // Submit Plot to Offline Dexie Outbox
   const handleSubmit = async () => {
     if (coordinates.length < 3) {
-      alert('A valid plot parcel requires at least 3 GPS boundary vertices.');
+      warning(
+        'Incomplete Boundary',
+        'A valid plot parcel requires at least 3 GPS boundary vertices.',
+      );
       return;
     }
 
@@ -151,10 +156,14 @@ export function PlotMappingView() {
         areaHa: calculatedAreaHa,
       });
 
+      success(
+        'Parcel Saved to Device',
+        `Plot ${plotCode} (${calculatedAreaHa.toFixed(2)} Ha) queued for offline sync.`,
+      );
       navigate({ to: '/field/records' });
     } catch (err) {
       console.error('Plot mapping error:', err);
-      alert(`Plot saving failed: ${String(err)}`);
+      toastError('Plot Saving Failed', String(err));
     } finally {
       setIsSaving(false);
     }
