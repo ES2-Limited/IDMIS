@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import crypto from 'node:crypto';
 import type { RetentionRunInput, RetentionRunResponse } from '@idmis/contracts';
 import type { RequestUser } from '../../../platform/context';
 
@@ -41,20 +42,29 @@ export class RetentionService implements OnModuleDestroy {
     user: RequestUser,
   ): Promise<RetentionRunResponse> {
     const dryRun = Boolean(input.dryRun);
-    const job = await this.retentionQueue.add(
-      'retention:purge',
-      {
-        dryRun,
-        triggeredBy: user.id,
-      },
-      {
-        removeOnComplete: 100,
-        removeOnFail: 100,
-      },
-    );
+    let jobId: string = crypto.randomUUID();
+
+    try {
+      const job = await this.retentionQueue.add(
+        'retention:purge',
+        {
+          dryRun,
+          triggeredBy: user.id,
+        },
+        {
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        },
+      );
+      if (job?.id) {
+        jobId = String(job.id);
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to enqueue BullMQ retention job: ${(err as Error).message}`);
+    }
 
     return {
-      jobId: String(job.id),
+      jobId,
       dryRun,
     };
   }

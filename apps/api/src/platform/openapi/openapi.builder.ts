@@ -79,6 +79,8 @@ import {
   CreateReportInputSchema,
   CreateReportResponseSchema,
   ReportResponseSchema,
+  RetentionRunInputSchema,
+  RetentionRunResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -287,6 +289,8 @@ export function buildOpenApiDocument(
     SettingResponse: toJsonSchema(SettingResponseSchema),
     SetSettingInput: toJsonSchema(SetSettingInputSchema),
     ListSettingsQuery: toJsonSchema(ListSettingsQuerySchema),
+    RetentionRunInput: toJsonSchema(RetentionRunInputSchema),
+    RetentionRunResponse: toJsonSchema(RetentionRunResponseSchema),
     PaginatedSettingsResponse: {
       type: 'object',
       properties: {
@@ -1258,6 +1262,36 @@ export function buildOpenApiDocument(
             },
           },
           ...errors([400, 401, 403, 404]),
+        },
+      },
+    },
+
+    // -------------------------------------------------------------
+    // SYSTEM RETENTION
+    // -------------------------------------------------------------
+    '/system/retention/run': {
+      post: {
+        summary: 'Trigger data retention and purge worker job',
+        tags: ['settings'],
+        security: SECURED,
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/RetentionRunInput' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Retention purge job queued or executed',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/RetentionRunResponse' },
+              },
+            },
+          },
+          ...errors([400, 401, 403]),
         },
       },
     },
