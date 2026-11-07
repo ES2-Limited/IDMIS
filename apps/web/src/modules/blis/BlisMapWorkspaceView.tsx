@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  UploadCloud,
 } from 'lucide-react';
 import {
   Card,
@@ -29,6 +30,11 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import {
+  BlisLayerUploadModal,
+  UploadedMapLayer,
+  MOCK_UPLOADED_LAYERS,
+} from './BlisLayerUploadModal';
 
 export type BlisFeatureType = 'basin' | 'dam' | 'station' | 'scheme' | 'plot';
 
@@ -275,8 +281,23 @@ export function BlisMapWorkspaceView() {
     plots: true,
   });
 
+  // Uploaded user layers
+  const [customLayers, setCustomLayers] = React.useState<UploadedMapLayer[]>(MOCK_UPLOADED_LAYERS);
+  const [customLayersVisibility, setCustomLayersVisibility] = React.useState<{
+    [id: string]: boolean;
+  }>({
+    'layer-up-1': true,
+    'layer-up-2': true,
+    'layer-up-3': true,
+  });
+  const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
+
   const toggleLayer = (layer: keyof LayerVisibility) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+  };
+
+  const toggleCustomLayer = (id: string) => {
+    setCustomLayersVisibility((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   // Filtered features matching scope, search, and layer visibility
@@ -327,8 +348,16 @@ export function BlisMapWorkspaceView() {
           </p>
         </div>
 
-        {/* Legend Shortcuts */}
-        <div className="flex items-center gap-2">
+        {/* Legend Shortcuts & Upload Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-teal-700 hover:bg-teal-800 text-white min-h-[38px] text-xs font-bold gap-1.5 shadow-xs"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            Upload Layer
+          </Button>
+
           <Badge
             variant="outline"
             className="text-[11px] font-semibold border-slate-300 gap-1.5 py-1"
@@ -474,6 +503,51 @@ export function BlisMapWorkspaceView() {
                   </span>
                   {layers.schemes ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                 </button>
+              </div>
+
+              {/* Uploaded Vector Layers Sub-Panel */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between pb-1.5">
+                  <span className="text-[11px] font-bold text-slate-700">
+                    Uploaded Custom Layers ({customLayers.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3 h-3" /> Add Layer
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {customLayers.map((layer) => {
+                    const isVisible = customLayersVisibility[layer.id] ?? true;
+                    return (
+                      <div
+                        key={layer.id}
+                        onClick={() => toggleCustomLayer(layer.id)}
+                        className={`p-2 rounded-xl border text-[11px] flex items-center justify-between cursor-pointer transition-all ${
+                          isVisible
+                            ? 'border-purple-200 bg-purple-50/60 text-purple-950 font-semibold'
+                            : 'border-slate-200 text-slate-400 opacity-60'
+                        }`}
+                      >
+                        <div className="truncate pr-1">
+                          <div className="truncate">{layer.name}</div>
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            {layer.featureCount} features · {layer.format.toUpperCase()}
+                          </div>
+                        </div>
+                        {isVisible ? (
+                          <Eye className="h-3 w-3 shrink-0 text-purple-700" />
+                        ) : (
+                          <EyeOff className="h-3 w-3 shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -795,6 +869,16 @@ export function BlisMapWorkspaceView() {
           </Card>
         </div>
       </div>
+
+      {/* Layer Upload Modal */}
+      <BlisLayerUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onLayerSaved={(newLayer) => {
+          setCustomLayers((prev) => [newLayer, ...prev]);
+          setCustomLayersVisibility((prev) => ({ ...prev, [newLayer.id]: true }));
+        }}
+      />
     </div>
   );
 }
