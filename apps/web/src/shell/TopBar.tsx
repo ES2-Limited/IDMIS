@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { ScopePicker } from './ScopePicker';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { IconButton } from '@idmis/ui';
-import { Search, Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
+import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useSync } from '../sync';
 
@@ -79,7 +80,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
         {/* Offline Sync Status & Manual Trigger */}
         <button
           type="button"
@@ -123,15 +124,9 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           <ScopePicker />
         </div>
 
-        {/* Search Placeholder */}
-        <div className="relative hidden xl:block w-48">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Search records..."
-            aria-label="Global search"
-            className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/80 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700 focus:border-teal-700 transition-all"
-          />
+        {/* National Language Switcher */}
+        <div>
+          <LanguageSwitcher />
         </div>
 
         {/* Notification Placeholder */}

@@ -3,6 +3,7 @@ import { useAuth } from '../../auth';
 import { useSync } from '../../sync';
 import { useScope } from '../../shell/ScopeContext';
 import { useFieldMode } from '../../shell/FieldModeContext';
+import { LanguageSwitcher } from '../../shell/LanguageSwitcher';
 import {
   Shield,
   Smartphone,
@@ -114,6 +115,11 @@ export function FieldProfileView() {
           <div className="flex items-center justify-between py-1.5">
             <span className="text-slate-500">Pending Outbox Ops</span>
             <span className="font-extrabold text-slate-900">{pendingOpsCount} mutations</span>
+          </div>
+
+          <div className="flex items-center justify-between py-1.5 pt-2 border-t border-slate-100">
+            <span className="text-slate-500 font-medium">National Language</span>
+            <LanguageSwitcher />
           </div>
         </CardContent>
       </Card>
