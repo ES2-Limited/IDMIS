@@ -1067,23 +1067,35 @@ describe('SLIS Import Specification (BE-2.7)', () => {
       expect(inQueue).toBeDefined();
       expect(inQueue.status).toBe('submitted');
 
-      // 2. Verify sync pull shows upsert for farmer
-      const pullRes1 = await app.inject({
-        method: 'GET',
-        url: '/slis/sync/pull',
-        headers: {
-          authorization: `Bearer ${adminToken}`,
-          'x-device-id': DEVICE_ID,
-        },
-      });
-      expect(pullRes1.statusCode).toBe(200);
-      const pull1 = JSON.parse(pullRes1.body);
-      const fOp = pull1.items.find(
-        (op: { entity: string; recordId: string }) =>
-          op.entity === 'farmer' && op.recordId === syncFarmerId,
-      );
+      // 2. Verify sync pull shows upsert for farmer (retry if concurrent test transaction held snapshot xmin)
+      let fOp: { entity: string; recordId: string; op?: string } | undefined;
+      let pull1:
+        | { items: Array<{ entity: string; recordId: string; op?: string }>; nextCursor?: string }
+        | undefined;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const pullRes1 = await app.inject({
+          method: 'GET',
+          url: '/slis/sync/pull',
+          headers: {
+            authorization: `Bearer ${adminToken}`,
+            'x-device-id': DEVICE_ID,
+          },
+        });
+        expect(pullRes1.statusCode).toBe(200);
+        pull1 = JSON.parse(pullRes1.body) as {
+          items: Array<{ entity: string; recordId: string; op?: string }>;
+          nextCursor?: string;
+        };
+        fOp = pull1.items.find(
+          (op: { entity: string; recordId: string }) =>
+            op.entity === 'farmer' && op.recordId === syncFarmerId,
+        );
+        if (fOp) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
       expect(fOp).toBeDefined();
-      expect(fOp.op).toBe('upsert');
+      expect(fOp!.op).toBe('upsert');
+      expect(pull1).toBeDefined();
 
       // 3. Undo import
       const undoRes = await app.inject({
@@ -1096,7 +1108,7 @@ describe('SLIS Import Specification (BE-2.7)', () => {
       // 4. Verify sync pull shows delete op for farmer
       const pullRes2 = await app.inject({
         method: 'GET',
-        url: `/slis/sync/pull?cursor=${pull1.nextCursor}`,
+        url: `/slis/sync/pull?cursor=${pull1!.nextCursor}`,
         headers: {
           authorization: `Bearer ${adminToken}`,
           'x-device-id': DEVICE_ID,

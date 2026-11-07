@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { NestFactory } from '@nestjs/core';
 import crypto from 'node:crypto';
@@ -2037,6 +2037,9 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(forbiddenRes.statusCode).toBe(403);
 
+      const queue = computeService.getQueue();
+      const addSpy = vi.spyOn(queue, 'add').mockResolvedValueOnce({ id: 'job-1' } as never);
+
       // Admin with ME_INDICATOR_MANAGE -> 202 Accepted
       const adminRes = await app.inject({
         method: 'POST',
@@ -2046,6 +2049,33 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(adminRes.statusCode).toBe(202);
       expect(adminRes.json().message).toContain('enqueued');
+
+      addSpy.mockRestore();
+    });
+
+    it('returns 503 when the compute queue is down and does not call runCompute', async () => {
+      const queue = computeService.getQueue();
+      const addSpy = vi
+        .spyOn(queue, 'add')
+        .mockRejectedValueOnce(new Error('Redis connection lost'));
+      const runComputeSpy = vi.spyOn(computeService, 'runCompute');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/compute',
+        headers: { authorization: `Bearer ${nationalAdminToken}` },
+        payload: { year: 2026, quarter: 1 },
+      });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      const json = res.json();
+      expect(json.status).toBe(503);
+      expect(json.detail).toBe('Compute queue is unavailable');
+      expect(runComputeSpy).not.toHaveBeenCalled();
+
+      addSpy.mockRestore();
+      runComputeSpy.mockRestore();
     });
   });
 });
