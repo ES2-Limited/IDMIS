@@ -128,6 +128,7 @@ export const farmer = slisSchema.table(
     nextOfKinRelation: text('next_of_kin_relation'),
     photoFileId: uuid('photo_file_id').references(() => file.id),
     location: geometryPoint('location'),
+    anonymised: boolean('anonymised').notNull().default(false),
   },
   (table) => [
     check('farmer_gender_check', sql`"gender" IN ('female', 'male')`),
@@ -151,9 +152,9 @@ export const farmerIdentity = slisSchema.table(
     documentTypeId: uuid('document_type_id')
       .notNull()
       .references(() => lookupValue.id),
-    numberEnc: text('number_enc').notNull(),
-    numberHash: text('number_hash').notNull(),
-    numberLast4: text('number_last4').notNull(),
+    numberEnc: text('number_enc'),
+    numberHash: text('number_hash'),
+    numberLast4: text('number_last4'),
     bankName: text('bank_name'),
     documentFileId: uuid('document_file_id').references(() => file.id),
     uniquePerPerson: boolean('unique_per_person').notNull(),
@@ -182,6 +183,7 @@ export const farm = slisSchema.table(
       .references(() => organisation.id),
     name: text('name').notNull(),
     geom: geometryGeneric('geom'),
+    anonymised: boolean('anonymised').notNull().default(false),
   },
   (table) => [
     index('farm_scheme_id_idx').on(table.schemeId),
@@ -214,6 +216,7 @@ export const plot = slisSchema.table(
     stateId: uuid('state_id').references(() => state.id),
     geom: geometryGeneric('geom'),
     gpsAccuracyM: numeric('gps_accuracy_m', { precision: 6, scale: 2 }),
+    anonymised: boolean('anonymised').notNull().default(false),
   },
   (table) => [
     check(

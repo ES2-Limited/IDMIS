@@ -9,6 +9,7 @@ import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
 import { processBlisPartitionJob } from './jobs/blis-partition.job';
 import { processMeasurementCommitJob } from './jobs/blis-measurement-commit.job';
 import { processPdfReportJob } from './jobs/pdf-report.job';
+import { processRetentionPurgeJob } from './jobs/retention-purge.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -221,7 +222,48 @@ pdfReportWorker.on('error', (err) => {
   console.warn('[PdfReportWorker] Error:', err.message);
 });
 
-// 7. Initialize outbox dispatcher & subscribers
+// 7. Data Retention & Purge Queue & Worker (BE-5.3)
+const retentionQueueName = process.env.RETENTION_PURGE_QUEUE_NAME || 'retention-purge';
+const retentionQueue = new Queue(retentionQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const retentionWorker = new Worker(
+  retentionQueueName,
+  async (job) => {
+    return processRetentionPurgeJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: 1,
+  },
+);
+
+retentionWorker.on('error', (err) => {
+  console.warn('[RetentionWorker] Error:', err.message);
+});
+
+// Schedule daily retention purge at 02:00
+void retentionQueue.upsertJobScheduler(
+  'retention:purge-scheduler',
+  {
+    pattern: '0 2 * * *',
+  },
+  {
+    name: 'retention:purge',
+    data: { dryRun: false },
+  },
+);
+
+// 8. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
 registerFileScanSubscribers(defaultSubscriberRegistry);
 

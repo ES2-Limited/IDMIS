@@ -12,6 +12,7 @@ export const IMPORT_BATCH_STATUSES = [
   'undoing',
   'undone',
   'undo_failed',
+  'archived',
 ] as const;
 export const ImportBatchStatusSchema = z.enum(IMPORT_BATCH_STATUSES);
 export type ImportBatchStatus = z.infer<typeof ImportBatchStatusSchema>;

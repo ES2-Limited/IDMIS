@@ -58,7 +58,7 @@ export class FarmerService {
         updatedAt: r.updatedAt,
       };
 
-      if (canViewUnmasked) {
+      if (canViewUnmasked && r.numberEnc) {
         return {
           ...base,
           number: this.encryptionService.decrypt(Buffer.from(r.numberEnc, 'hex')),
@@ -452,7 +452,7 @@ export class FarmerService {
         updatedAt: r.updatedAt,
       };
 
-      if (canViewUnmasked) {
+      if (canViewUnmasked && r.numberEnc) {
         return {
           ...base,
           number: this.encryptionService.decrypt(Buffer.from(r.numberEnc, 'hex')),

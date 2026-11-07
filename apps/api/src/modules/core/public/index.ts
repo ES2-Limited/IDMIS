@@ -34,3 +34,4 @@ export * from '../imports/wua.handler';
 
 export * from '../services/report.service';
 export * from '../repositories/report.repository';
+export * from '../services/retention.service';

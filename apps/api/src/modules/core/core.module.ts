@@ -48,6 +48,9 @@ import { ReportRepository } from './repositories/report.repository';
 import { ReportService } from './services/report.service';
 import { ReportController } from './controllers/report.controller';
 
+import { RetentionService } from './services/retention.service';
+import { SystemController } from './controllers/system.controller';
+
 @Module({
   imports: [StorageModule],
   controllers: [
@@ -62,6 +65,7 @@ import { ReportController } from './controllers/report.controller';
     AuditController,
     ImportController,
     ReportController,
+    SystemController,
   ],
   providers: [
     EncryptionService,
@@ -90,6 +94,7 @@ import { ReportController } from './controllers/report.controller';
     WuaImportHandler,
     ReportRepository,
     ReportService,
+    RetentionService,
   ],
   exports: [
     EncryptionService,
@@ -118,6 +123,7 @@ import { ReportController } from './controllers/report.controller';
     WuaImportHandler,
     ReportRepository,
     ReportService,
+    RetentionService,
     StorageModule,
   ],
 })

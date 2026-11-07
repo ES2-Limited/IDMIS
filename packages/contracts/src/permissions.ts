@@ -44,6 +44,9 @@ export const permissions = {
   DASHBOARD_VIEW: 'core.dashboard.view',
   REPORT_GENERATE: 'core.report.generate',
 
+  // System
+  SYSTEM_RETENTION_RUN: 'system.retention.run',
+
   // SLIS: Farmers & Households
   SLIS_FARMER_READ: 'slis.farmer.read',
   SLIS_FARMER_CREATE: 'slis.farmer.create',
@@ -138,6 +141,7 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.CORE_OUTBOX_MANAGE]: 'global',
   [permissions.DASHBOARD_VIEW]: 'scoped',
   [permissions.REPORT_GENERATE]: 'scoped',
+  [permissions.SYSTEM_RETENTION_RUN]: 'global',
 
   // SLIS permissions (all strictly scoped)
   [permissions.SLIS_FARMER_READ]: 'scoped',

@@ -133,6 +133,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_OUTBOX_MANAGE,
     permissions.DASHBOARD_VIEW,
     permissions.REPORT_GENERATE,
+    permissions.SYSTEM_RETENTION_RUN,
     // SLIS
     permissions.SLIS_FARMER_READ,
     permissions.SLIS_FARMER_CREATE,
