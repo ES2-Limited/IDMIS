@@ -36,7 +36,6 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV CLAMAV_HOST=clamav
 
 # Copy workspace package manifests
 COPY --chown=node:node package.json pnpm-workspace.yaml ./
