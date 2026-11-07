@@ -3,7 +3,7 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { ScopePicker } from './ScopePicker';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { IconButton } from '@idmis/ui';
-import { Search, Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
+import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../auth';
 import { useSync } from '../sync';
 
