@@ -180,7 +180,6 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.BLIS_INSPECTION_APPROVE,
     permissions.BLIS_MAP_READ,
     permissions.BLIS_MAP_MANAGE,
-    permissions.DASHBOARD_VIEW,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope
@@ -276,6 +275,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
+    permissions.DASHBOARD_VIEW,
     // BLIS
     permissions.BLIS_BASIN_READ,
     permissions.BLIS_BASIN_MANAGE,
@@ -287,7 +287,6 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.BLIS_INSPECTION_APPROVE,
     permissions.BLIS_MAP_READ,
     permissions.BLIS_MAP_MANAGE,
-    permissions.DASHBOARD_VIEW,
   ],
 
   // 5. Scheme Data Officer: Scheme-level review, approval, validation & full scheme operations
