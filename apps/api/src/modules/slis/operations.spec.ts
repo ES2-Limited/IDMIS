@@ -24,6 +24,9 @@ import {
   state,
   ward,
   wua,
+  basin,
+  station,
+  sql,
   SYSTEM_USER_ID,
   postgres,
   drizzle,
@@ -380,6 +383,54 @@ describe('SLIS Operations (BE-2.4)', () => {
       stateId: KADUNA_STATE_ID,
       plotCode: 'PLT-HJIS-001',
       areaHa: '3.0000',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    // 9. BLIS Station for Stream Flow tests
+    const testRbdaId = crypto.randomUUID();
+    await testDb.insert(organisation).values({
+      id: testRbdaId,
+      type: 'rbda',
+      code: 'HJRBDA',
+      name: 'Hadejia-Jamaare RBDA',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    const testStationLookupTypeId = crypto.randomUUID();
+    await testDb.insert(lookupType).values({
+      id: testStationLookupTypeId,
+      key: 'station_type',
+      name: 'Station Type',
+      module: 'blis',
+    });
+    const testStationTypeId = crypto.randomUUID();
+    await testDb.insert(lookupValue).values({
+      id: testStationTypeId,
+      lookupTypeId: testStationLookupTypeId,
+      code: 'hydrological',
+      label: 'Hydrological Station',
+    });
+
+    const testBasinId = crypto.randomUUID();
+    await testDb.insert(basin).values({
+      id: testBasinId,
+      code: 'CHAD-B',
+      name: 'Lake Chad Basin',
+      rbdaId: testRbdaId,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    await testDb.insert(station).values({
+      id: testStationId,
+      code: 'ST-001',
+      name: 'Kano Flow Station',
+      basinId: testBasinId,
+      stationTypeId: testStationTypeId,
+      geom: sql`ST_SetSRID(ST_MakePoint(8.5, 12.0), 4326)`,
+      isActive: true,
       createdBy: SYSTEM_USER_ID,
       updatedBy: SYSTEM_USER_ID,
     });
@@ -802,21 +853,21 @@ describe('SLIS Operations (BE-2.4)', () => {
       expect(events[0]?.eventType).toBe('slis.stream_flow.recorded');
     });
 
-    it('rejects stream flow reading with an invalid/unknown station id via BLIS stub', async () => {
+    it('rejects stream flow reading with an invalid/unknown station id via BLIS public service', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/slis/stream-flows',
         headers: { authorization: `Bearer ${kanoOfficerToken}` },
         payload: {
           schemeId: KANO_SCHEME_ID,
-          stationId: '00000000-0000-0000-0000-000000000000', // Nil UUID rejected by BLIS stub
+          stationId: '00000000-0000-0000-0000-000000000000', // Unknown/invalid station rejected by BLIS public service
           readAt: '2026-03-15T08:00:00.000Z',
           value: '10.0000',
           unit: 'm3/s',
         },
       });
 
-      expect(res.statusCode).toBe(404);
+      expect(res.statusCode).toBe(400);
     });
 
     it('enforces scope isolation: Kaduna officer cannot see Kano stream flow readings', async () => {
