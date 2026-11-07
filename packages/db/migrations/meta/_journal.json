@@ -141,6 +141,13 @@
       "when": 1793855600000,
       "tag": "0019_blis_readings_and_views",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793856600000,
+      "tag": "0020_blis_dam_safety_and_computed_indicators",
+      "breakpoints": true
     }
   ]
 }

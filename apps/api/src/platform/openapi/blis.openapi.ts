@@ -15,6 +15,11 @@ import {
   DamSchema,
   CreateDamInputSchema,
   UpdateDamInputSchema,
+  DamSafetyInspectionSchema,
+  CreateDamSafetyInspectionInputSchema,
+  UpdateDamSafetyInspectionInputSchema,
+  ReturnDamInspectionInputSchema,
+  MvDamStatusSchema,
   RawReadingsResponseSchema,
   AggregatedReadingsResponseSchema,
 } from '@idmis/contracts';
@@ -78,6 +83,11 @@ export const blisSchemas: Record<string, unknown> = {
   Dam: toJsonSchema(DamSchema),
   CreateDamInput: toJsonSchema(CreateDamInputSchema),
   UpdateDamInput: toJsonSchema(UpdateDamInputSchema),
+  DamSafetyInspection: toJsonSchema(DamSafetyInspectionSchema),
+  CreateDamSafetyInspectionInput: toJsonSchema(CreateDamSafetyInspectionInputSchema),
+  UpdateDamSafetyInspectionInput: toJsonSchema(UpdateDamSafetyInspectionInputSchema),
+  ReturnDamInspectionInput: toJsonSchema(ReturnDamInspectionInputSchema),
+  MvDamStatus: toJsonSchema(MvDamStatusSchema),
   RawReadingsResponse: toJsonSchema(RawReadingsResponseSchema),
   AggregatedReadingsResponse: toJsonSchema(AggregatedReadingsResponseSchema),
 };
@@ -844,6 +854,206 @@ export const blisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(401, 403, 404, 409),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // DAM SAFETY INSPECTIONS
+  // -------------------------------------------------------------
+  '/blis/dam-inspections': {
+    get: {
+      summary: 'List dam safety inspections',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'damId', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+        {
+          name: 'status',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', enum: ['draft', 'submitted', 'approved', 'returned'] },
+        },
+        { name: 'page', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+        { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 20 } },
+      ],
+      responses: {
+        '200': {
+          description: 'Paginated list of dam safety inspections',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  items: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/DamSafetyInspection' },
+                  },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      page: { type: 'integer' },
+                      limit: { type: 'integer' },
+                      total: { type: 'integer' },
+                      totalPages: { type: 'integer' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create dam safety inspection',
+      tags: ['blis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateDamSafetyInspectionInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Dam safety inspection created',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+  },
+
+  '/blis/dam-inspections/{id}': {
+    get: {
+      summary: 'Get dam safety inspection by ID',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Dam safety inspection details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
+      },
+    },
+    patch: {
+      summary: 'Update dam safety inspection',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateDamSafetyInspectionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Dam safety inspection updated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/blis/dam-inspections/{id}/submit': {
+    post: {
+      summary: 'Submit dam safety inspection for review',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Dam safety inspection submitted',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/blis/dam-inspections/{id}/approve': {
+    post: {
+      summary: 'Approve dam safety inspection',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Dam safety inspection approved',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/blis/dam-inspections/{id}/return': {
+    post: {
+      summary: 'Return dam safety inspection with comment',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ReturnDamInspectionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Dam safety inspection returned',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DamSafetyInspection' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
       },
     },
   },

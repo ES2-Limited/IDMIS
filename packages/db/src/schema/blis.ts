@@ -399,3 +399,19 @@ export const mvLatestReading = blisSchema.table(
   },
   (table) => [uniqueIndex('mv_latest_reading_unique').on(table.stationId, table.parameterId)],
 );
+
+// 17. Materialised View: blis.mv_dam_status
+export const mvDamStatus = blisSchema.table(
+  'mv_dam_status',
+  {
+    damId: uuid('dam_id').notNull(),
+    inspectionId: uuid('inspection_id').notNull(),
+    inspectedOn: date('inspected_on', { mode: 'string' }).notNull(),
+    meetsStandard: boolean('meets_standard').notNull(),
+    hazardClassId: uuid('hazard_class_id'),
+    hazardClass: text('hazard_class'),
+    nextDueOn: date('next_due_on', { mode: 'string' }),
+    approvedAt: timestamp('approved_at', { withTimezone: true, mode: 'string' }).notNull(),
+  },
+  (table) => [uniqueIndex('mv_dam_status_dam_id_unique').on(table.damId)],
+);

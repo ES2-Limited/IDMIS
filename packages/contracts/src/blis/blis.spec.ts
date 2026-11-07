@@ -6,6 +6,8 @@ import {
   CreateMeasurementInputSchema,
   CreateDamInputSchema,
   CreateDamSafetyInspectionInputSchema,
+  ReturnDamInspectionInputSchema,
+  MvDamStatusSchema,
   CreateStakeholderInputSchema,
   StationTypeEnum,
   ComponentRatingEnum,
@@ -183,5 +185,48 @@ describe('BLIS Contracts (BE-4.1)', () => {
       expect(validQuery.data.limit).toBe(50);
       expect(validQuery.data.interval).toBe('raw');
     }
+  });
+
+  it('validates dam safety inspection and component contracts', () => {
+    const inspectionInput = CreateDamSafetyInspectionInputSchema.safeParse({
+      damId: '018f3a5e-0000-7000-8000-000000000001',
+      inspectedOn: '2026-03-15',
+      nextDueOn: '2027-03-15',
+      components: [
+        {
+          component: 'dam_body',
+          ratingId: '018f3a5e-0000-7000-8000-000000000010',
+          notes: 'No seepage detected',
+        },
+        {
+          component: 'spillway_1',
+          ratingId: '018f3a5e-0000-7000-8000-000000000010',
+        },
+      ],
+    });
+    expect(inspectionInput.success).toBe(true);
+
+    const returnInput = ReturnDamInspectionInputSchema.safeParse({
+      comment: 'Missing spillway gate inspection details',
+    });
+    expect(returnInput.success).toBe(true);
+
+    const invalidReturn = ReturnDamInspectionInputSchema.safeParse({
+      comment: '',
+    });
+    expect(invalidReturn.success).toBe(false);
+
+    const mvStatus = MvDamStatusSchema.safeParse({
+      damId: '018f3a5e-0000-7000-8000-000000000001',
+      inspectionId: '018f3a5e-0000-7000-8000-000000000002',
+      inspectedOn: '2026-03-15',
+      meetsStandard: true,
+      hazardClassId: '018f3a5e-0000-7000-8000-000000000003',
+      hazardClass: 'High Hazard',
+      nextDueOn: '2027-03-15',
+      isOverdue: false,
+      approvedAt: '2026-03-16T10:00:00Z',
+    });
+    expect(mvStatus.success).toBe(true);
   });
 });

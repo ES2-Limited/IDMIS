@@ -9,6 +9,7 @@ import { BasinMorphometryController } from './controllers/basin-morphometry.cont
 import { StationController } from './controllers/station.controller';
 import { ReservoirController } from './controllers/reservoir.controller';
 import { DamController } from './controllers/dam.controller';
+import { DamInspectionController } from './controllers/dam-inspection.controller';
 
 // Repositories
 import { BasinRepository } from './repositories/basin.repository';
@@ -17,9 +18,12 @@ import { StationRepository } from './repositories/station.repository';
 import { ReservoirRepository } from './repositories/reservoir.repository';
 import { DamRepository } from './repositories/dam.repository';
 import { ReadingRepository } from './repositories/reading.repository';
+import { DamInspectionRepository } from './repositories/dam-inspection.repository';
 
 // Services
 import { BlisAssetService } from './services/blis-asset.service';
+import { DamInspectionService } from './services/dam-inspection.service';
+import { BlisComputeQueryService } from './services/blis-compute-query.service';
 import { BlisStationStubService } from './public';
 
 // Import Handlers
@@ -36,6 +40,7 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     StationController,
     ReservoirController,
     DamController,
+    DamInspectionController,
   ],
   providers: [
     BasinRepository,
@@ -44,7 +49,10 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     ReservoirRepository,
     DamRepository,
     ReadingRepository,
+    DamInspectionRepository,
     BlisAssetService,
+    DamInspectionService,
+    BlisComputeQueryService,
     BlisStationStubService,
     BasinImportHandler,
     StationImportHandler,
@@ -58,7 +66,10 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
     ReservoirRepository,
     DamRepository,
     ReadingRepository,
+    DamInspectionRepository,
     BlisAssetService,
+    DamInspectionService,
+    BlisComputeQueryService,
     BlisStationStubService,
   ],
 })

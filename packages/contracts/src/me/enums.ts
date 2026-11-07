@@ -33,6 +33,8 @@ export const KNOWN_COMPUTE_KEYS = new Set([
   'slis.yield.maize',
   'slis.yield.onion',
   'me.scorecards_published',
+  'blis.dams_safe',
+  'blis.rivers_gauged',
 ] as const);
 
 export type KnownComputeKey = typeof KNOWN_COMPUTE_KEYS extends Set<infer T> ? T : never;
