@@ -75,6 +75,7 @@ import {
   AdminResetPasswordResponseSchema,
   AuthMeResponseSchema,
   UserAbilitiesResponseSchema,
+  DashboardResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -343,6 +344,9 @@ export function buildOpenApiDocument(
 
     // BLIS
     ...blisSchemas,
+
+    // Dashboard
+    DashboardResponse: toJsonSchema(DashboardResponseSchema),
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -1738,6 +1742,155 @@ export function buildOpenApiDocument(
   // BLIS endpoints
   Object.assign(paths, blisPaths);
 
+  // Dashboards
+  paths['/dashboards/programme'] = {
+    get: {
+      tags: ['dashboards'],
+      summary: 'Programme Dashboard',
+      description: 'Retrieve programme-level aggregated dashboard metrics and state drill-downs',
+      security: SECURED,
+      parameters: [
+        { name: 'year', in: 'query', required: false, schema: { type: 'integer' } },
+        {
+          name: 'quarter',
+          in: 'query',
+          required: false,
+          schema: { type: 'integer', minimum: 1, maximum: 4 },
+        },
+        {
+          name: 'scheme',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'sector',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'season',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Programme dashboard response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DashboardResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403, 404]),
+      },
+    },
+  };
+
+  paths['/dashboards/state/{stateId}'] = {
+    get: {
+      tags: ['dashboards'],
+      summary: 'State Dashboard',
+      description: 'Retrieve state-level aggregated dashboard metrics and scheme drill-downs',
+      security: SECURED,
+      parameters: [
+        { name: 'stateId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'year', in: 'query', required: false, schema: { type: 'integer' } },
+        {
+          name: 'quarter',
+          in: 'query',
+          required: false,
+          schema: { type: 'integer', minimum: 1, maximum: 4 },
+        },
+        {
+          name: 'scheme',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'sector',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'season',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'State dashboard response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DashboardResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403, 404]),
+      },
+    },
+  };
+
+  paths['/dashboards/scheme/{schemeId}'] = {
+    get: {
+      tags: ['dashboards'],
+      summary: 'Scheme Dashboard',
+      description: 'Retrieve scheme-level aggregated dashboard metrics and sector drill-downs',
+      security: SECURED,
+      parameters: [
+        {
+          name: 'schemeId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        { name: 'year', in: 'query', required: false, schema: { type: 'integer' } },
+        {
+          name: 'quarter',
+          in: 'query',
+          required: false,
+          schema: { type: 'integer', minimum: 1, maximum: 4 },
+        },
+        {
+          name: 'scheme',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'sector',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'season',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Scheme dashboard response',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DashboardResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403, 404]),
+      },
+    },
+  };
+
   const tags = [
     { name: 'auth', description: 'Authentication, TOTP MFA, sessions, and passwords' },
     { name: 'users', description: 'User account provisioning, profiles, and status' },
@@ -1771,6 +1924,11 @@ export function buildOpenApiDocument(
     {
       name: 'blis',
       description: 'Basin Land Information System (basins, stations, reservoirs, dams)',
+    },
+    {
+      name: 'dashboards',
+      description:
+        'Executive and operational dashboards across programme, state, and scheme hierarchies',
     },
   ];
 
