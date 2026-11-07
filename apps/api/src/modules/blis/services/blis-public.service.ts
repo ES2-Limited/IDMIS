@@ -7,11 +7,13 @@ import {
   basin,
   dam,
   reservoir,
+  lga,
   eq,
   and,
   isNull,
   count,
   sql,
+  type SQL,
 } from '@idmis/db';
 import type {
   StationLookup,
@@ -220,4 +222,141 @@ export class BlisPublicService {
     const res = await this.computeQueryService.getDamsSafe(periodEnd, scope);
     return res.total;
   }
+
+  /**
+   * Returns aggregated dam status summary from blis.mv_dam_status.
+   */
+  async getDamStatusSummary(params?: {
+    stateId?: string;
+    schemeId?: string;
+  }): Promise<DamStatusSummary> {
+    const conditions: SQL[] = [isNull(dam.deletedAt)];
+
+    if (params?.stateId) {
+      conditions.push(eq(lga.stateId, params.stateId));
+    }
+    if (params?.schemeId) {
+      conditions.push(eq(dam.ownerOrgId, params.schemeId));
+    }
+
+    const [row] = await db
+      .select({
+        meetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = true then 1 end)::int`,
+        notMeetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = false then 1 end)::int`,
+        overdue: sql<number>`count(case when coalesce(${mvDamStatus.nextDueOn} < (current_timestamp at time zone 'Africa/Lagos')::date, false) then 1 end)::int`,
+        total: sql<number>`count(*)::int`,
+        lastRefreshedAt: sql<string | null>`max(${mvDamStatus.approvedAt})`,
+      })
+      .from(mvDamStatus)
+      .innerJoin(dam, eq(dam.id, mvDamStatus.damId))
+      .leftJoin(lga, eq(lga.id, dam.lgaId))
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    return {
+      meetingStandard: Number(row?.meetingStandard ?? 0),
+      notMeetingStandard: Number(row?.notMeetingStandard ?? 0),
+      overdue: Number(row?.overdue ?? 0),
+      total: Number(row?.total ?? 0),
+      lastRefreshedAt: row?.lastRefreshedAt ? String(row.lastRefreshedAt) : null,
+    };
+  }
+
+  /**
+   * Returns dam status summary grouped by stateId from blis.mv_dam_status.
+   */
+  async getDamStatusByState(): Promise<Map<string, DamStatusGroupedItem>> {
+    const rows = await db
+      .select({
+        stateId: lga.stateId,
+        meetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = true then 1 end)::int`,
+        notMeetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = false then 1 end)::int`,
+        overdue: sql<number>`count(case when coalesce(${mvDamStatus.nextDueOn} < (current_timestamp at time zone 'Africa/Lagos')::date, false) then 1 end)::int`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(mvDamStatus)
+      .innerJoin(dam, eq(dam.id, mvDamStatus.damId))
+      .innerJoin(lga, eq(lga.id, dam.lgaId))
+      .where(isNull(dam.deletedAt))
+      .groupBy(lga.stateId);
+
+    const map = new Map<string, DamStatusGroupedItem>();
+    for (const r of rows) {
+      if (r.stateId) {
+        map.set(r.stateId, {
+          id: r.stateId,
+          meetingStandard: Number(r.meetingStandard ?? 0),
+          notMeetingStandard: Number(r.notMeetingStandard ?? 0),
+          overdue: Number(r.overdue ?? 0),
+          total: Number(r.total ?? 0),
+        });
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Returns dam status summary grouped by schemeId (ownerOrgId) from blis.mv_dam_status.
+   */
+  async getDamStatusByScheme(stateId?: string): Promise<Map<string, DamStatusGroupedItem>> {
+    const conditions: SQL[] = [isNull(dam.deletedAt), sql`${dam.ownerOrgId} IS NOT NULL`];
+    if (stateId) {
+      conditions.push(eq(lga.stateId, stateId));
+    }
+
+    const rows = await db
+      .select({
+        schemeId: dam.ownerOrgId,
+        meetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = true then 1 end)::int`,
+        notMeetingStandard: sql<number>`count(case when ${mvDamStatus.meetsStandard} = false then 1 end)::int`,
+        overdue: sql<number>`count(case when coalesce(${mvDamStatus.nextDueOn} < (current_timestamp at time zone 'Africa/Lagos')::date, false) then 1 end)::int`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(mvDamStatus)
+      .innerJoin(dam, eq(dam.id, mvDamStatus.damId))
+      .leftJoin(lga, eq(lga.id, dam.lgaId))
+      .where(and(...conditions))
+      .groupBy(dam.ownerOrgId);
+
+    const map = new Map<string, DamStatusGroupedItem>();
+    for (const r of rows) {
+      if (r.schemeId) {
+        map.set(r.schemeId, {
+          id: r.schemeId,
+          meetingStandard: Number(r.meetingStandard ?? 0),
+          notMeetingStandard: Number(r.notMeetingStandard ?? 0),
+          overdue: Number(r.overdue ?? 0),
+          total: Number(r.total ?? 0),
+        });
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Returns latest approved inspection timestamp in blis.mv_dam_status.
+   */
+  async getLastDamStatusRefreshedAt(): Promise<string | null> {
+    const [row] = await db
+      .select({
+        lastRefreshedAt: sql<string | null>`max(${mvDamStatus.approvedAt})`,
+      })
+      .from(mvDamStatus);
+    return row?.lastRefreshedAt ? String(row.lastRefreshedAt) : null;
+  }
+}
+
+export interface DamStatusSummary {
+  meetingStandard: number;
+  notMeetingStandard: number;
+  overdue: number;
+  total: number;
+  lastRefreshedAt: string | null;
+}
+
+export interface DamStatusGroupedItem {
+  id: string;
+  meetingStandard: number;
+  notMeetingStandard: number;
+  overdue: number;
+  total: number;
 }

@@ -131,6 +131,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
     permissions.CORE_OUTBOX_MANAGE,
+    permissions.DASHBOARD_VIEW,
     // SLIS
     permissions.SLIS_FARMER_READ,
     permissions.SLIS_FARMER_CREATE,
@@ -215,6 +216,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     // M&E Approver (National / Regional scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 3. Module Administrator: Generic placeholder (specific module admins use dedicated roles)
@@ -260,6 +262,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 4b. BLIS Administrator: Explicit permissions for BLIS module administration
@@ -272,6 +275,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_FILE_READ,
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
+    permissions.DASHBOARD_VIEW,
     // BLIS
     permissions.BLIS_BASIN_READ,
     permissions.BLIS_BASIN_MANAGE,
@@ -320,6 +324,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 6. Field Officer: Mobile field data capture with offline support (cannot approve)
@@ -351,6 +356,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.BLIS_MAP_READ,
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_ADOPTION_RECORD,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 7. M&E Officer: Monitoring & Evaluation data entry, survey collection, and analysis
@@ -368,6 +374,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
     // M&E
     permissions.ME_INDICATOR_READ,
     permissions.ME_INDICATOR_MANAGE,
@@ -396,6 +403,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.BLIS_INSPECTION_RECORD,
     permissions.BLIS_INSPECTION_APPROVE,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 9. Procurement Officer: Tender records & contract tracking
@@ -427,6 +435,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.BLIS_BASIN_READ,
     permissions.BLIS_MEASUREMENT_READ,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
   ],
 
   // 11. State Coordinator: State ministry oversight and M&E value approvals (State scope)
@@ -445,6 +454,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
     permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
     // M&E Approver (State scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,
