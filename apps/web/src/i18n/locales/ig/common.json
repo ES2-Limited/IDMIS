@@ -1,0 +1,54 @@
+{
+  "brand": {
+    "title": "TRIMING IDMIS",
+    "subtitle": "Ministri Federal nke Akụrụngwa Mmiri na Idobe Ọcha",
+    "project": "Mgbanwe Nchịkwa Mmiri Maka Ọrụ Ugbo na Naịjirịa"
+  },
+  "actions": {
+    "save": "Chekwaa",
+    "cancel": "Kagbuo",
+    "confirm": "Kwenye",
+    "delete": "Hichapụ",
+    "edit": "Dezie",
+    "create": "Mepụta",
+    "manage": "Chịkwaa",
+    "submit": "Nyefee",
+    "back": "Laghachi",
+    "next": "Na-esote",
+    "close": "Mechie",
+    "refresh": "Mepụtaghachi",
+    "search": "Chọọ...",
+    "filter": "Nyochaa",
+    "export": "Zipụ data",
+    "import": "Weta data",
+    "undo": "Kagbuo Ihe Emere"
+  },
+  "status": {
+    "active": "Na-arụ ọrụ",
+    "inactive": "Anaghị arụ ọrụ",
+    "draft": "Ndegharị",
+    "saved_on_device": "Echekwara na ngwaọrụ",
+    "syncing": "Na-emekọrịta",
+    "needs_fixing": "Chọrọ mmezi",
+    "awaiting_review": "Na-eche nyocha",
+    "conflict": "Esemokwu",
+    "returned": "Eweghachiri",
+    "approved": "A kwadoro",
+    "committed": "Etinyere na tebụl",
+    "undone": "Ewepụrụ"
+  },
+  "navigation": {
+    "dashboard": "Isi Mbido Ọrụ",
+    "core": "Isi Nchịkwa",
+    "slis": "SLIS (Ala na Atụmatụ Mmiri)",
+    "me": "M&E (Ihe Ndị Na-egosi Ọganiihu)",
+    "blis": "BLIS (Ozi Banyere Osimiri)",
+    "users": "Ndị Ọrụ & Ọkwa",
+    "organisations": "Òtù Dị Iche Iche & WUA",
+    "imports": "Ebe Mbubata Data"
+  },
+  "currency": {
+    "symbol": "₦",
+    "name": "Naira"
+  }
+}
