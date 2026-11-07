@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { ShellLayout } from '../shell/ShellLayout';
@@ -6,42 +7,178 @@ import { ErrorBoundaryView } from '../shell/ErrorBoundaryView';
 import { SignInPage } from '../routes/auth/SignInPage';
 import { UnauthorizedPage } from '../routes/auth/UnauthorizedPage';
 import { WorkspaceDashboard } from '../modules/dashboard/WorkspaceDashboard';
-import { CoreHome } from '../modules/core/CoreHome';
-import { UserManagementView } from '../modules/core/UserManagementView';
-import { OrganisationsTreeView } from '../modules/core/OrganisationsTreeView';
-import { ImportCenterView } from '../imports/ImportCenterView';
-import { SlisHome } from '../modules/slis/SlisHome';
-import { FarmersListView } from '../modules/slis/FarmersListView';
-import { PlotsMapView } from '../modules/slis/PlotsMapView';
-import { WaterRequestsListView } from '../modules/slis/WaterRequestsListView';
-import { ReviewConflictsListView } from '../modules/slis/ReviewConflictsListView';
-import { SlisReportsView } from '../modules/slis/SlisReportsView';
-import { MeHome } from '../modules/me/MeHome';
-import { IndicatorsListView } from '../modules/me/IndicatorsListView';
-import { QuarterlyDataEntryView } from '../modules/me/QuarterlyDataEntryView';
-import { IndicatorMatrixView } from '../modules/me/IndicatorMatrixView';
-import { SurveysManagementView } from '../modules/me/SurveysManagementView';
-import { ScorecardsListView } from '../modules/me/ScorecardsListView';
-import { MatchingGrantsListView } from '../modules/me/MatchingGrantsListView';
-import { TechnologyAdoptionListView } from '../modules/me/TechnologyAdoptionListView';
-import { FieldSurveyCaptureForm } from '../modules/field/FieldSurveyCaptureForm';
-import { BlisMapWorkspaceView } from '../modules/blis/BlisMapWorkspaceView';
-import { DamsListView } from '../modules/blis/DamsListView';
-import { StationsListView } from '../modules/blis/StationsListView';
-import { BasinsListView } from '../modules/blis/BasinsListView';
-import { DamInspectionsListView } from '../modules/blis/DamInspectionsListView';
-import { FieldDamInspectionCaptureForm } from '../modules/field/FieldDamInspectionCaptureForm';
-import { FieldHomeView } from '../modules/field/FieldHomeView';
-import { FieldCaptureView } from '../modules/field/FieldCaptureView';
-import { FieldRecordsView } from '../modules/field/FieldRecordsView';
-import { FieldSyncView } from '../modules/field/FieldSyncView';
-import { FieldProfileView } from '../modules/field/FieldProfileView';
-import { FarmerRegistrationWizard } from '../modules/slis/field/FarmerRegistrationWizard';
-import { PlotMappingView } from '../modules/slis/field/PlotMappingView';
-import { WaterRequestFieldForm } from '../modules/field/WaterRequestFieldForm';
-import { FeeCollectionFieldForm } from '../modules/field/FeeCollectionFieldForm';
-import { TrainingAttendanceFieldForm } from '../modules/field/TrainingAttendanceFieldForm';
-import { CropProductionFieldForm } from '../modules/field/CropProductionFieldForm';
+
+// Lazy-loaded heavy modules for route-level code splitting & under 1.5MB initial payload
+function lazyRouteComponent<P extends object>(
+  factory: () => Promise<Record<string, unknown>>,
+  exportName?: string,
+) {
+  const LazyComponent = React.lazy(async () => {
+    const mod = await factory();
+    const component = (
+      exportName ? mod[exportName] : mod.default || Object.values(mod)[0]
+    ) as React.ComponentType<P>;
+    return { default: component };
+  });
+
+  return function LazyWrapper(props: P) {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="flex h-64 items-center justify-center p-8">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-teal-600 border-t-transparent" />
+              <p className="text-xs font-semibold text-slate-500">Loading workspace module...</p>
+            </div>
+          </div>
+        }
+      >
+        <LazyComponent {...props} />
+      </React.Suspense>
+    );
+  };
+}
+
+// Module views loaded on demand
+const CoreHome = lazyRouteComponent(() => import('../modules/core/CoreHome'), 'CoreHome');
+const UserManagementView = lazyRouteComponent(
+  () => import('../modules/core/UserManagementView'),
+  'UserManagementView',
+);
+const OrganisationsTreeView = lazyRouteComponent(
+  () => import('../modules/core/OrganisationsTreeView'),
+  'OrganisationsTreeView',
+);
+const ImportCenterView = lazyRouteComponent(
+  () => import('../imports/ImportCenterView'),
+  'ImportCenterView',
+);
+
+const SlisHome = lazyRouteComponent(() => import('../modules/slis/SlisHome'), 'SlisHome');
+const FarmersListView = lazyRouteComponent(
+  () => import('../modules/slis/FarmersListView'),
+  'FarmersListView',
+);
+const PlotsMapView = lazyRouteComponent(
+  () => import('../modules/slis/PlotsMapView'),
+  'PlotsMapView',
+);
+const WaterRequestsListView = lazyRouteComponent(
+  () => import('../modules/slis/WaterRequestsListView'),
+  'WaterRequestsListView',
+);
+const ReviewConflictsListView = lazyRouteComponent(
+  () => import('../modules/slis/ReviewConflictsListView'),
+  'ReviewConflictsListView',
+);
+const SlisReportsView = lazyRouteComponent(
+  () => import('../modules/slis/SlisReportsView'),
+  'SlisReportsView',
+);
+
+const MeHome = lazyRouteComponent(() => import('../modules/me/MeHome'), 'MeHome');
+const IndicatorsListView = lazyRouteComponent(
+  () => import('../modules/me/IndicatorsListView'),
+  'IndicatorsListView',
+);
+const QuarterlyDataEntryView = lazyRouteComponent(
+  () => import('../modules/me/QuarterlyDataEntryView'),
+  'QuarterlyDataEntryView',
+);
+const IndicatorMatrixView = lazyRouteComponent(
+  () => import('../modules/me/IndicatorMatrixView'),
+  'IndicatorMatrixView',
+);
+const SurveysManagementView = lazyRouteComponent(
+  () => import('../modules/me/SurveysManagementView'),
+  'SurveysManagementView',
+);
+const ScorecardsListView = lazyRouteComponent(
+  () => import('../modules/me/ScorecardsListView'),
+  'ScorecardsListView',
+);
+const MatchingGrantsListView = lazyRouteComponent(
+  () => import('../modules/me/MatchingGrantsListView'),
+  'MatchingGrantsListView',
+);
+const TechnologyAdoptionListView = lazyRouteComponent(
+  () => import('../modules/me/TechnologyAdoptionListView'),
+  'TechnologyAdoptionListView',
+);
+const FieldSurveyCaptureForm = lazyRouteComponent(
+  () => import('../modules/field/FieldSurveyCaptureForm'),
+  'FieldSurveyCaptureForm',
+);
+
+const BlisMapWorkspaceView = lazyRouteComponent(
+  () => import('../modules/blis/BlisMapWorkspaceView'),
+  'BlisMapWorkspaceView',
+);
+const DamsListView = lazyRouteComponent(
+  () => import('../modules/blis/DamsListView'),
+  'DamsListView',
+);
+const StationsListView = lazyRouteComponent(
+  () => import('../modules/blis/StationsListView'),
+  'StationsListView',
+);
+const BasinsListView = lazyRouteComponent(
+  () => import('../modules/blis/BasinsListView'),
+  'BasinsListView',
+);
+const DamInspectionsListView = lazyRouteComponent(
+  () => import('../modules/blis/DamInspectionsListView'),
+  'DamInspectionsListView',
+);
+const FieldDamInspectionCaptureForm = lazyRouteComponent(
+  () => import('../modules/field/FieldDamInspectionCaptureForm'),
+  'FieldDamInspectionCaptureForm',
+);
+
+const FieldHomeView = lazyRouteComponent(
+  () => import('../modules/field/FieldHomeView'),
+  'FieldHomeView',
+);
+const FieldCaptureView = lazyRouteComponent(
+  () => import('../modules/field/FieldCaptureView'),
+  'FieldCaptureView',
+);
+const FieldRecordsView = lazyRouteComponent(
+  () => import('../modules/field/FieldRecordsView'),
+  'FieldRecordsView',
+);
+const FieldSyncView = lazyRouteComponent(
+  () => import('../modules/field/FieldSyncView'),
+  'FieldSyncView',
+);
+const FieldProfileView = lazyRouteComponent(
+  () => import('../modules/field/FieldProfileView'),
+  'FieldProfileView',
+);
+const FarmerRegistrationWizard = lazyRouteComponent(
+  () => import('../modules/slis/field/FarmerRegistrationWizard'),
+  'FarmerRegistrationWizard',
+);
+const PlotMappingView = lazyRouteComponent(
+  () => import('../modules/slis/field/PlotMappingView'),
+  'PlotMappingView',
+);
+const WaterRequestFieldForm = lazyRouteComponent(
+  () => import('../modules/field/WaterRequestFieldForm'),
+  'WaterRequestFieldForm',
+);
+const FeeCollectionFieldForm = lazyRouteComponent(
+  () => import('../modules/field/FeeCollectionFieldForm'),
+  'FeeCollectionFieldForm',
+);
+const TrainingAttendanceFieldForm = lazyRouteComponent(
+  () => import('../modules/field/TrainingAttendanceFieldForm'),
+  'TrainingAttendanceFieldForm',
+);
+const CropProductionFieldForm = lazyRouteComponent(
+  () => import('../modules/field/CropProductionFieldForm'),
+  'CropProductionFieldForm',
+);
 
 export const queryClient = new QueryClient();
 
