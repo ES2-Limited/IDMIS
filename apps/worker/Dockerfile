@@ -37,6 +37,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV CLAMAV_HOST=clamav
 
 # Install chromium and fonts for headless PDF rendering (non-root execution)
 RUN apt-get update && apt-get install -y --no-install-recommends \
