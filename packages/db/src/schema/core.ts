@@ -629,3 +629,31 @@ export const syncQuarantine = coreSchema.table(
     index('sync_quarantine_state_id_idx').on(table.stateId),
   ],
 );
+
+// --- Asynchronous PDF Report Job ---
+export const reportJob = coreSchema.table(
+  'report_job',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    type: text('type').notNull(),
+    params: jsonb('params').$type<Record<string, unknown>>().default({}),
+    status: text('status').notNull().default('queued'),
+    fileId: uuid('file_id').references(() => file.id),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    index('report_job_user_id_idx').on(table.userId),
+    index('report_job_status_idx').on(table.status),
+    index('report_job_created_at_idx').on(table.createdAt),
+  ],
+);

@@ -1,4 +1,4 @@
-import { and, isNull, lt, eq } from '@idmis/db';
+import { and, isNull, lt, eq, or } from '@idmis/db';
 import { db, file } from '@idmis/db';
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
@@ -32,15 +32,21 @@ export async function cleanupExpiredFilesJob(options: FileCleanupOptions = {}) {
     });
 
   const cutoffDate = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+  const reportsCutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  // Find files with scan_status = 'pending' created before cutoff
+  // Find files with scan_status = 'pending' created before cutoff, or core.report files older than 7 days
   const expiredFiles = await dbClient
     .select()
     .from(file)
     .where(
       and(
-        eq(file.scanStatus, 'pending'),
-        lt(file.createdAt, cutoffDate.toISOString()),
+        or(
+          and(eq(file.scanStatus, 'pending'), lt(file.createdAt, cutoffDate.toISOString())),
+          and(
+            eq(file.ownerEntity, 'core.report'),
+            lt(file.createdAt, reportsCutoffDate.toISOString()),
+          ),
+        ),
         isNull(file.deletedAt),
       ),
     )

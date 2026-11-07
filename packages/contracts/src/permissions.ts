@@ -40,8 +40,9 @@ export const permissions = {
   // Core: Outbox
   CORE_OUTBOX_MANAGE: 'core.outbox.manage',
 
-  // Core: Dashboard
+  // Core: Dashboard & Reports
   DASHBOARD_VIEW: 'core.dashboard.view',
+  REPORT_GENERATE: 'core.report.generate',
 
   // SLIS: Farmers & Households
   SLIS_FARMER_READ: 'slis.farmer.read',
@@ -136,6 +137,7 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.CORE_AUDIT_READ]: 'global',
   [permissions.CORE_OUTBOX_MANAGE]: 'global',
   [permissions.DASHBOARD_VIEW]: 'scoped',
+  [permissions.REPORT_GENERATE]: 'scoped',
 
   // SLIS permissions (all strictly scoped)
   [permissions.SLIS_FARMER_READ]: 'scoped',

@@ -76,6 +76,9 @@ import {
   AuthMeResponseSchema,
   UserAbilitiesResponseSchema,
   DashboardResponseSchema,
+  CreateReportInputSchema,
+  CreateReportResponseSchema,
+  ReportResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -347,6 +350,11 @@ export function buildOpenApiDocument(
 
     // Dashboard
     DashboardResponse: toJsonSchema(DashboardResponseSchema),
+
+    // Reports
+    CreateReportInput: toJsonSchema(CreateReportInputSchema),
+    CreateReportResponse: toJsonSchema(CreateReportResponseSchema),
+    ReportResponse: toJsonSchema(ReportResponseSchema),
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -1891,6 +1899,71 @@ export function buildOpenApiDocument(
     },
   };
 
+  paths['/reports'] = {
+    post: {
+      tags: ['reports'],
+      summary: 'Request asynchronous generation of an official PDF report',
+      operationId: 'createReport',
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateReportInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Report generation job queued',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateReportResponse' },
+            },
+          },
+        },
+        '202': {
+          description: 'Report generation job queued',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateReportResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403, 404]),
+      },
+    },
+  };
+
+  paths['/reports/{id}'] = {
+    get: {
+      tags: ['reports'],
+      summary: 'Get report status and presigned download URL when completed',
+      operationId: 'getReport',
+      security: SECURED,
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+          description: 'Unique report job UUID',
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Report details and download link',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ReportResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403, 404]),
+      },
+    },
+  };
+
   const tags = [
     { name: 'auth', description: 'Authentication, TOTP MFA, sessions, and passwords' },
     { name: 'users', description: 'User account provisioning, profiles, and status' },
@@ -1929,6 +2002,10 @@ export function buildOpenApiDocument(
       name: 'dashboards',
       description:
         'Executive and operational dashboards across programme, state, and scheme hierarchies',
+    },
+    {
+      name: 'reports',
+      description: 'Official PDF report generation, status tracking, and secure download issuance',
     },
   ];
 
