@@ -156,6 +156,31 @@ export const ListDamsQuerySchema = PaginationQuerySchema.extend({
 });
 export type ListDamsQuery = z.infer<typeof ListDamsQuerySchema>;
 
+export const DamComponentConditionSchema = z.object({
+  inspectionId: z.string().uuid(),
+  component: DamComponentEnum,
+  ratingId: z.string().uuid(),
+  notes: z.string().nullable().optional(),
+});
+export type DamComponentCondition = z.infer<typeof DamComponentConditionSchema>;
+
+export const CreateInspectionComponentInputSchema = z.object({
+  component: DamComponentEnum,
+  ratingId: z.string().uuid(),
+  notes: z.string().optional(),
+});
+export type CreateInspectionComponentInput = z.infer<typeof CreateInspectionComponentInputSchema>;
+
+export const UpsertDamComponentConditionInputSchema = z.object({
+  inspectionId: z.string().uuid(),
+  component: DamComponentEnum,
+  ratingId: z.string().uuid(),
+  notes: z.string().optional(),
+});
+export type UpsertDamComponentConditionInput = z.infer<
+  typeof UpsertDamComponentConditionInputSchema
+>;
+
 export const DamSafetyInspectionSchema = z.object({
   id: z.string().uuid(),
   damId: z.string().uuid(),
@@ -172,7 +197,7 @@ export const DamSafetyInspectionSchema = z.object({
   staffQualifications: z.string().nullable().optional(),
   safetyBudgetNgn: z.string().nullable().optional(),
   meetsStandard: z.boolean().nullable().optional(),
-  status: InspectionStatusEnum,
+  status: InspectionStatusEnum.default('submitted'),
   submittedBy: z.string().uuid().nullable().optional(),
   submittedAt: z.string().nullable().optional(),
   approvedBy: z.string().uuid().nullable().optional(),
@@ -180,12 +205,14 @@ export const DamSafetyInspectionSchema = z.object({
   returnedBy: z.string().uuid().nullable().optional(),
   returnedAt: z.string().nullable().optional(),
   returnComment: z.string().nullable().optional(),
+  deviceId: z.string().uuid().nullable().optional(),
+  importBatchId: z.string().uuid().nullable().optional(),
   createdAt: z.string(),
   createdBy: z.string().uuid(),
   updatedAt: z.string(),
   updatedBy: z.string().uuid(),
   version: z.number().int().positive(),
-  importBatchId: z.string().uuid().nullable().optional(),
+  components: z.array(DamComponentConditionSchema).optional(),
 });
 export type DamSafetyInspection = z.infer<typeof DamSafetyInspectionSchema>;
 
@@ -203,6 +230,7 @@ export const CreateDamSafetyInspectionInputSchema = z.object({
   staffQualifications: z.string().optional(),
   safetyBudgetNgn: z.string().optional(),
   meetsStandard: z.boolean().optional(),
+  components: z.array(CreateInspectionComponentInputSchema).optional(),
 });
 export type CreateDamSafetyInspectionInput = z.infer<typeof CreateDamSafetyInspectionInputSchema>;
 
@@ -211,21 +239,3 @@ export const UpdateDamSafetyInspectionInputSchema =
     version: z.number().int().positive(),
   });
 export type UpdateDamSafetyInspectionInput = z.infer<typeof UpdateDamSafetyInspectionInputSchema>;
-
-export const DamComponentConditionSchema = z.object({
-  inspectionId: z.string().uuid(),
-  component: DamComponentEnum,
-  ratingId: z.string().uuid(),
-  notes: z.string().nullable().optional(),
-});
-export type DamComponentCondition = z.infer<typeof DamComponentConditionSchema>;
-
-export const UpsertDamComponentConditionInputSchema = z.object({
-  inspectionId: z.string().uuid(),
-  component: DamComponentEnum,
-  ratingId: z.string().uuid(),
-  notes: z.string().optional(),
-});
-export type UpsertDamComponentConditionInput = z.infer<
-  typeof UpsertDamComponentConditionInputSchema
->;

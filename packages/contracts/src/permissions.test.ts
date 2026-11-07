@@ -43,4 +43,17 @@ describe('permissions', () => {
     expect(permissionKinds[permissions.ME_INSTRUMENTS_MANAGE]).toBe('scoped');
     expect(permissionKinds[permissions.ME_ADOPTION_RECORD]).toBe('scoped');
   });
+
+  it('marks BLIS permissions as scoped', () => {
+    expect(permissionKinds[permissions.BLIS_BASIN_READ]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_BASIN_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_STATION_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_MEASUREMENT_READ]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_MEASUREMENT_IMPORT]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_DAM_MANAGE]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_INSPECTION_RECORD]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_INSPECTION_APPROVE]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_MAP_READ]).toBe('scoped');
+    expect(permissionKinds[permissions.BLIS_MAP_MANAGE]).toBe('scoped');
+  });
 });
