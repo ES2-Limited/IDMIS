@@ -660,30 +660,30 @@ export function IndicatorsListView() {
         <div className="flex items-center gap-1.5 border border-slate-200 p-1 rounded-xl bg-slate-50 text-xs font-bold">
           <button
             onClick={() => setLevelFilter('all')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               levelFilter === 'all'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             All Indicators ({indicators.length})
           </button>
           <button
             onClick={() => setLevelFilter('pdo')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               levelFilter === 'pdo'
                 ? 'bg-white text-amber-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             PDO Indicators ({pdoCount})
           </button>
           <button
             onClick={() => setLevelFilter('intermediate')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               levelFilter === 'intermediate'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             Intermediate ({intermediateCount})

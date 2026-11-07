@@ -68,10 +68,12 @@ export function SignInPage() {
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
 
       {/* Language Switcher Badge */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white text-xs font-semibold">
-        <Globe className="h-3.5 w-3.5 text-teal-400" />
-        <span className="uppercase text-[11px] tracking-wider text-slate-300">Locale:</span>
-        <span className="text-teal-300 font-bold">{i18n.language}</span>
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-teal-500/40 text-white text-xs font-semibold shadow-md">
+        <Globe className="h-3.5 w-3.5 text-teal-300" />
+        <span className="uppercase text-[11px] tracking-wider text-slate-200 font-bold">
+          Locale:
+        </span>
+        <span className="text-teal-300 font-extrabold">{i18n.language}</span>
       </div>
 
       <div className="w-full max-w-md relative z-10">

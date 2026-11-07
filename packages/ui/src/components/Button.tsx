@@ -13,10 +13,10 @@ export const buttonVariants = cva(
         destructive:
           'bg-rose-600 text-white shadow-xs hover:bg-rose-700 hover:shadow-sm active:bg-rose-800 border border-rose-700/30',
         outline:
-          'border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 shadow-2xs hover:text-slate-900',
+          'border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-800 shadow-2xs hover:text-slate-950 font-semibold',
         secondary:
           'bg-amber-500 text-white shadow-xs hover:bg-amber-600 hover:shadow-sm active:bg-amber-700 border border-amber-600/30',
-        ghost: 'hover:bg-slate-100/80 text-slate-600 hover:text-slate-900',
+        ghost: 'hover:bg-slate-100 text-slate-700 hover:text-slate-950 font-medium',
         link: 'text-teal-700 underline-offset-4 hover:underline p-0 h-auto cursor-pointer font-medium',
       },
       size: {

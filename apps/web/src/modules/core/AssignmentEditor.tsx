@@ -287,7 +287,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
             <Eye className="h-3.5 w-3.5" />
             Live User Visibility Preview
           </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 font-bold uppercase text-slate-300">
+          <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-950/80 border border-teal-500/40 font-bold uppercase text-teal-200">
             {value.module} Module
           </span>
         </div>

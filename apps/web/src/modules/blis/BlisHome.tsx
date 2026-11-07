@@ -87,16 +87,16 @@ export function BlisHome() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-950 via-teal-950 to-slate-900 p-6 sm:p-8 text-white shadow-lg border border-sky-900">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                <Droplets className="h-3 w-3" /> BLIS Hydrology Network
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-950/60 text-sky-200 border border-sky-500/50 backdrop-blur-sm">
+                <Droplets className="h-3.5 w-3.5 text-sky-300" /> BLIS Hydrology Network
               </span>
               <StatusChip status="approved">Active Network</StatusChip>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Baseline Land Information System (BLIS)
             </h1>
-            <p className="text-sky-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-sky-100 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Monitor river basin hydrology, dam structural integrity, hydrometric telemetry, and
               watershed spatial layers under scope{' '}
               <span className="font-semibold text-sky-300">
@@ -105,12 +105,12 @@ export function BlisHome() {
               .
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+              className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
             >
-              <Activity className="h-3.5 w-3.5 mr-1.5 text-sky-400" />
+              <Activity className="h-3.5 w-3.5 mr-1.5 text-sky-300" />
               Live Telemetry
             </Button>
             <Button className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md cursor-pointer">

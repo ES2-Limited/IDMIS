@@ -522,7 +522,7 @@ export function SurveysManagementView() {
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'surveys'
                   ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900'
+                  : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
               }`}
             >
               Questionnaires ({surveys.length})
@@ -533,7 +533,7 @@ export function SurveysManagementView() {
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'responses'
                   ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900'
+                  : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
               }`}
             >
               Responses ({responses.length})

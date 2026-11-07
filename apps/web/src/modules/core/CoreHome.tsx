@@ -24,15 +24,15 @@ export function CoreHome() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                <ShieldCheck className="h-3 w-3" /> Core Admin Engine
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-900/60 text-teal-200 border border-teal-500/50 backdrop-blur-sm">
+                <ShieldCheck className="h-3.5 w-3.5 text-teal-300" /> Core Admin Engine
               </span>
               <StatusChip status="approved">Security Verified</StatusChip>
             </div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">
               Core Administration & Identity
             </h1>
-            <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-slate-200 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Manage system permissions, institutional hierarchies, Water User Associations (WUAs),
               and tabular spreadsheet batch imports under active scope{' '}
               <span className="font-semibold text-teal-300">
@@ -44,9 +44,9 @@ export function CoreHome() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer w-full sm:w-auto"
+              className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer w-full sm:w-auto"
             >
-              <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
+              <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-300" />
               Audit Logs
             </Button>
           </div>
