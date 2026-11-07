@@ -3,6 +3,7 @@ import { db, mapLayer, basin, eq, and, isNull, inArray, sql, type SQL } from '@i
 import { permissions } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { txStorage } from '../../../platform/database/transaction.helper';
+import { SlisTileQueryService } from '../../slis/public';
 
 function sqlUuidArray(ids: string[]): SQL {
   return sql`ARRAY[${sql.join(
@@ -25,6 +26,8 @@ export interface TileQueryParam {
 export class MapRepository {
   private readonly logger = new Logger(MapRepository.name);
 
+  constructor(private readonly slisTileQueryService: SlisTileQueryService) {}
+
   getDb(txDb?: DatabaseOrTx): DatabaseOrTx {
     return txDb ?? (txStorage.getStore() as unknown as DatabaseOrTx) ?? db;
   }
@@ -45,14 +48,13 @@ export class MapRepository {
 
     switch (layer.toLowerCase()) {
       case 'stations': {
-        const blisScope = authz.can(permissions.BLIS_MEASUREMENT_READ)
-          ? authz.scopeFor(permissions.BLIS_MEASUREMENT_READ)
-          : authz.scopeFor(permissions.BLIS_BASIN_READ);
+        const blisScope = authz.scopeFor(permissions.BLIS_MAP_READ);
         const scopeConditions: SQL[] = [sql`s.deleted_at IS NULL`];
 
         if (!blisScope.isNational) {
+          const orConditions: SQL[] = [];
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
-            scopeConditions.push(
+            orConditions.push(
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
                 WHERE b.id = s.basin_id
@@ -60,9 +62,21 @@ export class MapRepository {
                   AND b.deleted_at IS NULL
               )`,
             );
-          } else {
-            return null; // Deny by default if out of scope
           }
+          if (blisScope.stateIds && blisScope.stateIds.length > 0) {
+            orConditions.push(
+              sql`EXISTS (
+                SELECT 1 FROM core.ward w
+                JOIN core.lga l ON l.id = w.lga_id
+                WHERE w.id = s.ward_id
+                  AND l.state_id = ANY(${sqlUuidArray(blisScope.stateIds)})
+              )`,
+            );
+          }
+          if (orConditions.length === 0) {
+            return null; // Other scope types (scheme, sector, empty) -> 204
+          }
+          scopeConditions.push(sql`(${sql.join(orConditions, sql` OR `)})`);
         }
 
         tileSql = sql`
@@ -87,6 +101,7 @@ export class MapRepository {
             FROM blis.station s
             CROSS JOIN tile_bounds tb
             WHERE ${and(...scopeConditions)}
+              AND s.geom IS NOT NULL
               AND ST_Intersects(ST_Transform(s.geom, 3857), tb.env)
           )
           SELECT ST_AsMVT(mvt_geom.*, 'stations', 4096, 'geom') AS mvt FROM mvt_geom;
@@ -95,14 +110,13 @@ export class MapRepository {
       }
 
       case 'dams': {
-        const blisScope = authz.can(permissions.BLIS_DAM_MANAGE)
-          ? authz.scopeFor(permissions.BLIS_DAM_MANAGE)
-          : authz.scopeFor(permissions.BLIS_BASIN_READ);
+        const blisScope = authz.scopeFor(permissions.BLIS_MAP_READ);
         const scopeConditions: SQL[] = [sql`d.deleted_at IS NULL`];
 
         if (!blisScope.isNational) {
+          const orConditions: SQL[] = [];
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
-            scopeConditions.push(
+            orConditions.push(
               sql`EXISTS (
                 SELECT 1 FROM blis.basin b
                 WHERE b.id = d.basin_id
@@ -110,9 +124,20 @@ export class MapRepository {
                   AND b.deleted_at IS NULL
               )`,
             );
-          } else {
-            return null;
           }
+          if (blisScope.stateIds && blisScope.stateIds.length > 0) {
+            orConditions.push(
+              sql`EXISTS (
+                SELECT 1 FROM core.lga l
+                WHERE l.id = d.lga_id
+                  AND l.state_id = ANY(${sqlUuidArray(blisScope.stateIds)})
+              )`,
+            );
+          }
+          if (orConditions.length === 0) {
+            return null; // Other scope types -> 204
+          }
+          scopeConditions.push(sql`(${sql.join(orConditions, sql` OR `)})`);
         }
 
         tileSql = sql`
@@ -141,6 +166,7 @@ export class MapRepository {
             LEFT JOIN blis.mv_dam_status st ON st.dam_id = d.id
             CROSS JOIN tile_bounds tb
             WHERE ${and(...scopeConditions)}
+              AND d.geom IS NOT NULL
               AND ST_Intersects(ST_Transform(d.geom, 3857), tb.env)
           )
           SELECT ST_AsMVT(mvt_geom.*, 'dams', 4096, 'geom') AS mvt FROM mvt_geom;
@@ -149,111 +175,63 @@ export class MapRepository {
       }
 
       case 'basins': {
-        const blisScope = authz.scopeFor(permissions.BLIS_BASIN_READ);
-        const scopeConditions: SQL[] = [isNull(basin.deletedAt)];
+        const blisScope = authz.scopeFor(permissions.BLIS_MAP_READ);
+        const scopeConditions: SQL[] = [sql`b.deleted_at IS NULL`];
 
         if (!blisScope.isNational) {
           if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
             scopeConditions.push(sql`b.rbda_id = ANY(${sqlUuidArray(blisScope.rbdaIds)})`);
           } else {
-            return null;
+            return null; // Other scope types -> 204
           }
         }
 
-        // Basins do not have geom directly on basin table, but if custom layers or boundaries exist
-        // Return empty or query map_layer
-        return null;
-      }
-
-      case 'plots': {
-        const slisScope = authz.scopeFor(permissions.SLIS_PLOT_READ);
-        const scopeConditions: SQL[] = [sql`p.deleted_at IS NULL`];
-
-        if (!slisScope.isNational) {
-          if (slisScope.schemeIds && slisScope.schemeIds.length > 0) {
-            scopeConditions.push(sql`p.scheme_id = ANY(${sqlUuidArray(slisScope.schemeIds)})`);
-          } else {
-            return null;
-          }
-        }
-
-        // Zero PII: only id, plot_code, scheme_id, sector_id, area_ha, status
         tileSql = sql`
           WITH tile_bounds AS (
             SELECT ST_TileEnvelope(${z}, ${x}, ${y}) AS env
           ),
           mvt_geom AS (
             SELECT
-              p.id,
-              p.plot_code,
-              p.scheme_id,
-              p.sector_id,
-              p.area_ha,
-              p.status,
+              b.id,
+              b.code,
+              b.name,
+              o.name AS rbda_name,
               ST_AsMVTGeom(
-                ST_Simplify(ST_Transform(p.geom, 3857), ${tolerance}),
+                ST_Simplify(ST_Transform(b.geom, 3857), ${tolerance}),
                 tb.env,
                 4096,
                 256,
                 true
               ) AS geom
-            FROM slis.plot p
+            FROM blis.basin b
+            LEFT JOIN core.organisation o ON o.id = b.rbda_id
             CROSS JOIN tile_bounds tb
             WHERE ${and(...scopeConditions)}
-              AND ST_Intersects(ST_Transform(p.geom, 3857), tb.env)
+              AND b.geom IS NOT NULL
+              AND ST_Intersects(ST_Transform(b.geom, 3857), tb.env)
           )
-          SELECT ST_AsMVT(mvt_geom.*, 'plots', 4096, 'geom') AS mvt FROM mvt_geom;
+          SELECT ST_AsMVT(mvt_geom.*, 'basins', 4096, 'geom') AS mvt FROM mvt_geom;
         `;
         break;
       }
 
-      case 'schemes': {
-        const coreScope = authz.can(permissions.CORE_ORGANISATION_READ)
-          ? authz.scopeFor(permissions.CORE_ORGANISATION_READ)
-          : authz.scopeFor(permissions.SLIS_PLOT_READ);
-        const scopeConditions: SQL[] = [sql`o.type = 'scheme'`, sql`o.deleted_at IS NULL`];
+      case 'plots':
+      case 'schemes':
+      case 'sectors': {
+        const slisSql = this.slisTileQueryService.getTileSql({
+          layer: layer.toLowerCase() as 'plots' | 'schemes' | 'sectors',
+          z,
+          x,
+          y,
+          tolerance,
+          authz,
+        });
 
-        if (!coreScope.isNational) {
-          if (coreScope.schemeIds && coreScope.schemeIds.length > 0) {
-            scopeConditions.push(sql`o.id = ANY(${sqlUuidArray(coreScope.schemeIds)})`);
-          } else if (coreScope.stateIds && coreScope.stateIds.length > 0) {
-            scopeConditions.push(
-              sql`EXISTS (
-                SELECT 1 FROM core.organisation_state os
-                WHERE os.organisation_id = o.id
-                  AND os.state_id = ANY(${sqlUuidArray(coreScope.stateIds)})
-              )`,
-            );
-          } else {
-            return null;
-          }
+        if (!slisSql) {
+          return null;
         }
 
-        tileSql = sql`
-          WITH tile_bounds AS (
-            SELECT ST_TileEnvelope(${z}, ${x}, ${y}) AS env
-          ),
-          mvt_geom AS (
-            SELECT
-              o.id,
-              o.code,
-              o.name,
-              o.irrigable_area_ha,
-              ST_AsMVTGeom(
-                ST_Simplify(ST_Transform(o.geom, 3857), ${tolerance}),
-                tb.env,
-                4096,
-                256,
-                true
-              ) AS geom
-            FROM core.organisation o
-            CROSS JOIN tile_bounds tb
-            WHERE ${and(...scopeConditions)}
-              AND o.geom IS NOT NULL
-              AND ST_Intersects(ST_Transform(o.geom, 3857), tb.env)
-          )
-          SELECT ST_AsMVT(mvt_geom.*, 'schemes', 4096, 'geom') AS mvt FROM mvt_geom;
-        `;
+        tileSql = slisSql;
         break;
       }
 
@@ -280,9 +258,7 @@ export class MapRepository {
 
         // Scope check for custom layer: if basinId is present, must be in user's BLIS scope
         if (layerRow.basinId) {
-          const blisScope = authz.can(permissions.BLIS_MAP_READ)
-            ? authz.scopeFor(permissions.BLIS_MAP_READ)
-            : authz.scopeFor(permissions.BLIS_BASIN_READ);
+          const blisScope = authz.scopeFor(permissions.BLIS_MAP_READ);
           if (!blisScope.isNational) {
             if (blisScope.rbdaIds && blisScope.rbdaIds.length > 0) {
               const [basinMatch] = await client

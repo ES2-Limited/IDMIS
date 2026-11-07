@@ -13,6 +13,10 @@ import {
   assignment,
   session,
   organisation,
+  organisationState,
+  state,
+  lga,
+  ward,
   lookupType,
   lookupValue,
   basin,
@@ -154,6 +158,105 @@ function createPointShapefile(lon: number, lat: number, name: string) {
   return { shp, shx, dbf, prj };
 }
 
+function decodeMvt(buffer: Buffer) {
+  let pos = 0;
+  const layers: Array<{
+    name: string;
+    features: unknown[];
+    keys: string[];
+    values: unknown[];
+  }> = [];
+
+  function readVarint() {
+    let res = 0;
+    let shift = 0;
+    while (pos < buffer.length) {
+      const b = buffer[pos++];
+      res |= (b & 0x7f) << shift;
+      if (!(b & 0x80)) break;
+      shift += 7;
+    }
+    return res;
+  }
+
+  while (pos < buffer.length) {
+    const key = readVarint();
+    const tag = key >> 3;
+    const wire = key & 7;
+    if (tag === 3 && wire === 2) {
+      const len = readVarint();
+      const end = pos + len;
+      let name = '';
+      const keys: string[] = [];
+      const values: unknown[] = [];
+      let featureCount = 0;
+
+      while (pos < end) {
+        const lKey = readVarint();
+        const lTag = lKey >> 3;
+        const lWire = lKey & 7;
+        if (lTag === 1 && lWire === 2) {
+          const nLen = readVarint();
+          name = buffer.toString('utf8', pos, pos + nLen);
+          pos += nLen;
+        } else if (lTag === 2 && lWire === 2) {
+          const fLen = readVarint();
+          pos += fLen;
+          featureCount++;
+        } else if (lTag === 3 && lWire === 2) {
+          const kLen = readVarint();
+          keys.push(buffer.toString('utf8', pos, pos + kLen));
+          pos += kLen;
+        } else if (lTag === 4 && lWire === 2) {
+          const vLen = readVarint();
+          const vEnd = pos + vLen;
+          while (pos < vEnd) {
+            const vKey = readVarint();
+            const vTag = vKey >> 3;
+            const vWire = vKey & 7;
+            if (vTag === 1 && vWire === 2) {
+              const strLen = readVarint();
+              values.push(buffer.toString('utf8', pos, pos + strLen));
+              pos += strLen;
+            } else if (vWire === 0) {
+              values.push(readVarint());
+            } else if (vWire === 2) {
+              const skip = readVarint();
+              pos += skip;
+            } else {
+              pos += vWire === 1 ? 8 : 4;
+            }
+          }
+        } else if (lWire === 0) {
+          readVarint();
+        } else if (lWire === 2) {
+          const skip = readVarint();
+          pos += skip;
+        } else if (lWire === 1) {
+          pos += 8;
+        } else if (lWire === 5) {
+          pos += 4;
+        }
+      }
+      layers.push({ name, keys, values, features: new Array(featureCount) });
+    } else if (wire === 2) {
+      const len = readVarint();
+      pos += len;
+    } else if (wire === 0) {
+      readVarint();
+    }
+  }
+  return { layers };
+}
+
+function getTileCoords(lon: number, lat: number, z = 12) {
+  const n = Math.pow(2, z);
+  const x = Math.floor(((lon + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
+  return { z, x, y };
+}
+
 describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
   let app: NestFastifyApplication;
   let tokenService: TokenService;
@@ -195,6 +298,22 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
   const HADEJIA_SECTOR_ID = crypto.randomUUID();
   const KANO_PLOT_ID = crypto.randomUUID();
   const HADEJIA_PLOT_ID = crypto.randomUUID();
+  const DRAFT_PLOT_ID = crypto.randomUUID();
+
+  // States, LGAs, Wards
+  const KANO_STATE_ID = crypto.randomUUID();
+  const JIGAWA_STATE_ID = crypto.randomUUID();
+  const BORNO_STATE_ID = crypto.randomUUID();
+  const KANO_LGA_ID = crypto.randomUUID();
+  const KANO_WARD_ID = crypto.randomUUID();
+  const BORNO_LGA_ID = crypto.randomUUID();
+  const BORNO_WARD_ID = crypto.randomUUID();
+
+  // Additional Users & Roles
+  const KANO_STATE_OFFICER_ID = crypto.randomUUID();
+  const NO_MAP_USER_ID = crypto.randomUUID();
+  const STATE_ROLE_ID = crypto.randomUUID();
+  const NO_MAP_ROLE_ID = crypto.randomUUID();
 
   // Assets
   const TIGA_DAM_ID = crypto.randomUUID();
@@ -214,6 +333,8 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
   let approverBToken: string;
   let chadOfficerToken: string;
   let kanoOfficerToken: string;
+  let kanoStateToken: string;
+  let noMapToken: string;
 
   beforeAll(async () => {
     adminClient = postgres(BASE_URL, { max: 1 });
@@ -387,6 +508,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'KRIP-SEC-1',
         name: 'Kano Sector 1',
         type: 'sector',
+        geom: 'SRID=4326;POLYGON((8.50 11.90, 8.55 11.90, 8.55 11.98, 8.50 11.98, 8.50 11.90))',
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
         updatedAt: now,
@@ -398,11 +520,55 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'HVIP-SEC-1',
         name: 'Hadejia Sector 1',
         type: 'sector',
+        geom: 'SRID=4326;POLYGON((10.00 12.40, 10.05 12.40, 10.05 12.48, 10.00 12.48, 10.00 12.40))',
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
         updatedAt: now,
         updatedBy: SYSTEM_USER_ID,
       },
+    ]);
+
+    // 3b. Seed States, LGAs, Wards and Organisation States
+    await testDb.insert(state).values([
+      {
+        id: KANO_STATE_ID,
+        code: 'KAN',
+        name: 'Kano',
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: JIGAWA_STATE_ID,
+        code: 'JIG',
+        name: 'Jigawa',
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: BORNO_STATE_ID,
+        code: 'BOR',
+        name: 'Borno',
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+    ]);
+
+    await testDb.insert(lga).values([
+      { id: KANO_LGA_ID, stateId: KANO_STATE_ID, code: 'KAN-WUD', name: 'Wudil' },
+      { id: BORNO_LGA_ID, stateId: BORNO_STATE_ID, code: 'BOR-KON', name: 'Konduga' },
+    ]);
+
+    await testDb.insert(ward).values([
+      { id: KANO_WARD_ID, lgaId: KANO_LGA_ID, code: 'WUD-01', name: 'Wudil Ward' },
+      { id: BORNO_WARD_ID, lgaId: BORNO_LGA_ID, code: 'KON-01', name: 'Konduga Ward' },
+    ]);
+
+    await testDb.insert(organisationState).values([
+      { organisationId: KANO_SCHEME_ID, stateId: KANO_STATE_ID },
+      { organisationId: HADEJIA_SCHEME_ID, stateId: JIGAWA_STATE_ID },
     ]);
 
     // 4. Seed Basins
@@ -412,6 +578,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'HJ-BASIN',
         name: "Hadejia-Jama'are Sub-Basin",
         rbdaId: HJ_RBDA_ID,
+        geom: 'SRID=4326;MULTIPOLYGON(((8.0 11.0, 10.5 11.0, 10.5 13.0, 8.0 13.0, 8.0 11.0)))',
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
         updatedAt: now,
@@ -422,6 +589,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'CHAD-BASIN',
         name: 'Lake Chad Basin Proper',
         rbdaId: CHAD_RBDA_ID,
+        geom: 'SRID=4326;MULTIPOLYGON(((12.0 11.0, 14.5 11.0, 14.5 13.0, 12.0 13.0, 12.0 11.0)))',
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
         updatedAt: now,
@@ -436,6 +604,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'DAM-TIGA',
         name: 'Tiga Dam',
         basinId: HJ_BASIN_ID,
+        lgaId: KANO_LGA_ID,
         geom: 'SRID=4326;POINT(8.6 11.5)',
         heightM: '48.00',
         reservoirCapacityMcm: '1874.000',
@@ -450,6 +619,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'DAM-ALAU',
         name: 'Alau Dam',
         basinId: CHAD_BASIN_ID,
+        lgaId: BORNO_LGA_ID,
         geom: 'SRID=4326;POINT(13.2 11.7)',
         heightM: '18.00',
         reservoirCapacityMcm: '112.000',
@@ -468,6 +638,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'ST-HJ-01',
         name: 'Wudil Gauge Station',
         basinId: HJ_BASIN_ID,
+        wardId: KANO_WARD_ID,
         stationTypeId: stDischargeId,
         river: 'Hadejia',
         geom: 'SRID=4326;POINT(8.84 11.79)',
@@ -482,6 +653,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'ST-HJ-02',
         name: 'Challawa River Station',
         basinId: HJ_BASIN_ID,
+        wardId: KANO_WARD_ID,
         stationTypeId: stDischargeId,
         river: 'Challawa',
         geom: 'SRID=4326;POINT(8.51 11.88)',
@@ -496,6 +668,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'ST-HJ-03',
         name: 'Hadejia Town River Station',
         basinId: HJ_BASIN_ID,
+        wardId: KANO_WARD_ID,
         stationTypeId: stDischargeId,
         river: 'Hadejia',
         geom: 'SRID=4326;POINT(10.04 12.45)',
@@ -510,6 +683,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         code: 'ST-CHAD-01',
         name: 'Ngadda River Gauge',
         basinId: CHAD_BASIN_ID,
+        wardId: BORNO_WARD_ID,
         stationTypeId: stDischargeId,
         river: 'Ngadda',
         geom: 'SRID=4326;POINT(13.15 11.83)',
@@ -521,7 +695,7 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       },
     ]);
 
-    // 7. Seed Plots (Kano plot in Kano scheme, Hadejia plot in Hadejia scheme)
+    // 7. Seed Plots (Kano plot in Kano scheme, Hadejia plot in Hadejia scheme, and draft unapproved plot)
     await testDb.insert(plot).values([
       {
         id: KANO_PLOT_ID,
@@ -535,6 +709,21 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         submittedBy: SYSTEM_USER_ID,
         approvedAt: now,
         approvedBy: SYSTEM_USER_ID,
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: DRAFT_PLOT_ID,
+        schemeId: KANO_SCHEME_ID,
+        sectorId: KANO_SECTOR_ID,
+        plotCode: 'KRIP-SEC1-DRAFT',
+        geom: 'SRID=4326;POLYGON((8.54 11.95, 8.55 11.95, 8.55 11.96, 8.54 11.96, 8.54 11.95))',
+        areaHa: '1.500',
+        status: 'submitted',
+        submittedAt: now,
+        submittedBy: SYSTEM_USER_ID,
         createdAt: now,
         createdBy: SYSTEM_USER_ID,
         updatedAt: now,
@@ -606,6 +795,24 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         createdAt: now,
         updatedAt: now,
       },
+      {
+        id: KANO_STATE_OFFICER_ID,
+        email: 'kano.state@idmis.gov.ng',
+        passwordHash: 'dummy-hash',
+        fullName: 'Kano State Officer',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: NO_MAP_USER_ID,
+        email: 'nomap.user@idmis.gov.ng',
+        passwordHash: 'dummy-hash',
+        fullName: 'No Map User',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     await testDb.insert(role).values([
@@ -625,6 +832,18 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         id: SCHEME_ROLE_ID,
         key: 'scheme_officer_maps',
         name: 'Scheme Officer Maps',
+        isSystem: true,
+      },
+      {
+        id: STATE_ROLE_ID,
+        key: 'state_officer_maps',
+        name: 'State Officer Maps',
+        isSystem: true,
+      },
+      {
+        id: NO_MAP_ROLE_ID,
+        key: 'no_map_role',
+        name: 'No Map Role',
         isSystem: true,
       },
     ]);
@@ -675,6 +894,11 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
     await testDb.insert(rolePermission).values([
       { roleId: SCHEME_ROLE_ID, permission: permissions.SLIS_PLOT_READ },
       { roleId: SCHEME_ROLE_ID, permission: permissions.CORE_ORGANISATION_READ },
+      { roleId: SCHEME_ROLE_ID, permission: permissions.BLIS_MAP_READ },
+      { roleId: STATE_ROLE_ID, permission: permissions.BLIS_MAP_READ },
+      { roleId: STATE_ROLE_ID, permission: permissions.SLIS_PLOT_READ },
+      { roleId: STATE_ROLE_ID, permission: permissions.CORE_ORGANISATION_READ },
+      { roleId: NO_MAP_ROLE_ID, permission: permissions.SLIS_PLOT_READ },
     ]);
 
     // Assignments
@@ -743,6 +967,31 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
         updatedAt: now,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: crypto.randomUUID(),
+        userId: KANO_STATE_OFFICER_ID,
+        roleId: STATE_ROLE_ID,
+        module: 'blis',
+        scopeType: 'state',
+        scopeStateId: KANO_STATE_ID,
+        validFromOn: '2025-01-01',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId: NO_MAP_USER_ID,
+        roleId: NO_MAP_ROLE_ID,
+        module: 'blis',
+        scopeType: 'national',
+        validFromOn: '2025-01-01',
+        createdAt: now,
+        createdBy: SYSTEM_USER_ID,
+        updatedAt: now,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     // Tokens
@@ -766,6 +1015,8 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
     approverBToken = await createToken(APPROVER_B_ID);
     chadOfficerToken = await createToken(CHAD_OFFICER_ID);
     kanoOfficerToken = await createToken(KANO_OFFICER_ID);
+    kanoStateToken = await createToken(KANO_STATE_OFFICER_ID);
+    noMapToken = await createToken(NO_MAP_USER_ID);
 
     // Ensure partitions for 2026
     await testDb.execute(sql`SELECT blis.ensure_measurement_partition(2026);`);
@@ -1034,6 +1285,40 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
   // Part 3: Vector Tiles & Layer Scope Isolation
   // =========================================================================
   describe('3. Dynamic Vector Tiles & Scope Isolation', () => {
+    it('returns Cache-Control: private, max-age=300 and Vary: Authorization, Cookie on tile responses', async () => {
+      const { z, x, y } = getTileCoords(8.52, 11.95, 12);
+
+      // Test alias controller /map/tiles
+      const resGlobal = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(resGlobal.statusCode).toBe(200);
+      expect(resGlobal.headers['cache-control']).toBe('private, max-age=300');
+      expect(resGlobal.headers['vary']).toBe('Authorization, Cookie');
+
+      // Test BLIS controller /blis/map/tiles
+      const resBlis = await app.inject({
+        method: 'GET',
+        url: `/blis/map/tiles/plots/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(resBlis.statusCode).toBe(200);
+      expect(resBlis.headers['cache-control']).toBe('private, max-age=300');
+      expect(resBlis.headers['vary']).toBe('Authorization, Cookie');
+    });
+
+    it('denies access with 403 Forbidden when user lacks BLIS_MAP_READ permission', async () => {
+      const { z, x, y } = getTileCoords(8.52, 11.95, 12);
+      const res = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${noMapToken}` },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
     it('returns 400 for out-of-range tile coordinates (z > 18 or x/y >= 2^z)', async () => {
       const resZ = await app.inject({
         method: 'GET',
@@ -1061,22 +1346,10 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       expect(res.body).toBe('');
     });
 
-    it('enforces Kano plot isolation: Hadejia officer requesting tile containing Kano plot returns 204', async () => {
-      // Tile containing Kano point (lon 8.52, lat 11.95) at z=12
-      // x: Math.floor((8.52 + 180) / 360 * 2^12) = 2145
-      // latRad = 11.95 * Math.PI / 180
-      // y: Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * 2^12) = 1912
-      const z = 12;
-      const lon = 8.52;
-      const lat = 11.95;
-      const n = Math.pow(2, z);
-      const x = Math.floor(((lon + 180) / 360) * n);
-      const latRad = (lat * Math.PI) / 180;
-      const y = Math.floor(
-        ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
-      );
+    it('enforces scheme and state scope on plots: Kano scheme and Kano state officers see Kano plots, Hadejia officer returns 204', async () => {
+      const { z, x, y } = getTileCoords(8.52, 11.95, 12);
 
-      // 1. Kano officer requesting Kano plot tile receives 200 OK with vector tile buffer
+      // Kano scheme officer sees Kano plots
       const resKano = await app.inject({
         method: 'GET',
         url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
@@ -1086,7 +1359,16 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       expect(resKano.headers['content-type']).toBe('application/vnd.mapbox-vector-tile');
       expect(resKano.rawPayload.length).toBeGreaterThan(0);
 
-      // 2. Hadejia officer requesting same tile returns 204 No Content (cannot see Kano plots!)
+      // Kano state officer sees Kano plots via scheme's state association
+      const resKanoState = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoState.statusCode).toBe(200);
+      expect(resKanoState.rawPayload.length).toBeGreaterThan(0);
+
+      // Hadejia officer requesting same tile returns 204 No Content (out of scope)
       const resHadejia = await app.inject({
         method: 'GET',
         url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
@@ -1095,19 +1377,27 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       expect(resHadejia.statusCode).toBe(204);
     });
 
-    it('enforces RBDA scope on stations: Hadejia officer sees Hadejia stations, Chad officer returns 204', async () => {
-      // Tile containing Wudil station (lon 8.84, lat 11.79) at z=12
-      const z = 12;
-      const lon = 8.84;
-      const lat = 11.79;
-      const n = Math.pow(2, z);
-      const x = Math.floor(((lon + 180) / 360) * n);
-      const latRad = (lat * Math.PI) / 180;
-      const y = Math.floor(
-        ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
-      );
+    it('excludes submitted (unapproved) plots from the plots vector tile', async () => {
+      const { z, x, y } = getTileCoords(8.52, 11.95, 12);
+      const res = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/plots/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(res.statusCode).toBe(200);
 
-      // Hadejia officer sees Wudil station
+      const decoded = decodeMvt(res.rawPayload);
+      const plotLayer = decoded.layers.find((l) => l.name === 'plots');
+      expect(plotLayer).toBeDefined();
+      expect(plotLayer!.values).toContain('KRIP-SEC1-001');
+      expect(plotLayer!.values).not.toContain('KRIP-SEC1-DRAFT');
+    });
+
+    it('enforces state and RBDA scope on stations: Kano state and Hadejia officers see Wudil station, Chad officer returns 204', async () => {
+      // Wudil station: lon 8.84, lat 11.79 (HJ Basin, Kano State)
+      const { z, x, y } = getTileCoords(8.84, 11.79, 12);
+
+      // Hadejia officer sees Wudil station via RBDA
       const resHj = await app.inject({
         method: 'GET',
         url: `/blis/map/tiles/stations/${z}/${x}/${y}.mvt`,
@@ -1116,13 +1406,164 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
       expect(resHj.statusCode).toBe(200);
       expect(resHj.rawPayload.length).toBeGreaterThan(0);
 
-      // Chad officer requesting same tile returns 204 No Content (outside Chad RBDA scope)
+      const decodedHj = decodeMvt(resHj.rawPayload);
+      const stationLayer = decodedHj.layers.find((l) => l.name === 'stations');
+      expect(stationLayer).toBeDefined();
+      expect(stationLayer!.values).toContain('ST-HJ-01');
+      expect(stationLayer!.values).toContain('Wudil Gauge Station');
+
+      // Kano state officer sees Wudil station via Ward -> LGA -> State
+      const resKanoState = await app.inject({
+        method: 'GET',
+        url: `/blis/map/tiles/stations/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoState.statusCode).toBe(200);
+
+      // Chad officer requesting same tile returns 204 No Content
       const resChad = await app.inject({
         method: 'GET',
         url: `/blis/map/tiles/stations/${z}/${x}/${y}.mvt`,
         headers: { authorization: `Bearer ${chadOfficerToken}` },
       });
       expect(resChad.statusCode).toBe(204);
+
+      // Ngadda River Gauge (Chad Basin, Borno State): lon 13.15, lat 11.83
+      const chadCoords = getTileCoords(13.15, 11.83, 12);
+      const resChadStation = await app.inject({
+        method: 'GET',
+        url: `/blis/map/tiles/stations/${chadCoords.z}/${chadCoords.x}/${chadCoords.y}.mvt`,
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+      });
+      expect(resChadStation.statusCode).toBe(200);
+
+      // Kano state officer cannot see Chad station
+      const resKanoOnChadStation = await app.inject({
+        method: 'GET',
+        url: `/blis/map/tiles/stations/${chadCoords.z}/${chadCoords.x}/${chadCoords.y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoOnChadStation.statusCode).toBe(204);
+    });
+
+    it('enforces state and RBDA scope on dams: Kano state and Hadejia officers see Tiga dam, Chad officer returns 204', async () => {
+      // Tiga Dam: lon 8.6, lat 11.5 (HJ Basin, Kano State)
+      const { z, x, y } = getTileCoords(8.6, 11.5, 12);
+
+      // Hadejia officer sees Tiga Dam via RBDA
+      const resHj = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/dams/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${hadejiaOfficerToken}` },
+      });
+      expect(resHj.statusCode).toBe(200);
+      const decodedDam = decodeMvt(resHj.rawPayload);
+      const damLayer = decodedDam.layers.find((l) => l.name === 'dams');
+      expect(damLayer).toBeDefined();
+      expect(damLayer!.values).toContain('DAM-TIGA');
+      expect(damLayer!.values).toContain('Tiga Dam');
+
+      // Kano state officer sees Tiga Dam via LGA -> State
+      const resKanoState = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/dams/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoState.statusCode).toBe(200);
+
+      // Chad officer requesting Tiga Dam tile returns 204 No Content
+      const resChad = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/dams/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+      });
+      expect(resChad.statusCode).toBe(204);
+
+      // Alau Dam (Chad Basin, Borno State): lon 13.2, lat 11.7
+      const chadCoords = getTileCoords(13.2, 11.7, 12);
+      const resChadDam = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/dams/${chadCoords.z}/${chadCoords.x}/${chadCoords.y}.mvt`,
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+      });
+      expect(resChadDam.statusCode).toBe(200);
+
+      // Kano state officer cannot see Alau dam
+      const resKanoOnChadDam = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/dams/${chadCoords.z}/${chadCoords.x}/${chadCoords.y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoOnChadDam.statusCode).toBe(204);
+    });
+
+    it('renders and scopes basins tile with name, code, and rbda_name', async () => {
+      // Hadejia-Jama'are Basin (bounds: lon 8.0-10.5, lat 11.0-13.0)
+      const { z, x, y } = getTileCoords(9.0, 12.0, 12);
+
+      // Hadejia officer sees Hadejia basin
+      const resHj = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/basins/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${hadejiaOfficerToken}` },
+      });
+      expect(resHj.statusCode).toBe(200);
+
+      const decoded = decodeMvt(resHj.rawPayload);
+      const basinLayer = decoded.layers.find((l) => l.name === 'basins');
+      expect(basinLayer).toBeDefined();
+      expect(basinLayer!.keys).toContain('code');
+      expect(basinLayer!.keys).toContain('name');
+      expect(basinLayer!.keys).toContain('rbda_name');
+      expect(basinLayer!.values).toContain('HJ-BASIN');
+      expect(basinLayer!.values).toContain("Hadejia-Jama'are Sub-Basin");
+      expect(basinLayer!.values).toContain("Hadejia-Jama'are River Basin Development Authority");
+
+      // Chad officer requesting Hadejia basin tile returns 204
+      const resChad = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/basins/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${chadOfficerToken}` },
+      });
+      expect(resChad.statusCode).toBe(204);
+    });
+
+    it('renders and scopes sectors tile and features can be decoded', async () => {
+      // Kano Sector 1: lon 8.52, lat 11.95 (Kano scheme)
+      const { z, x, y } = getTileCoords(8.52, 11.95, 12);
+
+      // Kano scheme officer sees Kano sector 1
+      const resKano = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/sectors/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoOfficerToken}` },
+      });
+      expect(resKano.statusCode).toBe(200);
+
+      const decoded = decodeMvt(resKano.rawPayload);
+      const sectorLayer = decoded.layers.find((l) => l.name === 'sectors');
+      expect(sectorLayer).toBeDefined();
+      expect(sectorLayer!.keys).toContain('code');
+      expect(sectorLayer!.keys).toContain('name');
+      expect(sectorLayer!.keys).toContain('scheme_id');
+      expect(sectorLayer!.values).toContain('KRIP-SEC-1');
+      expect(sectorLayer!.values).toContain('Kano Sector 1');
+
+      // Kano state officer also sees Kano sector 1 via parent scheme's state
+      const resKanoState = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/sectors/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${kanoStateToken}` },
+      });
+      expect(resKanoState.statusCode).toBe(200);
+
+      // Hadejia officer requesting Kano sector tile returns 204
+      const resHadejia = await app.inject({
+        method: 'GET',
+        url: `/map/tiles/sectors/${z}/${x}/${y}.mvt`,
+        headers: { authorization: `Bearer ${hadejiaOfficerToken}` },
+      });
+      expect(resHadejia.statusCode).toBe(204);
     });
   });
 

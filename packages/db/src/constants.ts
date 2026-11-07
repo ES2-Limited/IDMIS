@@ -211,6 +211,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
     // M&E Approver (National / Regional scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,
@@ -258,6 +259,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
   ],
 
   // 4b. BLIS Administrator: Explicit permissions for BLIS module administration
@@ -317,6 +319,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_IMPORT_RUN,
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
+    permissions.BLIS_MAP_READ,
   ],
 
   // 6. Field Officer: Mobile field data capture with offline support (cannot approve)
@@ -345,6 +348,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REVIEW_SUBMIT,
     permissions.SLIS_SYNC_PUSH,
     permissions.SLIS_SYNC_PULL,
+    permissions.BLIS_MAP_READ,
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_ADOPTION_RECORD,
   ],
@@ -363,6 +367,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
     // M&E
     permissions.ME_INDICATOR_READ,
     permissions.ME_INDICATOR_MANAGE,
@@ -439,6 +444,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
     // M&E Approver (State scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,
