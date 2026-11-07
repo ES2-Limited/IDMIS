@@ -155,4 +155,3 @@ function ToastCard({ toast, onDismiss }: ToastCardProps) {
     </div>
   );
 }
-
