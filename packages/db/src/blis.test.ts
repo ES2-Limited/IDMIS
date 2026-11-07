@@ -27,7 +27,6 @@ describe('BLIS Database Schema, Partitions, Lookups and Grants (BE-4.1)', () => 
 
   let adminClient: postgres.Sql;
   let testClient: postgres.Sql;
-  let appClient: postgres.Sql;
   let testDb: ReturnType<typeof drizzle<typeof schema>>;
 
   const TEST_USER_ID = '018f3a5e-3333-7000-8000-000000000001';
@@ -73,15 +72,9 @@ describe('BLIS Database Schema, Partitions, Lookups and Grants (BE-4.1)', () => 
 
     // Apply database grants for idmis_app
     await applyDatabaseGrants(testClient);
-
-    appClient = postgres(testDbUrl, {
-      user: 'idmis_app',
-      password: process.env.APP_DB_PASSWORD || undefined,
-    });
   }, 30000);
 
   afterAll(async () => {
-    if (appClient) await appClient.end();
     if (testClient) await testClient.end();
     if (adminClient) {
       await adminClient.unsafe(`DROP DATABASE IF EXISTS "${TEST_DB_NAME}" WITH (FORCE);`);
@@ -213,9 +206,11 @@ describe('BLIS Database Schema, Partitions, Lookups and Grants (BE-4.1)', () => 
 
   it('calling ensure_measurement_partition(2028) as idmis_app succeeds and allows 2028 insertion', async () => {
     // 1. Call ensure_measurement_partition(2028) as idmis_app
-    await appClient`
+    await testClient.unsafe(`
+      SET ROLE idmis_app;
       SELECT blis.ensure_measurement_partition(2028);
-    `;
+      RESET ROLE;
+    `);
 
     // 2. Verify partition measurement_2028 exists
     const [partExists] = await testClient<{ relname: string }[]>`
@@ -228,15 +223,17 @@ describe('BLIS Database Schema, Partitions, Lookups and Grants (BE-4.1)', () => 
 
     // 3. Inserting in 2028 now succeeds as idmis_app
     const m2028Id = '018f3a5e-3333-7000-8000-000000000104';
-    await appClient`
+    await testClient.unsafe(`
+      SET ROLE idmis_app;
       INSERT INTO blis.measurement (
         id, station_id, parameter_id, observed_at, value, unit, quality, source, created_by
       )
       VALUES (
-        ${m2028Id}, ${TEST_STATION_ID}, ${TEST_PARAM_ID},
-        '2028-04-01 10:00:00+00', 16.5000, 'm', 'raw', 'manual', ${SYSTEM_USER_ID}
+        '${m2028Id}', '${TEST_STATION_ID}', '${TEST_PARAM_ID}',
+        '2028-04-01 10:00:00+00', 16.5000, 'm', 'raw', 'manual', '${SYSTEM_USER_ID}'
       );
-    `;
+      RESET ROLE;
+    `);
 
     const [row2028] = await testClient<{ partition_name: string }[]>`
       SELECT tableoid::regclass::text AS partition_name
@@ -322,5 +319,18 @@ describe('BLIS Database Schema, Partitions, Lookups and Grants (BE-4.1)', () => 
       `;
       expect(Number(valCount[0].count)).toBeGreaterThan(0);
     }
+  });
+
+  it('seeding succeeds idempotently even when candidate lookupTypeId was already claimed by another key', async () => {
+    // Simulate candidate ID collision for a newly introduced lookup type
+    const collisionId = '018f3a5e-0002-7000-8000-000000000099';
+    await testClient`
+      INSERT INTO core.lookup_type (id, key, name, module, is_system)
+      VALUES (${collisionId}, 'legacy_collision_test', 'Legacy Collision Test', 'core', true)
+      ON CONFLICT (key) DO NOTHING;
+    `;
+
+    // Re-running seed() must succeed without primary key conflict
+    await expect(seed()).resolves.toBeDefined();
   });
 });

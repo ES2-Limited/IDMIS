@@ -484,32 +484,65 @@ export async function seed() {
     const lt = BASE_LOOKUPS[tIdx]!;
     const lookupTypeId = `018f3a5e-0002-7000-8000-${String(tIdx + 1).padStart(12, '0')}`;
 
-    await db
-      .insert(lookupType)
-      .values({
-        id: lookupTypeId,
-        key: lt.key,
-        name: lt.name,
-        module: lt.module,
-        isSystem: true,
-      })
-      .onConflictDoNothing({ target: lookupType.key });
-
     const existingType = await db
       .select({ id: lookupType.id })
       .from(lookupType)
       .where(eq(lookupType.key, lt.key))
       .limit(1);
-    const resolvedTypeId = existingType[0]?.id ?? lookupTypeId;
+
+    let resolvedTypeId: string;
+    if (existingType.length > 0 && existingType[0]) {
+      resolvedTypeId = existingType[0].id;
+    } else {
+      const existingId = await db
+        .select({ id: lookupType.id })
+        .from(lookupType)
+        .where(eq(lookupType.id, lookupTypeId))
+        .limit(1);
+
+      const finalTypeId = existingId.length > 0 ? crypto.randomUUID() : lookupTypeId;
+
+      const inserted = await db
+        .insert(lookupType)
+        .values({
+          id: finalTypeId,
+          key: lt.key,
+          name: lt.name,
+          module: lt.module,
+          isSystem: true,
+        })
+        .onConflictDoNothing({ target: lookupType.key })
+        .returning({ id: lookupType.id });
+
+      resolvedTypeId = inserted[0]?.id ?? finalTypeId;
+    }
 
     for (let vIdx = 0; vIdx < lt.values.length; vIdx++) {
       const val = lt.values[vIdx]!;
       const lookupValId = `018f3a5e-0003-7000-${String(tIdx + 1).padStart(4, '0')}-${String(vIdx + 1).padStart(12, '0')}`;
 
+      const existingVal = await db
+        .select({ id: lookupValue.id })
+        .from(lookupValue)
+        .where(and(eq(lookupValue.lookupTypeId, resolvedTypeId), eq(lookupValue.code, val.code)))
+        .limit(1);
+
+      if (existingVal.length > 0) {
+        continue;
+      }
+
+      const existingValId = await db
+        .select({ id: lookupValue.id })
+        .from(lookupValue)
+        .where(eq(lookupValue.id, lookupValId))
+        .limit(1);
+
+      const finalValId = existingValId.length > 0 ? crypto.randomUUID() : lookupValId;
+
       await db
         .insert(lookupValue)
         .values({
-          id: lookupValId,
+          id: finalValId,
           lookupTypeId: resolvedTypeId,
           code: val.code,
           label: val.label,
@@ -517,7 +550,7 @@ export async function seed() {
           isActive: true,
           metadata: 'metadata' in val ? (val.metadata as Record<string, unknown>) : null,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: [lookupValue.lookupTypeId, lookupValue.code] });
     }
   }
 
