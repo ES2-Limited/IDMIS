@@ -1679,7 +1679,7 @@ describe('SLIS Import Specification (BE-2.7)', () => {
 
       const pullRes = await app.inject({
         method: 'GET',
-        url: '/slis/sync/pull',
+        url: '/slis/sync/pull?limit=1000',
         headers: {
           authorization: `Bearer ${kanoFieldOfficerToken}`,
           'x-device-id': KANO_FIELD_DEVICE_ID,

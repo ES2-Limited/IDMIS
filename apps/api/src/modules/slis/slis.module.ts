@@ -42,6 +42,7 @@ import { ReportController } from './controllers/report.controller';
 import { ExportRepository } from './repositories/export.repository';
 import { ExportService } from './services/export.service';
 import { SlisComputeQueryService } from './services/slis-compute-query.service';
+import { SlisTileQueryService } from './services/slis-tile-query.service';
 import { ExportController } from './controllers/export.controller';
 import { StorageModule } from '../../platform/storage/storage.module';
 import { BlisModule } from '../blis/blis.module';
@@ -111,6 +112,7 @@ import { StreamFlowImportHandler } from './imports/stream-flow.handler';
     ExportRepository,
     ExportService,
     SlisComputeQueryService,
+    SlisTileQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,
@@ -152,6 +154,7 @@ import { StreamFlowImportHandler } from './imports/stream-flow.handler';
     ExportRepository,
     ExportService,
     SlisComputeQueryService,
+    SlisTileQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,

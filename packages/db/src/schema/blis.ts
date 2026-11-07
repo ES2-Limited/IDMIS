@@ -358,6 +358,7 @@ export const mapLayer = blisSchema.table(
       .references((): AnyPgColumn => lookupValue.id),
     basinId: uuid('basin_id').references((): AnyPgColumn => basin.id),
     sourceFileId: uuid('source_file_id').references((): AnyPgColumn => file.id),
+    sourceSrid: integer('source_srid'),
     details: text('details'),
     areaKm2: numeric('area_km2', { precision: 12, scale: 3 }),
   },
