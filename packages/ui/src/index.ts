@@ -20,3 +20,4 @@ export * from './components/Card';
 export * from './components/EmptyState';
 export * from './components/Skeleton';
 export * from './components/Spinner';
+export * from './components/Toast';

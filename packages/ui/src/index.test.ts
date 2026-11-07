@@ -56,4 +56,10 @@ describe('UI Design System Tokens & Variants', () => {
     const critBadge = badgeVariants({ variant: 'destructive' });
     expect(critBadge).toContain('bg-rose-600');
   });
+
+  it('exports toast provider and hooks', async () => {
+    const { ToastProvider, useToast } = await import('./components/Toast');
+    expect(ToastProvider).toBeDefined();
+    expect(useToast).toBeDefined();
+  });
 });

@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { router, queryClient } from './app';
 import { AuthProvider } from './auth';
+import { ToastProvider } from '@idmis/ui';
 import './i18n';
 import './index.css';
 
@@ -14,7 +15,9 @@ if (rootElement && !rootElement.innerHTML) {
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
         </AuthProvider>
       </QueryClientProvider>
     </React.StrictMode>,

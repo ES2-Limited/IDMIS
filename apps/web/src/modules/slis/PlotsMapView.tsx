@@ -1,5 +1,16 @@
 import * as React from 'react';
-import { MapPin, Search, Layers, UploadCloud, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  MapPin,
+  Search,
+  Layers,
+  UploadCloud,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  Compass,
+  Eye,
+} from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -17,6 +28,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useToast,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
@@ -93,11 +105,17 @@ export const mockPlots: PlotItem[] = [
 
 export function PlotsMapView() {
   const { currentScope } = useScope();
+  const { info, success } = useToast();
   const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(mockPlots[0]);
   const [search, setSearch] = React.useState('');
   const [serviceFilter, setServiceFilter] = React.useState('all');
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = React.useState(false);
+
+  // Dynamic Interactive Map State
+  const [zoomLevel, setZoomLevel] = React.useState<number>(15);
+  const [showCanals, setShowCanals] = React.useState(true);
+  const [showCadastralLabels, setShowCadastralLabels] = React.useState(true);
 
   const filtered = mockPlots.filter((p) => {
     if (serviceFilter !== 'all' && p.serviceType !== serviceFilter) return false;
@@ -297,6 +315,69 @@ export function PlotsMapView() {
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   <span>Cadastral Boundary Validated</span>
                 </div>
+              </div>
+
+              {/* Interactive GIS Map Tool Controls */}
+              <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-800 shadow-lg">
+                <button
+                  type="button"
+                  title="Zoom In"
+                  onClick={() => {
+                    setZoomLevel((z) => Math.min(z + 1, 19));
+                    info('Map Zoomed In', `Current scale level: ${Math.min(zoomLevel + 1, 19)}x`);
+                  }}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Zoom Out"
+                  onClick={() => {
+                    setZoomLevel((z) => Math.max(z - 1, 10));
+                    info('Map Zoomed Out', `Current scale level: ${Math.max(zoomLevel - 1, 10)}x`);
+                  }}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </button>
+                <div className="h-px bg-slate-800 my-0.5" />
+                <button
+                  type="button"
+                  title="Toggle Canal Network Layer"
+                  onClick={() => {
+                    setShowCanals((c) => !c);
+                    success(
+                      showCanals ? 'Canals Hidden' : 'Canals Displayed',
+                      'Primary and secondary distribution reach lines updated.',
+                    );
+                  }}
+                  className={`h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+                    showCanals
+                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Compass className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Toggle Parcel Code Labels"
+                  onClick={() => {
+                    setShowCadastralLabels((l) => !l);
+                    info(
+                      showCadastralLabels ? 'Labels Hidden' : 'Labels Shown',
+                      'Cadastral parcel identifier codes toggled.',
+                    );
+                  }}
+                  className={`h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+                    showCadastralLabels
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
