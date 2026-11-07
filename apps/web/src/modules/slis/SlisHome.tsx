@@ -87,16 +87,16 @@ export function SlisHome() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-950 via-teal-900 to-emerald-950 p-6 sm:p-8 text-white shadow-lg border border-teal-800">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <Sprout className="h-3 w-3" /> SLIS Module
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/60 text-emerald-200 border border-emerald-500/50 backdrop-blur-sm">
+                <Sprout className="h-3.5 w-3.5 text-emerald-300" /> SLIS Module
               </span>
               <StatusChip status="saved_on_device">Verified</StatusChip>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Scheme Land Information System (SLIS)
             </h1>
-            <p className="text-emerald-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-emerald-100 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Supervise scheme farmers, land parcels, irrigation command areas, and water
               allocations under active scheme{' '}
               <span className="font-semibold text-emerald-300">
@@ -105,22 +105,22 @@ export function SlisHome() {
               .
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link to="/slis/reports">
               <Button
                 variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
               >
-                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-emerald-300" />
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-emerald-200" />
                 Reports & Summaries
               </Button>
             </Link>
             <Link to="/slis/plots">
               <Button
                 variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
               >
-                <FileSearch className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
+                <FileSearch className="h-3.5 w-3.5 mr-1.5 text-teal-200" />
                 GIS Map View
               </Button>
             </Link>

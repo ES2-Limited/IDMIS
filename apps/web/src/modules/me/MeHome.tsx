@@ -79,16 +79,16 @@ export function MeHome() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950 via-amber-900 to-slate-900 p-6 sm:p-8 text-white shadow-lg border border-amber-800">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                <BarChart3 className="h-3 w-3" /> M&E Framework
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-950/60 text-amber-200 border border-amber-500/50 backdrop-blur-sm">
+                <BarChart3 className="h-3.5 w-3.5 text-amber-300" /> M&E Framework
               </span>
               <StatusChip status="syncing">Quarterly Cycle</StatusChip>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Monitoring & Evaluation (M&E)
             </h1>
-            <p className="text-amber-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-amber-100 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Track Project Development Objectives (PDOs), capture quarterly monitoring submissions,
               and review beneficiary survey results across{' '}
               <span className="font-semibold text-amber-300">
@@ -97,13 +97,13 @@ export function MeHome() {
               .
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link to="/me/indicators">
               <Button
                 variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold cursor-pointer"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
               >
-                <Target className="h-3.5 w-3.5 mr-1.5 text-amber-400" />
+                <Target className="h-3.5 w-3.5 mr-1.5 text-amber-300" />
                 Results Framework
               </Button>
             </Link>

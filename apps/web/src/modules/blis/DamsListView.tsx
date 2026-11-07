@@ -363,10 +363,10 @@ export function DamsListView() {
         <button
           type="button"
           onClick={() => setActiveTab('dams')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] cursor-pointer ${
             activeTab === 'dams'
               ? 'bg-white text-teal-800 border-t-2 border-teal-600 border-x border-slate-200 font-bold shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              : 'text-slate-700 hover:text-slate-950 font-medium hover:bg-slate-100/70'
           }`}
         >
           <Waves className="w-4 h-4" />
@@ -375,10 +375,10 @@ export function DamsListView() {
         <button
           type="button"
           onClick={() => setActiveTab('reservoirs')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] cursor-pointer ${
             activeTab === 'reservoirs'
               ? 'bg-white text-teal-800 border-t-2 border-teal-600 border-x border-slate-200 font-bold shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              : 'text-slate-700 hover:text-slate-950 font-medium hover:bg-slate-100/70'
           }`}
         >
           <Layers className="w-4 h-4" />

@@ -69,7 +69,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all min-h-[34px] flex items-center ${
                   isActive
                     ? 'bg-teal-50 text-teal-800 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950 font-semibold'
                 }`}
               >
                 {m.label}
@@ -86,14 +86,14 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           onClick={() => triggerSync()}
           aria-label="Synchronize data with server"
           title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}`}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
             syncState === 'error'
-              ? 'border-red-200 bg-red-50 text-red-700 shadow-2xs'
+              ? 'border-red-300 bg-red-50 text-red-800 shadow-2xs font-bold'
               : syncState === 'pushing' || syncState === 'pulling'
-                ? 'border-amber-200 bg-amber-50 text-amber-800 shadow-2xs'
+                ? 'border-amber-300 bg-amber-50 text-amber-900 shadow-2xs font-bold'
                 : pendingOpsCount > 0
-                  ? 'border-amber-200 bg-amber-50/80 text-amber-800 shadow-2xs'
-                  : 'border-slate-200/80 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'border-amber-300 bg-amber-50/90 text-amber-900 shadow-2xs font-bold'
+                  : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-950'
           }`}
         >
           <RefreshCw
@@ -139,7 +139,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           variant="ghost"
           size="sm"
           aria-label="Notifications"
-          className="text-slate-500 hover:text-slate-900 rounded-lg hidden sm:flex cursor-pointer"
+          className="text-slate-700 hover:text-slate-950 rounded-lg hidden sm:flex cursor-pointer"
         >
           <Bell className="h-4 w-4" />
         </IconButton>
@@ -161,7 +161,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
             size="sm"
             aria-label="Sign out"
             title="Sign out"
-            className="text-slate-400 hover:text-red-600 rounded-lg p-1 cursor-pointer"
+            className="text-slate-600 hover:text-red-700 rounded-lg p-1 cursor-pointer"
             onClick={() => signOut()}
           >
             <LogOut className="h-4 w-4" />

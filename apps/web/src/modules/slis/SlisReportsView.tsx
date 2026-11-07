@@ -224,30 +224,30 @@ export function SlisReportsView() {
         <div className="flex items-center gap-1.5 border border-slate-200 p-1 rounded-xl bg-slate-50 text-xs font-bold">
           <button
             onClick={() => setSelectedReport('farmers_by_sector')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               selectedReport === 'farmers_by_sector'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             <Users className="h-3.5 w-3.5" /> Farmers by Sector & Unit
           </button>
           <button
             onClick={() => setSelectedReport('wua_summaries')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               selectedReport === 'wua_summaries'
                 ? 'bg-white text-teal-800 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             <Building2 className="h-3.5 w-3.5" /> WUA Summaries & Water
           </button>
           <button
             onClick={() => setSelectedReport('fee_billing')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               selectedReport === 'fee_billing'
                 ? 'bg-white text-emerald-800 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             <CreditCard className="h-3.5 w-3.5" /> Fee Collection vs Billing

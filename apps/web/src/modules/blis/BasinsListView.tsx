@@ -279,10 +279,10 @@ export function BasinsListView() {
         <button
           type="button"
           onClick={() => setActiveTab('basins')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] cursor-pointer ${
             activeTab === 'basins'
               ? 'bg-white text-teal-800 border-t-2 border-teal-600 border-x border-slate-200 font-bold shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              : 'text-slate-700 hover:text-slate-950 font-medium hover:bg-slate-100/70'
           }`}
         >
           <Compass className="w-4 h-4" />
@@ -291,10 +291,10 @@ export function BasinsListView() {
         <button
           type="button"
           onClick={() => setActiveTab('priorities')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] cursor-pointer ${
             activeTab === 'priorities'
               ? 'bg-white text-teal-800 border-t-2 border-teal-600 border-x border-slate-200 font-bold shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              : 'text-slate-700 hover:text-slate-950 font-medium hover:bg-slate-100/70'
           }`}
         >
           <Droplets className="w-4 h-4" />
@@ -303,10 +303,10 @@ export function BasinsListView() {
         <button
           type="button"
           onClick={() => setActiveTab('stakeholders')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all min-h-[44px] cursor-pointer ${
             activeTab === 'stakeholders'
               ? 'bg-white text-teal-800 border-t-2 border-teal-600 border-x border-slate-200 font-bold shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
+              : 'text-slate-700 hover:text-slate-950 font-medium hover:bg-slate-100/70'
           }`}
         >
           <Users className="w-4 h-4" />

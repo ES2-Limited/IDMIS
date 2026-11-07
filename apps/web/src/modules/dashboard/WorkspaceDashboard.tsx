@@ -115,10 +115,10 @@ export function WorkspaceDashboard() {
           <button
             type="button"
             onClick={() => setActiveRole('national_programme')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] cursor-pointer ${
               activeRole === 'national_programme'
                 ? 'bg-white text-teal-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/60'
             }`}
           >
             Programme (National)
@@ -126,10 +126,10 @@ export function WorkspaceDashboard() {
           <button
             type="button"
             onClick={() => setActiveRole('state_coordinator')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] cursor-pointer ${
               activeRole === 'state_coordinator'
                 ? 'bg-white text-teal-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/60'
             }`}
           >
             State Coordinator
@@ -137,10 +137,10 @@ export function WorkspaceDashboard() {
           <button
             type="button"
             onClick={() => setActiveRole('scheme_officer')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] cursor-pointer ${
               activeRole === 'scheme_officer'
                 ? 'bg-white text-teal-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/60'
             }`}
           >
             Scheme Data Officer
@@ -148,10 +148,10 @@ export function WorkspaceDashboard() {
           <button
             type="button"
             onClick={() => setActiveRole('basin_hydrologist')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[36px] cursor-pointer ${
               activeRole === 'basin_hydrologist'
                 ? 'bg-white text-teal-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/60'
             }`}
           >
             Basin & Hydrology
@@ -194,7 +194,7 @@ export function WorkspaceDashboard() {
             <Link to="/blis">
               <Button
                 variant="outline"
-                className="text-white border-white/40 hover:bg-white/10 text-xs font-semibold"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
               >
                 Interactive GIS Map
                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
@@ -203,7 +203,7 @@ export function WorkspaceDashboard() {
             <Link to="/me/matrix">
               <Button
                 variant="outline"
-                className="text-white border-white/40 hover:bg-white/10 text-xs font-semibold"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
               >
                 Results Framework
               </Button>

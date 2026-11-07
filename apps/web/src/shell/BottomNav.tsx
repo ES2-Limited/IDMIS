@@ -38,13 +38,13 @@ export function BottomNav() {
               to={item.path}
               className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 px-2 rounded-xl transition-all ${
                 isActive
-                  ? 'text-teal-700 font-semibold'
-                  : 'text-slate-500 hover:text-slate-900 font-medium'
+                  ? 'text-teal-800 font-bold'
+                  : 'text-slate-650 hover:text-slate-950 font-semibold'
               }`}
             >
               <div
                 className={`p-1 rounded-lg transition-all ${
-                  isActive ? 'bg-teal-50 text-teal-700 scale-105' : 'text-slate-500'
+                  isActive ? 'bg-teal-50 text-teal-800 scale-105' : 'text-slate-600'
                 }`}
               >
                 <Icon className="h-5 w-5" />

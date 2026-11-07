@@ -312,30 +312,30 @@ export function ReviewConflictsListView() {
         <div className="flex items-center gap-1.5 border border-slate-200 p-1 rounded-xl bg-slate-50 text-xs font-bold">
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               activeTab === 'all'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             All Incoming ({records.length})
           </button>
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               activeTab === 'pending'
                 ? 'bg-white text-teal-800 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             Pending ({records.filter((r) => r.status === 'pending_review').length})
           </button>
           <button
             onClick={() => setActiveTab('conflicts')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               activeTab === 'conflicts'
                 ? 'bg-white text-rose-700 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
             Conflicts ({records.filter((r) => r.status === 'conflict').length})
