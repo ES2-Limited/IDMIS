@@ -7,6 +7,7 @@ import { RedisModule } from './platform/redis/redis.module';
 import { AuditModule } from './platform/audit/audit.module';
 import { OutboxModule } from './platform/outbox/outbox.module';
 import { StorageModule } from './platform/storage/storage.module';
+import { HealthModule } from './platform/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CoreModule } from './modules/core/core.module';
 import { SlisModule } from './modules/slis/slis.module';
@@ -24,6 +25,7 @@ const devModules = !isProduction ? [SampleModule] : [];
     AuditModule,
     OutboxModule,
     StorageModule,
+    HealthModule,
     AuthModule,
     CoreModule,
     SlisModule,

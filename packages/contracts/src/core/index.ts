@@ -11,3 +11,4 @@ export * from './file';
 export * from './setting';
 export * from './import';
 export * from './retention';
+export * from './health';

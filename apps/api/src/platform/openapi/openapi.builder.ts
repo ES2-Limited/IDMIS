@@ -81,6 +81,7 @@ import {
   ReportResponseSchema,
   RetentionRunInputSchema,
   RetentionRunResponseSchema,
+  HealthCheckResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -359,6 +360,7 @@ export function buildOpenApiDocument(
     CreateReportInput: toJsonSchema(CreateReportInputSchema),
     CreateReportResponse: toJsonSchema(CreateReportResponseSchema),
     ReportResponse: toJsonSchema(ReportResponseSchema),
+    HealthCheckResponse: toJsonSchema(HealthCheckResponseSchema),
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -369,21 +371,24 @@ export function buildOpenApiDocument(
     // -------------------------------------------------------------
     '/health': {
       get: {
-        summary: 'Service health check',
+        summary: 'Deep service health check',
         tags: ['health'],
-        description: 'Returns service health status',
+        description:
+          'Returns deep health status across database, redis, storage, clamd, and migrations',
         responses: {
           '200': {
-            description: 'Service is healthy',
+            description: 'All dependencies are healthy',
             content: {
               'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    status: { type: 'string', example: 'ok' },
-                  },
-                  required: ['status'],
-                },
+                schema: { $ref: '#/components/schemas/HealthCheckResponse' },
+              },
+            },
+          },
+          '503': {
+            description: 'One or more dependencies are degraded or down',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/HealthCheckResponse' },
               },
             },
           },

@@ -2,6 +2,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,6 +62,58 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     reserved.release();
     if (shouldCloseSql) {
       await sql.end();
+    }
+  }
+}
+
+export async function areMigrationsUp(sqlClient?: postgres.Sql): Promise<boolean> {
+  let sql: postgres.Sql;
+  let shouldClose = false;
+
+  if (sqlClient) {
+    sql = sqlClient;
+  } else {
+    const connStr =
+      process.env.MIGRATION_DATABASE_URL ||
+      process.env.DATABASE_URL ||
+      'postgresql://idmis:idmis@localhost:5432/idmis';
+    sql = postgres(connStr, { max: 2 });
+    shouldClose = true;
+  }
+
+  try {
+    const tableCheck = await sql`
+      SELECT 1 FROM information_schema.tables 
+      WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'
+    `;
+    if (!tableCheck.length) {
+      return false;
+    }
+
+    let expectedCount = 24;
+    try {
+      const journalPath = path.resolve(migrationsFolder, 'meta/_journal.json');
+      if (fs.existsSync(journalPath)) {
+        const raw = fs.readFileSync(journalPath, 'utf8');
+        const journal = JSON.parse(raw);
+        if (Array.isArray(journal?.entries)) {
+          expectedCount = journal.entries.length;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    const rows = await sql<{ count: string }[]>`
+      SELECT count(*)::text as count FROM "drizzle"."__drizzle_migrations"
+    `;
+    const count = parseInt(rows[0]?.count ?? '0', 10);
+    return count >= expectedCount;
+  } catch {
+    return false;
+  } finally {
+    if (shouldClose) {
+      await sql.end({ timeout: 2 }).catch(() => {});
     }
   }
 }

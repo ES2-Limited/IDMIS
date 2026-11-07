@@ -28,6 +28,7 @@ export { alias } from 'drizzle-orm/pg-core';
 export { default as postgres } from 'postgres';
 export { drizzle } from 'drizzle-orm/postgres-js';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
+export { areMigrationsUp } from './migrate';
 export * from './authz/index';
 export * from './security/index';
 export * from './seed/me-indicators';

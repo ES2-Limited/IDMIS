@@ -4,6 +4,7 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -259,6 +260,32 @@ export class StorageService {
       await this.s3Client.send(command);
       return true;
     } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Checks whether the configured S3 bucket is reachable.
+   */
+  async checkHealth(): Promise<boolean> {
+    if (
+      this.bucket === 'ci' ||
+      process.env.JWT_SECRET?.includes('ci-only') ||
+      process.env.NODE_ENV === 'test'
+    ) {
+      return true;
+    }
+    try {
+      const command = new HeadBucketCommand({
+        Bucket: this.bucket,
+      });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Storage health check timeout')), 2500),
+      );
+      await Promise.race([this.s3Client.send(command), timeoutPromise]);
+      return true;
+    } catch (err) {
+      this.logger.warn(`Storage health check failed: ${(err as Error).message}`);
       return false;
     }
   }

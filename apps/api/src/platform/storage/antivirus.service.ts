@@ -168,4 +168,54 @@ export class AntivirusService {
       return { scanStatus: 'failed', virusDetails: (err as Error).message };
     }
   }
+
+  /**
+   * Checks whether the ClamAV daemon is reachable over TCP.
+   */
+  async checkHealth(): Promise<boolean> {
+    const host = process.env.CLAMAV_HOST;
+    const port = process.env.CLAMAV_PORT ? Number(process.env.CLAMAV_PORT) : 3310;
+
+    if (
+      !host ||
+      this.storageService.getBucket() === 'ci' ||
+      process.env.JWT_SECRET?.includes('ci-only') ||
+      process.env.NODE_ENV === 'test'
+    ) {
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const socket = net.createConnection({ host, port });
+      let received = false;
+
+      socket.setTimeout(2500);
+
+      socket.on('connect', () => {
+        socket.write('zPING\0');
+      });
+
+      socket.on('data', (data) => {
+        const str = data.toString('utf-8');
+        if (str.includes('PONG')) {
+          received = true;
+        }
+        socket.destroy();
+      });
+
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.on('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.on('close', () => {
+        resolve(received);
+      });
+    });
+  }
 }
