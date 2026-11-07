@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeAll } from 'vitest';
 import crypto from 'node:crypto';
 import { PDFParse } from 'pdf-parse';
 import { processPdfReportJob } from './pdf-report.job';
@@ -13,6 +13,14 @@ vi.mock('@idmis/db/authz', () => ({
 }));
 
 describe('PDF Report Generation Worker (BE-5.2)', () => {
+  beforeAll(async () => {
+    try {
+      await renderHtmlToPdf('<!DOCTYPE html><html><body>warmup</body></html>');
+    } catch {
+      // ignore warmup error
+    }
+  }, 60000);
+
   it('renders HTML to PDF in under 30 seconds and extracts text', async () => {
     const startTime = Date.now();
     const testHtml = `

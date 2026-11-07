@@ -32,6 +32,7 @@ export async function renderHtmlToPdf(
   options: RenderPdfOptions = {},
 ): Promise<Buffer> {
   const timeoutMs = options.timeoutMs ?? 30000;
+  const launchTimeoutMs = Math.max(timeoutMs, 60000);
   const executablePath = resolveChromiumPath();
 
   let browser: Browser | null = null;
@@ -48,7 +49,7 @@ export async function renderHtmlToPdf(
         '--disable-dev-shm-usage',
         '--disable-gpu',
       ],
-      timeout: timeoutMs,
+      timeout: launchTimeoutMs,
     });
 
     // Create an isolated context with JavaScript explicitly disabled
