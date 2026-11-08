@@ -98,7 +98,7 @@ export function ToastViewport({ toasts, onRemove }: ToastViewportProps) {
     <div
       aria-live="polite"
       aria-label="Notifications"
-      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-full px-4 sm:px-0 pointer-events-none"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2.5 max-w-sm sm:max-w-md w-full px-4 pointer-events-none"
     >
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={() => onRemove(toast.id)} />
@@ -131,7 +131,7 @@ function ToastCard({ toast, onDismiss }: ToastCardProps) {
     <div
       role="alert"
       className={cn(
-        'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-3 duration-200 shadow-md',
+        'pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border backdrop-blur-md transition-all animate-in slide-in-from-top-3 duration-200 shadow-lg w-full',
         borders[toast.type],
       )}
     >

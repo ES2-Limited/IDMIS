@@ -23,6 +23,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useToast,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 
@@ -89,6 +90,7 @@ const INITIAL_SCORECARDS: ScorecardRecord[] = [
 
 export function ScorecardsListView() {
   const { currentScope } = useScope();
+  const { success, info } = useToast();
 
   const [scorecards, setScorecards] = React.useState<ScorecardRecord[]>(INITIAL_SCORECARDS);
   const [selectedYear, setSelectedYear] = React.useState<string>('2026');
@@ -140,6 +142,10 @@ export function ScorecardsListView() {
     setScorecards((prev) => [created, ...prev]);
     setIsCreateOpen(false);
     setNewFileUploaded(null);
+    success(
+      'Scorecard Published',
+      `${newSchemeName} (${newYear}) evaluation scorecard published to register.`,
+    );
   };
 
   return (
@@ -318,7 +324,9 @@ export function ScorecardsListView() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => alert(`Downloading verified scorecard: ${sc.fileName}`)}
+                      onClick={() =>
+                        info('Downloading Verified Scorecard', `${sc.fileName} (PDF Document)`)
+                      }
                       className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 hover:text-amber-800 cursor-pointer"
                     >
                       <Download className="h-3 w-3 text-slate-400" /> PDF
