@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getApiClient } from '@idmis/api-client';
+import { useAuth } from '../auth';
 
 export type ScopeType = 'national' | 'state' | 'rbda' | 'scheme' | 'sector';
 
@@ -29,6 +30,7 @@ export const defaultScopes: ScopeSelection[] = [
 const ScopeContext = React.createContext<ScopeState | undefined>(undefined);
 
 export function ScopeProvider({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
   const [currentScope, setCurrentScope] = React.useState<ScopeSelection>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -41,13 +43,14 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
     return defaultScopes[0];
   });
 
-  // Query live states from server via getApiClient
+  // Query live states from server via getApiClient only when authenticated
   const { data: statesData, isLoading: isLoadingScopes } = useQuery({
     queryKey: ['geography', 'states'],
     queryFn: async () => {
       const client = getApiClient();
       return client.getStates();
     },
+    enabled: isAuthenticated,
     staleTime: 1000 * 60 * 60, // 1 hour cache
     retry: 1,
   });
