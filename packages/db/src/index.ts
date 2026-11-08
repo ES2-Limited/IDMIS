@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schema/index';
 
 const defaultPostgresOptions: postgres.Options<Record<string, postgres.PostgresType>> = {
+  max: Number(process.env.DB_POOL_MAX || 20),
   idle_timeout: 60,
   connection: {
     idle_in_transaction_session_timeout: 60000,

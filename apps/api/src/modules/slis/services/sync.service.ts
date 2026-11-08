@@ -89,53 +89,158 @@ export class SyncService {
 
     const results: SyncPushResponse['results'] = [];
 
-    for (const op of input.ops) {
-      // Execute each op inside an atomic transaction:
-      // Claim sync_op ON CONFLICT DO NOTHING in the same transaction as the domain write.
-      const opResult = await runInTransaction(async (txDb) => {
-        const [claimed] = await this.syncRepo.claimSyncOp(
-          op.opId,
-          input.deviceId,
-          op.entity,
-          op.recordId,
-          txDb,
-        );
+    await runInTransaction(async () => {
+      for (const op of input.ops) {
+        // Execute each op inside an atomic savepoint transaction:
+        // Claim sync_op ON CONFLICT DO NOTHING in the same transaction as the domain write.
+        const opResult = await runInTransaction(async (txDb) => {
+          const [claimed] = await this.syncRepo.claimSyncOp(
+            op.opId,
+            input.deviceId,
+            op.entity,
+            op.recordId,
+            txDb,
+          );
 
-        if (!claimed) {
-          // Op already claimed or processed by a concurrent push
-          const existing = await this.syncRepo.findSyncOpById(op.opId, txDb);
-          if (!existing) {
-            throw new ConflictException(`Sync operation ${op.opId} is being processed`);
+          if (!claimed) {
+            // Op already claimed or processed by a concurrent push
+            const existing = await this.syncRepo.findSyncOpById(op.opId, txDb);
+            if (!existing) {
+              throw new ConflictException(`Sync operation ${op.opId} is being processed`);
+            }
+            return {
+              opId: existing.opId,
+              entity: existing.entity,
+              recordId: existing.recordId,
+              outcome: existing.outcome as SyncOutcome,
+              newVersion: existing.newVersion ?? undefined,
+              errors: (existing.errors as SyncOpError[]) ?? undefined,
+            };
           }
-          return {
-            opId: existing.opId,
-            entity: existing.entity,
-            recordId: existing.recordId,
-            outcome: existing.outcome as SyncOutcome,
-            newVersion: existing.newVersion ?? undefined,
-            errors: (existing.errors as SyncOpError[]) ?? undefined,
-          };
-        }
 
-        // Quarantine Check
-        if (isRevoked || isGrantExpired) {
-          const reason: 'device_revoked' | 'grant_expired' = isRevoked
-            ? 'device_revoked'
-            : 'grant_expired';
-          await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'quarantined' }, txDb);
+          // Quarantine Check
+          if (isRevoked || isGrantExpired) {
+            const reason: 'device_revoked' | 'grant_expired' = isRevoked
+              ? 'device_revoked'
+              : 'grant_expired';
+            await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'quarantined' }, txDb);
 
-          const quarantined = await this.syncRepo.recordQuarantine(
-            {
-              deviceId: input.deviceId,
+            const quarantined = await this.syncRepo.recordQuarantine(
+              {
+                deviceId: input.deviceId,
+                opId: op.opId,
+                entity: op.entity,
+                action: op.action,
+                recordId: op.recordId,
+                baseVersion: op.baseVersion,
+                payload: op.data,
+                reason,
+                schemeId: typeof op.data?.schemeId === 'string' ? op.data.schemeId : undefined,
+                stateId: typeof op.data?.stateId === 'string' ? op.data.stateId : undefined,
+              },
+              txDb,
+            );
+
+            return {
               opId: op.opId,
               entity: op.entity,
-              action: op.action,
               recordId: op.recordId,
-              baseVersion: op.baseVersion,
-              payload: op.data,
-              reason,
-              schemeId: typeof op.data?.schemeId === 'string' ? op.data.schemeId : undefined,
-              stateId: typeof op.data?.stateId === 'string' ? op.data.stateId : undefined,
+              outcome: 'quarantined' as SyncOutcome,
+              quarantineId: quarantined.id,
+              quarantineReason: reason,
+            };
+          }
+
+          // Domain Service Execution with Exact Same Permissions & Scope
+          let domainResult: { version?: number } | undefined;
+          try {
+            domainResult = await this.executeDomainOperation(
+              op.entity,
+              op.action,
+              op.recordId,
+              op.baseVersion,
+              op.data,
+              authz,
+              actorUserId,
+            );
+          } catch (err: unknown) {
+            if (err instanceof ConflictProblemException) {
+              let serverVer = err.currentVersion;
+              if (!serverVer) {
+                const currentRecord = await this.syncRepo.fetchCurrentEntityRow(
+                  op.entity,
+                  op.recordId,
+                  txDb,
+                );
+                serverVer =
+                  currentRecord && typeof currentRecord.version === 'number'
+                    ? currentRecord.version
+                    : 1;
+              }
+
+              await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'conflict' }, txDb);
+
+              const currentPayload =
+                err.current && typeof err.current === 'object'
+                  ? (err.current as Record<string, unknown>)
+                  : {};
+              const schemeId =
+                typeof currentPayload.schemeId === 'string'
+                  ? currentPayload.schemeId
+                  : (op.data.schemeId as string | undefined);
+
+              const conflict = await this.syncRepo.recordConflict(
+                {
+                  opId: op.opId,
+                  entity: op.entity,
+                  recordId: op.recordId,
+                  baseVersion: op.baseVersion,
+                  serverVersion: serverVer,
+                  devicePayload: op.data,
+                  serverPayload: currentPayload,
+                  schemeId,
+                },
+                txDb,
+              );
+
+              return {
+                opId: op.opId,
+                entity: op.entity,
+                recordId: op.recordId,
+                outcome: 'conflict' as SyncOutcome,
+                conflictId: conflict.id,
+              };
+            } else {
+              const error = err as Error & { getStatus?: () => number };
+              const status = typeof error.getStatus === 'function' ? error.getStatus() : 400;
+              const errorObj = [{ status, detail: error.message || 'Operation failed' }];
+
+              await this.syncRepo.updateSyncOpOutcome(
+                op.opId,
+                {
+                  outcome: 'rejected',
+                  errors: errorObj,
+                },
+                txDb,
+              );
+
+              return {
+                opId: op.opId,
+                entity: op.entity,
+                recordId: op.recordId,
+                outcome: 'rejected' as SyncOutcome,
+                errors: errorObj,
+              };
+            }
+          }
+
+          // Domain write succeeded. Now update sync_op to 'applied' in the SAME transaction.
+          // A failure after the domain write rolls back BOTH the domain write and the sync_op claim.
+          await this.syncRepo.updateSyncOpOutcome(
+            op.opId,
+            {
+              outcome: 'applied',
+              newVersion: domainResult?.version,
             },
             txDb,
           );
@@ -144,117 +249,14 @@ export class SyncService {
             opId: op.opId,
             entity: op.entity,
             recordId: op.recordId,
-            outcome: 'quarantined' as SyncOutcome,
-            quarantineId: quarantined.id,
-            quarantineReason: reason,
-          };
-        }
-
-        // Domain Service Execution with Exact Same Permissions & Scope
-        let domainResult: { version?: number } | undefined;
-        try {
-          domainResult = await this.executeDomainOperation(
-            op.entity,
-            op.action,
-            op.recordId,
-            op.baseVersion,
-            op.data,
-            authz,
-            actorUserId,
-          );
-        } catch (err: unknown) {
-          if (err instanceof ConflictProblemException) {
-            let serverVer = err.currentVersion;
-            if (!serverVer) {
-              const currentRecord = await this.syncRepo.fetchCurrentEntityRow(
-                op.entity,
-                op.recordId,
-                txDb,
-              );
-              serverVer =
-                currentRecord && typeof currentRecord.version === 'number'
-                  ? currentRecord.version
-                  : 1;
-            }
-
-            await this.syncRepo.updateSyncOpOutcome(op.opId, { outcome: 'conflict' }, txDb);
-
-            const currentPayload =
-              err.current && typeof err.current === 'object'
-                ? (err.current as Record<string, unknown>)
-                : {};
-            const schemeId =
-              typeof currentPayload.schemeId === 'string'
-                ? currentPayload.schemeId
-                : (op.data.schemeId as string | undefined);
-
-            const conflict = await this.syncRepo.recordConflict(
-              {
-                opId: op.opId,
-                entity: op.entity,
-                recordId: op.recordId,
-                baseVersion: op.baseVersion,
-                serverVersion: serverVer,
-                devicePayload: op.data,
-                serverPayload: currentPayload,
-                schemeId,
-              },
-              txDb,
-            );
-
-            return {
-              opId: op.opId,
-              entity: op.entity,
-              recordId: op.recordId,
-              outcome: 'conflict' as SyncOutcome,
-              conflictId: conflict.id,
-            };
-          } else {
-            const error = err as Error & { getStatus?: () => number };
-            const status = typeof error.getStatus === 'function' ? error.getStatus() : 400;
-            const errorObj = [{ status, detail: error.message || 'Operation failed' }];
-
-            await this.syncRepo.updateSyncOpOutcome(
-              op.opId,
-              {
-                outcome: 'rejected',
-                errors: errorObj,
-              },
-              txDb,
-            );
-
-            return {
-              opId: op.opId,
-              entity: op.entity,
-              recordId: op.recordId,
-              outcome: 'rejected' as SyncOutcome,
-              errors: errorObj,
-            };
-          }
-        }
-
-        // Domain write succeeded. Now update sync_op to 'applied' in the SAME transaction.
-        // A failure after the domain write rolls back BOTH the domain write and the sync_op claim.
-        await this.syncRepo.updateSyncOpOutcome(
-          op.opId,
-          {
-            outcome: 'applied',
+            outcome: 'applied' as SyncOutcome,
             newVersion: domainResult?.version,
-          },
-          txDb,
-        );
+          };
+        });
 
-        return {
-          opId: op.opId,
-          entity: op.entity,
-          recordId: op.recordId,
-          outcome: 'applied' as SyncOutcome,
-          newVersion: domainResult?.version,
-        };
-      });
-
-      results.push(opResult);
-    }
+        results.push(opResult);
+      }
+    });
 
     return {
       results,
