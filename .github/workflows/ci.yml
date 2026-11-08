@@ -83,6 +83,9 @@ jobs:
       - name: Check code formatting
         run: pnpm format:check
 
+      - name: Dependency audit
+        run: pnpm audit:prod
+
       - name: Lint
         run: pnpm lint
 
@@ -209,6 +212,7 @@ jobs:
             -e S3_BUCKET="ci" \
             -e S3_ACCESS_KEY_ID="ci" \
             -e S3_SECRET_ACCESS_KEY="ci" \
+            -e CLAMAV_HOST="127.0.0.1" \
             idmis-api
           if ! API_RESPONSE=$(curl -sf --retry 15 --retry-delay 1 --retry-all-errors http://127.0.0.1:3000/health); then
             echo "API smoke test failed: /health unreachable."
@@ -241,6 +245,7 @@ jobs:
             -e S3_BUCKET="ci" \
             -e S3_ACCESS_KEY_ID="ci" \
             -e S3_SECRET_ACCESS_KEY="ci" \
+            -e CLAMAV_HOST="127.0.0.1" \
             idmis-worker
           for i in $(seq 1 15); do
             if docker logs test-worker 2>&1 | grep -q "worker started"; then
