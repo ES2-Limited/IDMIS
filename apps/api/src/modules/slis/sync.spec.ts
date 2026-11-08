@@ -147,6 +147,7 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         email: 'slis-admin-kano@idmis.gov.ng',
         passwordHash,
         fullName: 'Kano SLIS Admin',
+        totpConfirmedAt: new Date().toISOString(),
         isActive: true,
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,

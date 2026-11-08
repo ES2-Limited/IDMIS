@@ -57,6 +57,17 @@ describe('ApiEnvSchema', () => {
     ).toThrow('ENCRYPTION_KEY is required when NODE_ENV=production');
   });
 
+  it('rejects missing CLAMAV_HOST when NODE_ENV=production', () => {
+    expect(() =>
+      ApiEnvSchema.parse({
+        NODE_ENV: 'production',
+        JWT_SECRET: 'production-secret-min-16-chars-long',
+        ENCRYPTION_KEY: 'production-encryption-key-min-32-chars-long',
+        IDENTITY_HASH_KEY: 'production-identity-hash-key-min-32-chars',
+      }),
+    ).toThrow('CLAMAV_HOST is required when NODE_ENV=production');
+  });
+
   it('defaults API_DOCS_ENABLED to true in non-production, false in production', () => {
     const devEnv = ApiEnvSchema.parse({
       NODE_ENV: 'development',
@@ -69,6 +80,7 @@ describe('ApiEnvSchema', () => {
       JWT_SECRET: 'production-secret-min-16-chars-long',
       ENCRYPTION_KEY: 'a'.repeat(32),
       IDENTITY_HASH_KEY: 'b'.repeat(32),
+      CLAMAV_HOST: 'clamav.internal',
     });
     expect(prodEnv.API_DOCS_ENABLED).toBe(false);
 
@@ -77,6 +89,7 @@ describe('ApiEnvSchema', () => {
       JWT_SECRET: 'production-secret-min-16-chars-long',
       ENCRYPTION_KEY: 'a'.repeat(32),
       IDENTITY_HASH_KEY: 'b'.repeat(32),
+      CLAMAV_HOST: 'clamav.internal',
       API_DOCS_ENABLED: 'true',
       API_PUBLIC_BASE_PATH: '/api',
     });

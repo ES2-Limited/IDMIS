@@ -26,6 +26,17 @@ export const ApiEnvSchema = z
     IDENTITY_HASH_KEY: z.string().min(32).optional(),
     IDENTITY_HASH_KEYS: z.string().optional(),
 
+    // ClamAV Antivirus
+    CLAMAV_HOST: z.string().optional(),
+    CLAMAV_PORT: z.coerce.number().default(3310),
+
+    // Rate Limits (requests per window)
+    RATE_LIMIT_AUTH_MAX: z.coerce.number().default(5),
+    RATE_LIMIT_REFRESH_MAX: z.coerce.number().default(30),
+    RATE_LIMIT_SYNC_MAX: z.coerce.number().default(60),
+    RATE_LIMIT_IMPORT_MAX: z.coerce.number().default(10),
+    RATE_LIMIT_DEFAULT_MAX: z.coerce.number().default(600),
+
     // API documentation & Swagger UI
     API_DOCS_ENABLED: z
       .preprocess((val) => {
@@ -57,6 +68,14 @@ export const ApiEnvSchema = z
           code: z.ZodIssueCode.custom,
           path: ['IDENTITY_HASH_KEY'],
           message: 'IDENTITY_HASH_KEY is required when NODE_ENV=production',
+        });
+      }
+
+      if (!data.CLAMAV_HOST) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['CLAMAV_HOST'],
+          message: 'CLAMAV_HOST is required when NODE_ENV=production',
         });
       }
     }

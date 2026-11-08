@@ -95,8 +95,9 @@ export class AuthController {
   @HttpCode(200)
   async setupTotp(
     @Body(new ZodValidationPipe(TotpSetupInputSchema)) body: TotpSetupInput,
+    @CurrentUser() user?: RequestUser,
   ): Promise<TotpSetupResponse> {
-    return this.authService.setupTotp(body.tempToken);
+    return this.authService.setupTotp(body.tempToken, user?.id);
   }
 
   @Authenticated()
@@ -106,11 +107,12 @@ export class AuthController {
     @Body(new ZodValidationPipe(TotpVerifyInputSchema)) body: TotpVerifyInput,
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
+    @CurrentUser() user?: RequestUser,
   ): Promise<SignInResponse> {
     const userAgent = req.headers['user-agent'];
     const ip = req.ip;
 
-    const result = await this.authService.verifyTotp(body, userAgent, ip);
+    const result = await this.authService.verifyTotp(body, userAgent, ip, user?.id);
 
     if (result.rawRefreshToken) {
       setRefreshTokenCookie(res, result.rawRefreshToken);

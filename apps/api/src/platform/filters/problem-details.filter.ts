@@ -55,6 +55,32 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         .send(payload);
     }
 
+    // 2. Handle Rate Limiting (429 Too Many Requests) from Fastify or custom exceptions
+    if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      ((exception as Record<string, unknown>).code === 'RATE_LIMIT_EXCEEDED' ||
+        (exception as Record<string, unknown>).statusCode === HttpStatus.TOO_MANY_REQUESTS ||
+        (exception as Record<string, unknown>).status === HttpStatus.TOO_MANY_REQUESTS)
+    ) {
+      const obj = exception as Record<string, unknown>;
+      const payload = ProblemDetailsSchema.parse({
+        type: (obj.type as string) || '/errors/rate-limit-exceeded',
+        title: (obj.title as string) || 'Too Many Requests',
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        detail: (obj.detail as string) || (obj.message as string) || 'Rate limit exceeded.',
+        instance,
+        code: (obj.code as string) || 'RATE_LIMIT_EXCEEDED',
+        requestId,
+        timestamp,
+      });
+
+      return reply
+        .status(HttpStatus.TOO_MANY_REQUESTS)
+        .header('content-type', 'application/problem+json; charset=utf-8')
+        .send(payload);
+    }
+
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();

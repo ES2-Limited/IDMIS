@@ -131,6 +131,41 @@ export class JwtAuthGuard implements CanActivate {
       }
     }
 
+    // TOTP enforcement: every user holding any admin-level permission or role
+    // (system_admin, slis_admin, blis_admin, programme_manager) must complete TOTP;
+    // until they do, every endpoint except TOTP setup/verify and logout returns 403 'totp_required'.
+    const adminRoles = [
+      'system_admin',
+      'slis_admin',
+      'blis_admin',
+      'programme_manager',
+      'module_admin',
+    ];
+    const isAdmin =
+      roles.some((r) => adminRoles.includes(r)) ||
+      authz.isSystemAdmin ||
+      authz.can('core.system.manage') ||
+      authz.can('core.user.manage') ||
+      authz.can('slis.admin') ||
+      authz.can('blis.admin');
+
+    if (isAdmin && user.totpConfirmedAt === null) {
+      const allowedUrls = [
+        '/auth/totp/setup',
+        '/auth/totp/verify',
+        '/auth/sign-out',
+        '/auth/logout',
+      ];
+      if (!allowedUrls.includes(url)) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: 'totp_required',
+          message: 'totp_required',
+          detail: 'totp_required',
+        });
+      }
+    }
+
     // Permission check for @Can
     if (requiredPermission) {
       if (!authz.can(requiredPermission)) {

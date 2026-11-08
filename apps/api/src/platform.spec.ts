@@ -366,9 +366,11 @@ describe('API Platform Plumbing (BE-1.2)', () => {
       const prevEnv = process.env.NODE_ENV;
       const prevEnc = process.env.ENCRYPTION_KEY;
       const prevIdHash = process.env.IDENTITY_HASH_KEY;
+      const prevClamav = process.env.CLAMAV_HOST;
       process.env.NODE_ENV = 'production';
       process.env.ENCRYPTION_KEY = 'a'.repeat(32);
       process.env.IDENTITY_HASH_KEY = 'b'.repeat(32);
+      process.env.CLAMAV_HOST = 'clamav.internal';
       try {
         const { AppModule: ProdAppModule } = await import('./app.module?prod=' + Date.now());
 
@@ -400,6 +402,11 @@ describe('API Platform Plumbing (BE-1.2)', () => {
           process.env.IDENTITY_HASH_KEY = prevIdHash;
         } else {
           delete process.env.IDENTITY_HASH_KEY;
+        }
+        if (prevClamav !== undefined) {
+          process.env.CLAMAV_HOST = prevClamav;
+        } else {
+          delete process.env.CLAMAV_HOST;
         }
       }
     });

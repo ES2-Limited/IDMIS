@@ -180,8 +180,15 @@ export class FileService {
       throw new BadRequestException('Client SHA-256 checksum does not match uploaded object');
     }
 
-    // 3. Antivirus scan (stub scanner detecting EICAR, clean otherwise)
+    // 3. Antivirus scan (via ClamAV daemon over TCP INSTREAM, or EICAR fallback)
     const scanResult = await this.antivirusService.scanFile(existing.storageKey);
+    // clamd unreachable -> file stays 'pending' (never 'clean')
+    const finalScanStatus: 'clean' | 'infected' | 'pending' =
+      scanResult.scanStatus === 'clean'
+        ? 'clean'
+        : scanResult.scanStatus === 'infected'
+          ? 'infected'
+          : 'pending';
 
     // 4. Update file record inside transaction with audit log & outbox event
     const updated = await runInTransaction(
@@ -193,7 +200,7 @@ export class FileService {
             mimeType: inspection.sniffedMimeType ?? existing.mimeType,
             sizeBytes: inspection.sizeBytes,
             sha256: inspection.sha256,
-            scanStatus: scanResult.scanStatus,
+            scanStatus: finalScanStatus,
             updatedBy: userId,
           },
           tx,
@@ -223,7 +230,7 @@ export class FileService {
           aggregateId: fileRow.id,
           payload: {
             fileId: fileRow.id,
-            scanStatus: scanResult.scanStatus,
+            scanStatus: finalScanStatus,
             virusDetails: scanResult.virusDetails ?? null,
           },
         });
@@ -243,7 +250,7 @@ export class FileService {
             mimeType: inspection.sniffedMimeType ?? existing.mimeType,
             sizeBytes: inspection.sizeBytes,
             sha256: inspection.sha256,
-            scanStatus: scanResult.scanStatus,
+            scanStatus: finalScanStatus,
           },
         },
       },

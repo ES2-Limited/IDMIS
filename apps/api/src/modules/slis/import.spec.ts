@@ -160,30 +160,35 @@ describe('SLIS Import Specification (BE-2.7)', () => {
         email: 'admin@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'National Admin',
+        totpConfirmedAt: new Date().toISOString(),
       },
       {
         id: KANO_ADMIN_ID,
         email: 'kano.admin@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'Kano Admin',
+        totpConfirmedAt: new Date().toISOString(),
       },
       {
         id: REVOKED_USER_ID,
         email: 'revoked.user@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'Revoked Officer',
+        totpConfirmedAt: new Date().toISOString(),
       },
       {
         id: KANO_FIELD_OFFICER_ID,
         email: 'kano.field@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'Kano Field Officer',
+        totpConfirmedAt: new Date().toISOString(),
       },
       {
         id: LAGOS_FIELD_OFFICER_ID,
         email: 'lagos.field@idmis.gov.ng',
         passwordHash: dummyHash,
         fullName: 'Lagos Field Officer',
+        totpConfirmedAt: new Date().toISOString(),
       },
     ]);
 

@@ -184,6 +184,7 @@ describe('SLIS Reports & Exports Specification (BE-2.8)', () => {
         email: 'admin@idmis.gov.ng',
         fullName: 'System Admin',
         passwordHash: passHash,
+        totpConfirmedAt: new Date().toISOString(),
         isActive: true,
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,

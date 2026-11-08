@@ -120,10 +120,17 @@ export class AuthService {
     await this.redisService.clearLockout(normalizedEmail);
 
     const roles = await this.authRepository.getUserRoles(user.id);
-    const isSystemAdmin = roles.includes('system_admin');
+    const adminRoles = [
+      'system_admin',
+      'slis_admin',
+      'blis_admin',
+      'programme_manager',
+      'module_admin',
+    ];
+    const hasAdminRole = roles.some((r) => adminRoles.includes(r));
 
     // 5. TOTP Checks
-    if (isSystemAdmin) {
+    if (hasAdminRole) {
       if (user.totpConfirmedAt === null) {
         const tempToken = await this.tokenService.createTempToken(user.id, 'totp_setup');
         return { response: { status: 'totp_setup_required', tempToken } };
@@ -149,9 +156,18 @@ export class AuthService {
 
   // --- TOTP Setup ---
 
-  async setupTotp(tempToken: string): Promise<TotpSetupResponse> {
-    const { sub } = await this.tokenService.verifyTempToken(tempToken, 'totp_setup');
-    const user = await this.authRepository.findUserById(sub);
+  async setupTotp(tempToken?: string, currentUserId?: string): Promise<TotpSetupResponse> {
+    let userId: string;
+    if (tempToken) {
+      const { sub } = await this.tokenService.verifyTempToken(tempToken, 'totp_setup');
+      userId = sub;
+    } else if (currentUserId) {
+      userId = currentUserId;
+    } else {
+      throw new BadRequestException('Either tempToken or active session required');
+    }
+
+    const user = await this.authRepository.findUserById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -190,13 +206,24 @@ export class AuthService {
     input: TotpVerifyInput,
     userAgent?: string,
     ip?: string,
+    currentUserId?: string,
   ): Promise<AuthSuccessWithCookie> {
-    const verified = await this.tokenService.verifyTempToken(input.tempToken, [
-      'totp_verify',
-      'totp_setup',
-    ]);
+    let userId: string;
+    let tempJtiToBurn: string | null = null;
+    if (input.tempToken) {
+      const verified = await this.tokenService.verifyTempToken(input.tempToken, [
+        'totp_verify',
+        'totp_setup',
+      ]);
+      userId = verified.sub;
+      tempJtiToBurn = verified.jti;
+    } else if (currentUserId) {
+      userId = currentUserId;
+    } else {
+      throw new BadRequestException('Either tempToken or active session required');
+    }
 
-    const user = await this.authRepository.findUserById(verified.sub);
+    const user = await this.authRepository.findUserById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -253,7 +280,9 @@ export class AuthService {
     await this.redisService.clearLockout(user.email);
 
     // Burn temporary token upon verification success
-    await this.tokenService.burnTempTokenJti(verified.jti);
+    if (tempJtiToBurn) {
+      await this.tokenService.burnTempTokenJti(tempJtiToBurn);
+    }
 
     // Confirm TOTP on user
     await this.authRepository.confirmTotp(user.id);

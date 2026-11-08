@@ -55,7 +55,7 @@ export const SignInResponseSchema = z.discriminatedUnion('status', [
 export type SignInResponse = z.infer<typeof SignInResponseSchema>;
 
 export const TotpSetupInputSchema = z.object({
-  tempToken: z.string().min(1, 'Temporary token is required'),
+  tempToken: z.string().min(1, 'Temporary token is required').optional(),
 });
 
 export type TotpSetupInput = z.infer<typeof TotpSetupInputSchema>;
@@ -70,7 +70,7 @@ export type TotpSetupResponse = z.infer<typeof TotpSetupResponseSchema>;
 
 export const TotpVerifyInputSchema = z
   .object({
-    tempToken: z.string().min(1, 'Temporary token is required'),
+    tempToken: z.string().min(1, 'Temporary token is required').optional(),
     totpCode: z
       .string()
       .length(6, 'TOTP code must be 6 digits')

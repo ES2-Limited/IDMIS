@@ -127,6 +127,7 @@ describe('Import Engine & WUA Dataset Specification (BE-1.8)', () => {
         email: 'admin@idmis.gov.ng',
         fullName: 'Admin User',
         passwordHash: dummyHash,
+        totpConfirmedAt: new Date().toISOString(),
         isActive: true,
       },
       {

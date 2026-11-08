@@ -95,6 +95,7 @@ describe('Outbox API & Admin Endpoints Specification (BE-1.5)', () => {
         email: 'sysadmin@idmis.gov.ng',
         fullName: 'System Admin',
         passwordHash: 'dummy_hash',
+        totpConfirmedAt: new Date().toISOString(),
       },
       {
         id: USER_OFFICER_ID,

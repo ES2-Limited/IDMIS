@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { StorageService } from './storage.service';
 import { AntivirusService } from './antivirus.service';
+import type { ApiEnv } from '../config/env';
 import { Readable } from 'node:stream';
 
 describe('Storage & Antivirus Service Specification (BE-1.7)', () => {
@@ -24,7 +25,7 @@ describe('Storage & Antivirus Service Specification (BE-1.7)', () => {
       S3_SECRET_ACCESS_KEY: 'minioadmin',
       ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
       API_PUBLIC_BASE_PATH: '/',
-    });
+    } as unknown as ApiEnv);
     antivirusService = new AntivirusService(storageService);
   });
 
