@@ -14,10 +14,14 @@ import {
 } from '@idmis/contracts';
 import { ReportRepository } from '../repositories/report.repository';
 import type { UserAuthz } from '../../../platform/auth';
+import { RedisService } from '../../../platform/redis/redis.service';
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly reportRepo: ReportRepository) {}
+  constructor(
+    private readonly reportRepo: ReportRepository,
+    private readonly redisService?: RedisService,
+  ) {}
 
   async getFarmersByScope(
     query: FarmersByScopeQuery,
@@ -58,6 +62,9 @@ export class ReportService {
       throw new ForbiddenException('Only SLIS administrators may trigger report view refresh');
     }
     await this.reportRepo.refreshViews();
+    if (this.redisService) {
+      await this.redisService.incr('dashboard:cache:epoch');
+    }
     const refreshedAt = await this.reportRepo.getLastRefreshedAt();
     return { refreshed: true, refreshedAt };
   }

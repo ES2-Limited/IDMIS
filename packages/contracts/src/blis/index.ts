@@ -7,3 +7,4 @@ export * from './dam';
 export * from './assets';
 export * from './maps';
 export * from './imports';
+export * from './public';

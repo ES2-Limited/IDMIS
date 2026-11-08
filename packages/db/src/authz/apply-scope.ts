@@ -7,6 +7,7 @@ export interface ScopeColumnMap {
   scheme?: AnyPgColumn;
   sector?: AnyPgColumn;
   organisation?: AnyPgColumn;
+  rbda?: AnyPgColumn;
 }
 
 /**
@@ -29,6 +30,9 @@ export function applyScope(scope: RequestScope, columns: ScopeColumnMap): SQL | 
   }
   if (columns.sector && scope.sectorIds.length > 0) {
     conditions.push(inArray(columns.sector, scope.sectorIds));
+  }
+  if (columns.rbda && scope.rbdaIds.length > 0) {
+    conditions.push(inArray(columns.rbda, scope.rbdaIds));
   }
   if (columns.organisation) {
     // When an organisation column is used, match either schemes or sectors in scope

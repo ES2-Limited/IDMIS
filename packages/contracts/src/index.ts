@@ -5,3 +5,5 @@ export * from './auth';
 export * from './slis';
 export * from './me';
 export * from './blis';
+export * from './dashboard';
+export * from './report';

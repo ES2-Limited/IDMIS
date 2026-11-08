@@ -310,6 +310,7 @@ export const importBatch = coreSchema.table(
     status: importBatchStatusEnum('status').notNull().default('uploaded'),
     schemeId: uuid('scheme_id').references(() => organisation.id),
     stateId: uuid('state_id').references(() => state.id),
+    rbdaId: uuid('rbda_id').references(() => organisation.id),
     totalRows: integer('total_rows').notNull().default(0),
     validRows: integer('valid_rows').notNull().default(0),
     errorRows: integer('error_rows').notNull().default(0),
@@ -332,6 +333,7 @@ export const importBatch = coreSchema.table(
     index('import_batch_created_by_idx').on(table.createdBy, table.createdAt),
     index('import_batch_state_id_idx').on(table.stateId),
     index('import_batch_scheme_id_idx').on(table.schemeId),
+    index('import_batch_rbda_id_idx').on(table.rbdaId),
     index('import_batch_status_idx').on(table.status),
   ],
 );
@@ -625,5 +627,33 @@ export const syncQuarantine = coreSchema.table(
     index('sync_quarantine_resolved_at_idx').on(table.resolvedAt),
     index('sync_quarantine_scheme_id_idx').on(table.schemeId),
     index('sync_quarantine_state_id_idx').on(table.stateId),
+  ],
+);
+
+// --- Asynchronous PDF Report Job ---
+export const reportJob = coreSchema.table(
+  'report_job',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => appUser.id),
+    type: text('type').notNull(),
+    params: jsonb('params').$type<Record<string, unknown>>().default({}),
+    status: text('status').notNull().default('queued'),
+    fileId: uuid('file_id').references(() => file.id),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true, mode: 'string' }),
+  },
+  (table) => [
+    index('report_job_user_id_idx').on(table.userId),
+    index('report_job_status_idx').on(table.status),
+    index('report_job_created_at_idx').on(table.createdAt),
   ],
 );

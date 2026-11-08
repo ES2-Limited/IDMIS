@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { NestFactory } from '@nestjs/core';
 import crypto from 'node:crypto';
@@ -1492,22 +1492,8 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(computedManualAttempt.statusCode).toBe(400);
 
-      // 3. Enter every manual indicator (5, 7, 8, 9, 15) through POST values -> submit -> approve by a different user
+      // 3. Enter remaining manual indicators (8, 9, 15) through POST values -> submit -> approve by a different user
       const manualEntries = [
-        {
-          code: '5',
-          schemeVal: '6.0000',
-          schemeTarget: '8.0000',
-          stateVal: '12.0000',
-          stateTarget: '16.0000',
-        },
-        {
-          code: '7',
-          schemeVal: '4.0000',
-          schemeTarget: '7.0000',
-          stateVal: '8.0000',
-          stateTarget: '14.0000',
-        },
         {
           code: '8',
           schemeVal: '5.0000',
@@ -1674,7 +1660,7 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
 
       const EXPECTED_KANO_SCHEME_ROWS: Array<{
         code: string;
-        value: string;
+        value: string | null;
         target: string | null;
         endTarget: string | null;
         pctOfEndTarget: string | null;
@@ -1738,11 +1724,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '5',
-          value: '6.0000',
-          target: '8.0000',
+          value: null,
+          target: null,
           endTarget: '8.0000',
-          pctOfEndTarget: '75.00',
-          status: 'manual',
+          pctOfEndTarget: null,
+          status: 'not_available',
         },
         {
           code: '6',
@@ -1754,11 +1740,11 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         },
         {
           code: '7',
-          value: '4.0000',
-          target: '7.0000',
+          value: null,
+          target: null,
           endTarget: '7.0000',
-          pctOfEndTarget: '57.14',
-          status: 'manual',
+          pctOfEndTarget: null,
+          status: 'not_available',
         },
         {
           code: '8',
@@ -1903,9 +1889,9 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
         { code: '2c', value: '44.5000', target: null, status: 'computed' },
         { code: '3', value: '30.0000', target: null, status: 'computed' },
         { code: '4', value: '85.0000', target: null, status: 'computed' },
-        { code: '5', value: '12.0000', target: '16.0000', status: 'manual' },
+        { code: '5', value: '0.0000', target: null, status: 'computed' },
         { code: '6', value: '2.0000', target: null, status: 'computed' },
-        { code: '7', value: '8.0000', target: '14.0000', status: 'manual' },
+        { code: '7', value: '0.0000', target: null, status: 'computed' },
         { code: '8', value: '10.0000', target: '14.0000', status: 'manual' },
         { code: '9', value: '6.0000', target: '10.0000', status: 'manual' },
         { code: '10', value: '2.0000', target: null, status: 'computed' },
@@ -2037,6 +2023,9 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(forbiddenRes.statusCode).toBe(403);
 
+      const queue = computeService.getQueue();
+      const addSpy = vi.spyOn(queue, 'add').mockResolvedValueOnce({ id: 'job-1' } as never);
+
       // Admin with ME_INDICATOR_MANAGE -> 202 Accepted
       const adminRes = await app.inject({
         method: 'POST',
@@ -2046,6 +2035,33 @@ describe('M&E Computed Indicators, Compute Results & Indicator Matrix (BE-3.3)',
       });
       expect(adminRes.statusCode).toBe(202);
       expect(adminRes.json().message).toContain('enqueued');
+
+      addSpy.mockRestore();
+    });
+
+    it('returns 503 when the compute queue is down and does not call runCompute', async () => {
+      const queue = computeService.getQueue();
+      const addSpy = vi
+        .spyOn(queue, 'add')
+        .mockRejectedValueOnce(new Error('Redis connection lost'));
+      const runComputeSpy = vi.spyOn(computeService, 'runCompute');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/compute',
+        headers: { authorization: `Bearer ${nationalAdminToken}` },
+        payload: { year: 2026, quarter: 1 },
+      });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      const json = res.json();
+      expect(json.status).toBe(503);
+      expect(json.detail).toBe('Compute queue is unavailable');
+      expect(runComputeSpy).not.toHaveBeenCalled();
+
+      addSpy.mockRestore();
+      runComputeSpy.mockRestore();
     });
   });
 });

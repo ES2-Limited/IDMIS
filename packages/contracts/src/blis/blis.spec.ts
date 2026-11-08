@@ -6,12 +6,17 @@ import {
   CreateMeasurementInputSchema,
   CreateDamInputSchema,
   CreateDamSafetyInspectionInputSchema,
+  ReturnDamInspectionInputSchema,
+  MvDamStatusSchema,
   CreateStakeholderInputSchema,
   StationTypeEnum,
   ComponentRatingEnum,
   DamComponentEnum,
   MeasurementQualityEnum,
   MeasurementSourceEnum,
+  convertUnit,
+  MeasurementImportRowSchema,
+  GetStationReadingsQuerySchema,
 } from './index';
 
 describe('BLIS Contracts (BE-4.1)', () => {
@@ -130,5 +135,98 @@ describe('BLIS Contracts (BE-4.1)', () => {
       email: 'contact@cbsg.org',
     });
     expect(valid.success).toBe(true);
+  });
+
+  it('validates unit conversions correctly (BE-4.3)', () => {
+    // Identity conversion
+    const idRes = convertUnit('15.5', 'm', 'm');
+    expect(idRes).toEqual({ value: '15.5', unit: 'm' });
+
+    // cm to m
+    const cmRes = convertUnit('150', 'cm', 'm');
+    expect(cmRes?.value).toBe('1.5000');
+    expect(cmRes?.unit).toBe('m');
+
+    // mm to m
+    const mmRes = convertUnit('2500', 'mm', 'm');
+    expect(mmRes?.value).toBe('2.5000');
+    expect(mmRes?.unit).toBe('m');
+
+    // l/s to m3/s
+    const flowRes = convertUnit('500', 'l/s', 'm3/s');
+    expect(flowRes?.value).toBe('0.5000');
+    expect(flowRes?.unit).toBe('m3/s');
+
+    // Invalid unit conversion returns null
+    const invalidRes = convertUnit('100', 'kg', 'm');
+    expect(invalidRes).toBeNull();
+  });
+
+  it('validates measurement import row schema and query parameters', () => {
+    const validRow = MeasurementImportRowSchema.safeParse({
+      stationCode: 'ST-001',
+      parameterCode: 'WL',
+      observedAt: '2026-03-15T12:00:00Z',
+      value: '14.2500',
+      unit: 'm',
+      quality: 'raw',
+    });
+    expect(validRow.success).toBe(true);
+
+    const validQuery = GetStationReadingsQuerySchema.safeParse({
+      parameter: 'WL',
+      from: '2026-01-01T00:00:00Z',
+      to: '2026-01-15T00:00:00Z',
+      interval: 'raw',
+      limit: '50',
+    });
+    expect(validQuery.success).toBe(true);
+    if (validQuery.success) {
+      expect(validQuery.data.limit).toBe(50);
+      expect(validQuery.data.interval).toBe('raw');
+    }
+  });
+
+  it('validates dam safety inspection and component contracts', () => {
+    const inspectionInput = CreateDamSafetyInspectionInputSchema.safeParse({
+      damId: '018f3a5e-0000-7000-8000-000000000001',
+      inspectedOn: '2026-03-15',
+      nextDueOn: '2027-03-15',
+      components: [
+        {
+          component: 'dam_body',
+          ratingId: '018f3a5e-0000-7000-8000-000000000010',
+          notes: 'No seepage detected',
+        },
+        {
+          component: 'spillway_1',
+          ratingId: '018f3a5e-0000-7000-8000-000000000010',
+        },
+      ],
+    });
+    expect(inspectionInput.success).toBe(true);
+
+    const returnInput = ReturnDamInspectionInputSchema.safeParse({
+      comment: 'Missing spillway gate inspection details',
+    });
+    expect(returnInput.success).toBe(true);
+
+    const invalidReturn = ReturnDamInspectionInputSchema.safeParse({
+      comment: '',
+    });
+    expect(invalidReturn.success).toBe(false);
+
+    const mvStatus = MvDamStatusSchema.safeParse({
+      damId: '018f3a5e-0000-7000-8000-000000000001',
+      inspectionId: '018f3a5e-0000-7000-8000-000000000002',
+      inspectedOn: '2026-03-15',
+      meetsStandard: true,
+      hazardClassId: '018f3a5e-0000-7000-8000-000000000003',
+      hazardClass: 'High Hazard',
+      nextDueOn: '2027-03-15',
+      isOverdue: false,
+      approvedAt: '2026-03-16T10:00:00Z',
+    });
+    expect(mvStatus.success).toBe(true);
   });
 });

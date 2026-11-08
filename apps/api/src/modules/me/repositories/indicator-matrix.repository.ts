@@ -81,4 +81,12 @@ export class IndicatorMatrixRepository {
     const client = this.getDb(txDb);
     await client.execute(sql`SELECT me.refresh_mv_indicator_matrix();`);
   }
+
+  async getLastRefreshedAt(txDb?: DatabaseOrTx): Promise<string | null> {
+    const client = this.getDb(txDb);
+    const [row] = await client
+      .select({ computedAt: sql<string | null>`max(${mvIndicatorMatrix.computedAt})` })
+      .from(mvIndicatorMatrix);
+    return row?.computedAt ? String(row.computedAt) : null;
+  }
 }

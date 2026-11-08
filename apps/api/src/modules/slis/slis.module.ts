@@ -42,9 +42,10 @@ import { ReportController } from './controllers/report.controller';
 import { ExportRepository } from './repositories/export.repository';
 import { ExportService } from './services/export.service';
 import { SlisComputeQueryService } from './services/slis-compute-query.service';
+import { SlisTileQueryService } from './services/slis-tile-query.service';
 import { ExportController } from './controllers/export.controller';
 import { StorageModule } from '../../platform/storage/storage.module';
-import { BlisStationStubService } from '../blis/public';
+import { BlisModule } from '../blis/blis.module';
 import { CoreModule } from '../core/core.module';
 import { MeModule } from '../me/me.module';
 import { ImportHandlerRegistry } from '../core/public';
@@ -55,9 +56,15 @@ import { FeeCollectionImportHandler } from './imports/fee-collection.handler';
 import { WaterRequestImportHandler } from './imports/water-request.handler';
 import { TrainingImportHandler } from './imports/training.handler';
 import { CropProductionImportHandler } from './imports/crop-production.handler';
+import { StreamFlowImportHandler } from './imports/stream-flow.handler';
 
 @Module({
-  imports: [forwardRef(() => CoreModule), forwardRef(() => MeModule), StorageModule],
+  imports: [
+    forwardRef(() => CoreModule),
+    forwardRef(() => MeModule),
+    forwardRef(() => BlisModule),
+    StorageModule,
+  ],
   controllers: [
     FarmerController,
     HouseholdController,
@@ -76,7 +83,6 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
   providers: [
     EncryptionService,
     IdentityHashService,
-    BlisStationStubService,
     FarmerRepository,
     FarmerService,
     HouseholdRepository,
@@ -106,6 +112,7 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     ExportRepository,
     ExportService,
     SlisComputeQueryService,
+    SlisTileQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,
@@ -113,11 +120,11 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     WaterRequestImportHandler,
     TrainingImportHandler,
     CropProductionImportHandler,
+    StreamFlowImportHandler,
   ],
   exports: [
     EncryptionService,
     IdentityHashService,
-    BlisStationStubService,
     FarmerRepository,
     FarmerService,
     HouseholdRepository,
@@ -147,6 +154,7 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     ExportRepository,
     ExportService,
     SlisComputeQueryService,
+    SlisTileQueryService,
     FarmerImportHandler,
     PlotImportHandler,
     FeeBillingImportHandler,
@@ -154,6 +162,7 @@ import { CropProductionImportHandler } from './imports/crop-production.handler';
     WaterRequestImportHandler,
     TrainingImportHandler,
     CropProductionImportHandler,
+    StreamFlowImportHandler,
   ],
 })
 export class SlisModule implements OnModuleInit {
@@ -166,6 +175,7 @@ export class SlisModule implements OnModuleInit {
     private readonly waterRequestHandler: WaterRequestImportHandler,
     private readonly trainingHandler: TrainingImportHandler,
     private readonly cropProductionHandler: CropProductionImportHandler,
+    private readonly streamFlowHandler: StreamFlowImportHandler,
   ) {}
 
   onModuleInit() {
@@ -176,5 +186,6 @@ export class SlisModule implements OnModuleInit {
     this.registry.register(this.waterRequestHandler);
     this.registry.register(this.trainingHandler);
     this.registry.register(this.cropProductionHandler);
+    this.registry.register(this.streamFlowHandler);
   }
 }

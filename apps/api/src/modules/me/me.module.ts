@@ -34,6 +34,7 @@ import { InstrumentsService } from './services/instruments.service';
 import { MeComputeService } from './services/me-compute.service';
 import { ComputeRegistry } from './compute/compute.registry';
 import { SlisComputeQueryService } from '../slis/public';
+import { BlisComputeQueryService } from '../blis/public';
 
 // Import Handlers
 import { IndicatorTargetImportHandler } from './imports/indicator-target.handler';
@@ -74,6 +75,7 @@ import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
     ComputeRegistry,
     MeComputeService,
     SlisComputeQueryService,
+    BlisComputeQueryService,
     IndicatorTargetImportHandler,
     IndicatorValueImportHandler,
     SurveyResponseImportHandler,

@@ -5,6 +5,9 @@ import { dispatchBatch } from './dispatcher/dispatcher';
 import { registerAuthzSubscribers } from './subscribers/authz.subscriber';
 import { processSlisExportJob } from './jobs/slis-export.job';
 import { refreshMaterializedViewsJob } from './jobs/slis-refresh.job';
+import { processBlisPartitionJob } from './jobs/blis-partition.job';
+import { processMeasurementCommitJob } from './jobs/blis-measurement-commit.job';
+import { processPdfReportJob } from './jobs/pdf-report.job';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -107,7 +110,114 @@ void refreshQueue.upsertJobScheduler(
   },
 );
 
-// 2. Initialize outbox dispatcher & subscribers
+// 4. Repeatable BLIS Measurement Partition Queue & Worker
+const blisPartitionQueueName = process.env.BLIS_PARTITION_QUEUE_NAME || 'blis-partition';
+const blisPartitionQueue = new Queue(blisPartitionQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const blisPartitionWorker = new Worker(
+  blisPartitionQueueName,
+  async (job) => {
+    return processBlisPartitionJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: 1,
+  },
+);
+
+blisPartitionWorker.on('error', (err) => {
+  console.warn('[BlisPartitionWorker] Error:', err.message);
+});
+
+// Schedule 1 December at 00:00 repeatable job
+void blisPartitionQueue.upsertJobScheduler(
+  'blis:ensure-partition-scheduler',
+  {
+    pattern: '0 0 1 12 *',
+  },
+  {
+    name: 'blis:ensure-partition',
+    data: {},
+  },
+);
+
+// Run once at worker startup
+void processBlisPartitionJob().catch((err) => {
+  console.warn('[BlisPartition] Startup partition check failed:', err.message);
+});
+
+// 5. BLIS Measurement Commit Queue & Worker
+const measurementCommitQueueName =
+  process.env.BLIS_MEASUREMENT_COMMIT_QUEUE || 'blis-measurement-commit';
+const measurementCommitQueue = new Queue(measurementCommitQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const measurementCommitWorker = new Worker(
+  measurementCommitQueueName,
+  async (job) => {
+    return processMeasurementCommitJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: 2,
+  },
+);
+
+measurementCommitWorker.on('error', (err) => {
+  console.warn('[MeasurementCommitWorker] Error:', err.message);
+});
+
+// 6. PDF Report Queue & Worker
+const pdfReportQueueName = process.env.REPORTS_PDF_QUEUE_NAME || 'reports-pdf';
+const pdfReportConcurrency = parseInt(process.env.REPORTS_PDF_CONCURRENCY || '1', 10);
+
+const pdfReportQueue = new Queue(pdfReportQueueName, {
+  connection: {
+    url: redisUrl,
+    family: 0,
+    lazyConnect: true,
+  },
+});
+
+const pdfReportWorker = new Worker(
+  pdfReportQueueName,
+  async (job) => {
+    return processPdfReportJob(job.data);
+  },
+  {
+    connection: {
+      url: redisUrl,
+      family: 0,
+      lazyConnect: true,
+    },
+    concurrency: pdfReportConcurrency,
+  },
+);
+
+pdfReportWorker.on('error', (err) => {
+  console.warn('[PdfReportWorker] Error:', err.message);
+});
+
+// 7. Initialize outbox dispatcher & subscribers
 registerAuthzSubscribers(defaultSubscriberRegistry);
 
 let isRunning = true;
@@ -136,6 +246,12 @@ const shutdown = async () => {
   isRunning = false;
   if (pollTimeout) clearTimeout(pollTimeout);
   try {
+    await pdfReportWorker.close();
+    await pdfReportQueue.close();
+    await measurementCommitWorker.close();
+    await measurementCommitQueue.close();
+    await blisPartitionWorker.close();
+    await blisPartitionQueue.close();
     await exportWorker.close();
     await exportQueue.close();
     await refreshWorker.close();

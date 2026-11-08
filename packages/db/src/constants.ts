@@ -11,6 +11,7 @@ export const SYSTEM_USER_ID = '00000000-0000-7000-8000-000000000001';
  */
 export const ROLE_SYSTEM_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000010';
 export const ROLE_SLIS_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000019';
+export const ROLE_BLIS_ADMIN_ID = '018f3a5e-0000-7000-8000-000000000020';
 
 export const SYSTEM_ROLES = [
   {
@@ -39,6 +40,14 @@ export const SYSTEM_ROLES = [
     key: 'slis_admin',
     name: 'SLIS Administrator',
     description: 'Module administrator with full control over SLIS features, records, and imports',
+    isSystem: true,
+  },
+  {
+    id: ROLE_BLIS_ADMIN_ID,
+    key: 'blis_admin',
+    name: 'BLIS Administrator',
+    description:
+      'Module administrator with full control over BLIS river basins, stations, measurements, dams and maps',
     isSystem: true,
   },
   {
@@ -122,6 +131,8 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_IMPORT_RUN,
     permissions.CORE_AUDIT_READ,
     permissions.CORE_OUTBOX_MANAGE,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
     // SLIS
     permissions.SLIS_FARMER_READ,
     permissions.SLIS_FARMER_CREATE,
@@ -159,6 +170,17 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_INSTRUMENTS_MANAGE,
     permissions.ME_ADOPTION_RECORD,
+    // BLIS
+    permissions.BLIS_BASIN_READ,
+    permissions.BLIS_BASIN_MANAGE,
+    permissions.BLIS_STATION_MANAGE,
+    permissions.BLIS_MEASUREMENT_READ,
+    permissions.BLIS_MEASUREMENT_IMPORT,
+    permissions.BLIS_DAM_MANAGE,
+    permissions.BLIS_INSPECTION_RECORD,
+    permissions.BLIS_INSPECTION_APPROVE,
+    permissions.BLIS_MAP_READ,
+    permissions.BLIS_MAP_MANAGE,
   ],
 
   // 2. Programme Manager: Administrative and oversight powers within assigned scope
@@ -191,9 +213,12 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
     // M&E Approver (National / Regional scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
   ],
 
   // 3. Module Administrator: Generic placeholder (specific module admins use dedicated roles)
@@ -238,6 +263,34 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
+  ],
+
+  // 4b. BLIS Administrator: Explicit permissions for BLIS module administration
+  blis_admin: [
+    permissions.CORE_ORGANISATION_READ,
+    permissions.CORE_GEOGRAPHY_READ,
+    permissions.CORE_LOOKUP_READ,
+    permissions.CORE_LOOKUP_MANAGE,
+    permissions.CORE_FILE_UPLOAD,
+    permissions.CORE_FILE_READ,
+    permissions.CORE_IMPORT_RUN,
+    permissions.CORE_AUDIT_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
+    // BLIS
+    permissions.BLIS_BASIN_READ,
+    permissions.BLIS_BASIN_MANAGE,
+    permissions.BLIS_STATION_MANAGE,
+    permissions.BLIS_MEASUREMENT_READ,
+    permissions.BLIS_MEASUREMENT_IMPORT,
+    permissions.BLIS_DAM_MANAGE,
+    permissions.BLIS_INSPECTION_RECORD,
+    permissions.BLIS_INSPECTION_APPROVE,
+    permissions.BLIS_MAP_READ,
+    permissions.BLIS_MAP_MANAGE,
   ],
 
   // 5. Scheme Data Officer: Scheme-level review, approval, validation & full scheme operations
@@ -274,6 +327,9 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_IMPORT_RUN,
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
   ],
 
   // 6. Field Officer: Mobile field data capture with offline support (cannot approve)
@@ -302,8 +358,11 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REVIEW_SUBMIT,
     permissions.SLIS_SYNC_PUSH,
     permissions.SLIS_SYNC_PULL,
+    permissions.BLIS_MAP_READ,
     permissions.ME_SURVEY_RESPOND,
     permissions.ME_ADOPTION_RECORD,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
   ],
 
   // 7. M&E Officer: Monitoring & Evaluation data entry, survey collection, and analysis
@@ -320,6 +379,9 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
     // M&E
     permissions.ME_INDICATOR_READ,
     permissions.ME_INDICATOR_MANAGE,
@@ -338,6 +400,18 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.CORE_LOOKUP_READ,
     permissions.CORE_FILE_UPLOAD,
     permissions.CORE_FILE_READ,
+    // BLIS
+    permissions.BLIS_BASIN_READ,
+    permissions.BLIS_BASIN_MANAGE,
+    permissions.BLIS_MEASUREMENT_READ,
+    permissions.BLIS_MEASUREMENT_IMPORT,
+    permissions.BLIS_STATION_MANAGE,
+    permissions.BLIS_DAM_MANAGE,
+    permissions.BLIS_INSPECTION_RECORD,
+    permissions.BLIS_INSPECTION_APPROVE,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
   ],
 
   // 9. Procurement Officer: Tender records & contract tracking
@@ -365,6 +439,12 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_VIEW,
     // M&E Read-only
     permissions.ME_INDICATOR_READ,
+    // BLIS Read-only
+    permissions.BLIS_BASIN_READ,
+    permissions.BLIS_MEASUREMENT_READ,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
   ],
 
   // 11. State Coordinator: State ministry oversight and M&E value approvals (State scope)
@@ -382,6 +462,9 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     permissions.SLIS_REPORT_READ,
     permissions.SLIS_REPORT_VIEW,
     permissions.SLIS_EXPORT_GENERATE,
+    permissions.BLIS_MAP_READ,
+    permissions.DASHBOARD_VIEW,
+    permissions.REPORT_GENERATE,
     // M&E Approver (State scope)
     permissions.ME_INDICATOR_READ,
     permissions.ME_VALUE_APPROVE,

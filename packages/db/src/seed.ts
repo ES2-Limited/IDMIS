@@ -161,9 +161,13 @@ export const BASE_LOOKUPS = [
     name: 'Hydrometric Station Type',
     module: 'blis' as const,
     values: [
-      { code: 'hydrological', label: 'Hydrological', sortOrder: 1 },
-      { code: 'meteorological', label: 'Meteorological', sortOrder: 2 },
-      { code: 'agro_meteorological', label: 'Agro-meteorological', sortOrder: 3 },
+      { code: 'discharge', label: 'Discharge', sortOrder: 1 },
+      { code: 'rainfall', label: 'Rainfall', sortOrder: 2 },
+      { code: 'water_level', label: 'Water Level', sortOrder: 3 },
+      { code: 'water_quality', label: 'Water Quality', sortOrder: 4 },
+      { code: 'hydrological', label: 'Hydrological', sortOrder: 5 },
+      { code: 'meteorological', label: 'Meteorological', sortOrder: 6 },
+      { code: 'agro_meteorological', label: 'Agro-meteorological', sortOrder: 7 },
     ],
   },
   {
@@ -188,6 +192,27 @@ export const BASE_LOOKUPS = [
     ],
   },
   {
+    key: 'hazard_class',
+    name: 'Dam Hazard Classification',
+    module: 'blis' as const,
+    values: [
+      { code: 'high', label: 'High Hazard', sortOrder: 1 },
+      { code: 'significant', label: 'Significant Hazard', sortOrder: 2 },
+      { code: 'low', label: 'Low Hazard', sortOrder: 3 },
+    ],
+  },
+  {
+    key: 'component_rating',
+    name: 'Dam Component Condition Rating',
+    module: 'blis' as const,
+    values: [
+      { code: 'good', label: 'Good', sortOrder: 1 },
+      { code: 'fair', label: 'Fair', sortOrder: 2 },
+      { code: 'poor', label: 'Poor', sortOrder: 3 },
+      { code: 'critical', label: 'Critical', sortOrder: 4 },
+    ],
+  },
+  {
     key: 'dam_rating',
     name: 'Dam Safety Condition Rating',
     module: 'blis' as const,
@@ -199,13 +224,75 @@ export const BASE_LOOKUPS = [
     ],
   },
   {
-    key: 'hazard_class',
-    name: 'Dam Hazard Classification',
+    key: 'bio_resource',
+    name: 'Biological Resource Type',
     module: 'blis' as const,
     values: [
-      { code: 'high', label: 'High Hazard', sortOrder: 1 },
-      { code: 'significant', label: 'Significant Hazard', sortOrder: 2 },
-      { code: 'low', label: 'Low Hazard', sortOrder: 3 },
+      { code: 'fish', label: 'Fish', sortOrder: 1 },
+      { code: 'flora', label: 'Flora', sortOrder: 2 },
+      { code: 'fauna', label: 'Fauna', sortOrder: 3 },
+      { code: 'waterfowl', label: 'Waterfowl', sortOrder: 4 },
+      { code: 'aquatic_plant', label: 'Aquatic Plant', sortOrder: 5 },
+    ],
+  },
+  {
+    key: 'occurrence',
+    name: 'Occurrence Frequency',
+    module: 'blis' as const,
+    values: [
+      { code: 'abundant', label: 'Abundant', sortOrder: 1 },
+      { code: 'common', label: 'Common', sortOrder: 2 },
+      { code: 'rare', label: 'Rare', sortOrder: 3 },
+      { code: 'endangered', label: 'Endangered', sortOrder: 4 },
+    ],
+  },
+  {
+    key: 'water_use',
+    name: 'Water Use Type',
+    module: 'blis' as const,
+    values: [
+      { code: 'domestic', label: 'Domestic', sortOrder: 1 },
+      { code: 'irrigation', label: 'Irrigation', sortOrder: 2 },
+      { code: 'hydropower', label: 'Hydropower', sortOrder: 3 },
+      { code: 'industrial', label: 'Industrial', sortOrder: 4 },
+      { code: 'livestock', label: 'Livestock', sortOrder: 5 },
+      { code: 'fisheries', label: 'Fisheries', sortOrder: 6 },
+    ],
+  },
+  {
+    key: 'priority',
+    name: 'Water Use Priority Level',
+    module: 'blis' as const,
+    values: [
+      { code: 'high', label: 'High', sortOrder: 1 },
+      { code: 'medium', label: 'Medium', sortOrder: 2 },
+      { code: 'low', label: 'Low', sortOrder: 3 },
+      { code: 'critical', label: 'Critical', sortOrder: 4 },
+    ],
+  },
+  {
+    key: 'stakeholder_category',
+    name: 'Stakeholder Category',
+    module: 'blis' as const,
+    values: [
+      { code: 'government', label: 'Government', sortOrder: 1 },
+      { code: 'wua', label: 'WUA', sortOrder: 2 },
+      { code: 'community', label: 'Community', sortOrder: 3 },
+      { code: 'private_sector', label: 'Private Sector', sortOrder: 4 },
+      { code: 'ngo', label: 'NGO', sortOrder: 5 },
+      { code: 'research', label: 'Research', sortOrder: 6 },
+    ],
+  },
+  {
+    key: 'map_layer_type',
+    name: 'GIS Map Layer Type',
+    module: 'blis' as const,
+    values: [
+      { code: 'base_map', label: 'Base Map', sortOrder: 1 },
+      { code: 'river_basin', label: 'River Basin Boundary', sortOrder: 2 },
+      { code: 'scheme_boundary', label: 'Irrigation Scheme Boundary', sortOrder: 3 },
+      { code: 'sector_boundary', label: 'Sector Boundary', sortOrder: 4 },
+      { code: 'thematic', label: 'Thematic Layer', sortOrder: 5 },
     ],
   },
   {
@@ -397,32 +484,65 @@ export async function seed() {
     const lt = BASE_LOOKUPS[tIdx]!;
     const lookupTypeId = `018f3a5e-0002-7000-8000-${String(tIdx + 1).padStart(12, '0')}`;
 
-    await db
-      .insert(lookupType)
-      .values({
-        id: lookupTypeId,
-        key: lt.key,
-        name: lt.name,
-        module: lt.module,
-        isSystem: true,
-      })
-      .onConflictDoNothing({ target: lookupType.key });
-
     const existingType = await db
       .select({ id: lookupType.id })
       .from(lookupType)
       .where(eq(lookupType.key, lt.key))
       .limit(1);
-    const resolvedTypeId = existingType[0]?.id ?? lookupTypeId;
+
+    let resolvedTypeId: string;
+    if (existingType.length > 0 && existingType[0]) {
+      resolvedTypeId = existingType[0].id;
+    } else {
+      const existingId = await db
+        .select({ id: lookupType.id })
+        .from(lookupType)
+        .where(eq(lookupType.id, lookupTypeId))
+        .limit(1);
+
+      const finalTypeId = existingId.length > 0 ? crypto.randomUUID() : lookupTypeId;
+
+      const inserted = await db
+        .insert(lookupType)
+        .values({
+          id: finalTypeId,
+          key: lt.key,
+          name: lt.name,
+          module: lt.module,
+          isSystem: true,
+        })
+        .onConflictDoNothing({ target: lookupType.key })
+        .returning({ id: lookupType.id });
+
+      resolvedTypeId = inserted[0]?.id ?? finalTypeId;
+    }
 
     for (let vIdx = 0; vIdx < lt.values.length; vIdx++) {
       const val = lt.values[vIdx]!;
       const lookupValId = `018f3a5e-0003-7000-${String(tIdx + 1).padStart(4, '0')}-${String(vIdx + 1).padStart(12, '0')}`;
 
+      const existingVal = await db
+        .select({ id: lookupValue.id })
+        .from(lookupValue)
+        .where(and(eq(lookupValue.lookupTypeId, resolvedTypeId), eq(lookupValue.code, val.code)))
+        .limit(1);
+
+      if (existingVal.length > 0) {
+        continue;
+      }
+
+      const existingValId = await db
+        .select({ id: lookupValue.id })
+        .from(lookupValue)
+        .where(eq(lookupValue.id, lookupValId))
+        .limit(1);
+
+      const finalValId = existingValId.length > 0 ? crypto.randomUUID() : lookupValId;
+
       await db
         .insert(lookupValue)
         .values({
-          id: lookupValId,
+          id: finalValId,
           lookupTypeId: resolvedTypeId,
           code: val.code,
           label: val.label,
@@ -430,7 +550,7 @@ export async function seed() {
           isActive: true,
           metadata: 'metadata' in val ? (val.metadata as Record<string, unknown>) : null,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: [lookupValue.lookupTypeId, lookupValue.code] });
     }
   }
 

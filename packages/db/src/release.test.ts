@@ -99,20 +99,29 @@ describe('Database Release (release.ts)', () => {
         },
       );
 
-      process.env.APP_DB_PASSWORD = 'super_secret_app_pw';
+      const origAppDbPw = process.env.APP_DB_PASSWORD;
+      try {
+        process.env.APP_DB_PASSWORD = 'super_secret_app_pw';
 
-      await applyDatabaseGrants(mockSql as unknown as Parameters<typeof applyDatabaseGrants>[0], [
-        'core',
-        'slis',
-      ]);
+        await applyDatabaseGrants(mockSql as unknown as Parameters<typeof applyDatabaseGrants>[0], [
+          'core',
+          'slis',
+        ]);
 
-      expect(mockSql.unsafe).toHaveBeenCalled();
-      const allSql = executedSql.join('\n');
-      expect(allSql).toContain('CREATE ROLE idmis_app LOGIN');
-      expect(allSql).toContain("ALTER ROLE idmis_app WITH PASSWORD 'super_secret_app_pw'");
-      expect(allSql).toContain('GRANT USAGE ON SCHEMA "core" TO idmis_app');
-      expect(allSql).toContain('REVOKE ALL ON "core"."audit_log" FROM idmis_app');
-      expect(allSql).toContain('GRANT SELECT, INSERT ON "core"."audit_log" TO idmis_app');
+        expect(mockSql.unsafe).toHaveBeenCalled();
+        const allSql = executedSql.join('\n');
+        expect(allSql).toContain('CREATE ROLE idmis_app LOGIN');
+        expect(allSql).toContain("ALTER ROLE idmis_app WITH PASSWORD 'super_secret_app_pw'");
+        expect(allSql).toContain('GRANT USAGE ON SCHEMA "core" TO idmis_app');
+        expect(allSql).toContain('REVOKE ALL ON "core"."audit_log" FROM idmis_app');
+        expect(allSql).toContain('GRANT SELECT, INSERT ON "core"."audit_log" TO idmis_app');
+      } finally {
+        if (origAppDbPw === undefined) {
+          delete process.env.APP_DB_PASSWORD;
+        } else {
+          process.env.APP_DB_PASSWORD = origAppDbPw;
+        }
+      }
     });
   });
 });

@@ -13,6 +13,14 @@ export const RecordStreamFlowInputSchema = z.object({
 });
 export type RecordStreamFlowInput = z.infer<typeof RecordStreamFlowInputSchema>;
 
+export const UpdateStreamFlowInputSchema = z.object({
+  stationId: z.string().uuid().optional(),
+  readAt: z.iso.datetime().optional(),
+  value: FlowRateSchema.optional(),
+  unit: z.string().min(1).max(20).optional(),
+});
+export type UpdateStreamFlowInput = z.infer<typeof UpdateStreamFlowInputSchema>;
+
 export const StreamFlowReadingResponseSchema = SlisReviewableColumnsSchema.extend({
   schemeId: z.string().uuid(),
   stationId: z.string().uuid(),

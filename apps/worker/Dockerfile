@@ -36,6 +36,14 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV CHROMIUM_PATH=/usr/bin/chromium
+
+# Install chromium and fonts for headless PDF rendering (non-root execution)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    fonts-liberation \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace package manifests
 COPY --chown=node:node package.json pnpm-workspace.yaml ./

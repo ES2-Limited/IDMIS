@@ -34,6 +34,8 @@ services:
       - '9001:9001'
     volumes:
       - idmis-miniodata:/data
+    profiles:
+      - storage
 
   createbuckets:
     image: minio/mc:latest
@@ -46,6 +48,8 @@ services:
       /usr/bin/mc mb --ignore-existing myminio/idmis;
       exit 0;
       "
+    profiles:
+      - storage
 
 volumes:
   idmis-pgdata:

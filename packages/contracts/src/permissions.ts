@@ -40,6 +40,10 @@ export const permissions = {
   // Core: Outbox
   CORE_OUTBOX_MANAGE: 'core.outbox.manage',
 
+  // Core: Dashboard & Reports
+  DASHBOARD_VIEW: 'core.dashboard.view',
+  REPORT_GENERATE: 'core.report.generate',
+
   // SLIS: Farmers & Households
   SLIS_FARMER_READ: 'slis.farmer.read',
   SLIS_FARMER_CREATE: 'slis.farmer.create',
@@ -90,6 +94,18 @@ export const permissions = {
   ME_SURVEY_RESPOND: 'me.survey.respond',
   ME_INSTRUMENTS_MANAGE: 'me.instruments.manage',
   ME_ADOPTION_RECORD: 'me.adoption.record',
+
+  // BLIS: River Basins, Hydrology, Dams & Maps
+  BLIS_BASIN_READ: 'blis.basin.read',
+  BLIS_BASIN_MANAGE: 'blis.basin.manage',
+  BLIS_STATION_MANAGE: 'blis.station.manage',
+  BLIS_MEASUREMENT_READ: 'blis.measurement.read',
+  BLIS_MEASUREMENT_IMPORT: 'blis.measurement.import',
+  BLIS_DAM_MANAGE: 'blis.dam.manage',
+  BLIS_INSPECTION_RECORD: 'blis.inspection.record',
+  BLIS_INSPECTION_APPROVE: 'blis.inspection.approve',
+  BLIS_MAP_READ: 'blis.map.read',
+  BLIS_MAP_MANAGE: 'blis.map.manage',
 } as const;
 
 export type Permission = (typeof permissions)[keyof typeof permissions];
@@ -120,6 +136,8 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.CORE_IMPORT_RUN]: 'scoped',
   [permissions.CORE_AUDIT_READ]: 'global',
   [permissions.CORE_OUTBOX_MANAGE]: 'global',
+  [permissions.DASHBOARD_VIEW]: 'scoped',
+  [permissions.REPORT_GENERATE]: 'scoped',
 
   // SLIS permissions (all strictly scoped)
   [permissions.SLIS_FARMER_READ]: 'scoped',
@@ -159,4 +177,16 @@ export const permissionKinds: Record<Permission, PermissionKind> = {
   [permissions.ME_SURVEY_RESPOND]: 'scoped',
   [permissions.ME_INSTRUMENTS_MANAGE]: 'scoped',
   [permissions.ME_ADOPTION_RECORD]: 'scoped',
+
+  // BLIS permissions (all scoped)
+  [permissions.BLIS_BASIN_READ]: 'scoped',
+  [permissions.BLIS_BASIN_MANAGE]: 'scoped',
+  [permissions.BLIS_STATION_MANAGE]: 'scoped',
+  [permissions.BLIS_MEASUREMENT_READ]: 'scoped',
+  [permissions.BLIS_MEASUREMENT_IMPORT]: 'scoped',
+  [permissions.BLIS_DAM_MANAGE]: 'scoped',
+  [permissions.BLIS_INSPECTION_RECORD]: 'scoped',
+  [permissions.BLIS_INSPECTION_APPROVE]: 'scoped',
+  [permissions.BLIS_MAP_READ]: 'scoped',
+  [permissions.BLIS_MAP_MANAGE]: 'scoped',
 };

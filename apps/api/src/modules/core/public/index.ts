@@ -31,3 +31,6 @@ export * from '../repositories/import.repository';
 export * from '../imports/import-handler.interface';
 export * from '../imports/import-handler.registry';
 export * from '../imports/wua.handler';
+
+export * from '../services/report.service';
+export * from '../repositories/report.repository';

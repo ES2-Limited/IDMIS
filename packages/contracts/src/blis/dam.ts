@@ -156,62 +156,6 @@ export const ListDamsQuerySchema = PaginationQuerySchema.extend({
 });
 export type ListDamsQuery = z.infer<typeof ListDamsQuerySchema>;
 
-export const DamSafetyInspectionSchema = z.object({
-  id: z.string().uuid(),
-  damId: z.string().uuid(),
-  inspectedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  nextDueOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
-  hazardClassId: z.string().uuid().nullable().optional(),
-  specificHazards: z.string().nullable().optional(),
-  safetyContact: z.string().nullable().optional(),
-  staffOnSite: z.number().int().nullable().optional(),
-  staffQualifications: z.string().nullable().optional(),
-  safetyBudgetNgn: z.string().nullable().optional(),
-  meetsStandard: z.boolean().nullable().optional(),
-  status: InspectionStatusEnum,
-  submittedBy: z.string().uuid().nullable().optional(),
-  submittedAt: z.string().nullable().optional(),
-  approvedBy: z.string().uuid().nullable().optional(),
-  approvedAt: z.string().nullable().optional(),
-  returnedBy: z.string().uuid().nullable().optional(),
-  returnedAt: z.string().nullable().optional(),
-  returnComment: z.string().nullable().optional(),
-  createdAt: z.string(),
-  createdBy: z.string().uuid(),
-  updatedAt: z.string(),
-  updatedBy: z.string().uuid(),
-  version: z.number().int().positive(),
-  importBatchId: z.string().uuid().nullable().optional(),
-});
-export type DamSafetyInspection = z.infer<typeof DamSafetyInspectionSchema>;
-
-export const CreateDamSafetyInspectionInputSchema = z.object({
-  damId: z.string().uuid(),
-  inspectedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  nextDueOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  hazardClassId: z.string().uuid().optional(),
-  specificHazards: z.string().optional(),
-  safetyContact: z.string().optional(),
-  staffOnSite: z.number().int().optional(),
-  staffQualifications: z.string().optional(),
-  safetyBudgetNgn: z.string().optional(),
-  meetsStandard: z.boolean().optional(),
-});
-export type CreateDamSafetyInspectionInput = z.infer<typeof CreateDamSafetyInspectionInputSchema>;
-
-export const UpdateDamSafetyInspectionInputSchema =
-  CreateDamSafetyInspectionInputSchema.partial().extend({
-    version: z.number().int().positive(),
-  });
-export type UpdateDamSafetyInspectionInput = z.infer<typeof UpdateDamSafetyInspectionInputSchema>;
-
 export const DamComponentConditionSchema = z.object({
   inspectionId: z.string().uuid(),
   component: DamComponentEnum,
@@ -229,3 +173,97 @@ export const UpsertDamComponentConditionInputSchema = z.object({
 export type UpsertDamComponentConditionInput = z.infer<
   typeof UpsertDamComponentConditionInputSchema
 >;
+
+export const DamComponentInputSchema = z.object({
+  component: DamComponentEnum,
+  ratingId: z.string().uuid(),
+  notes: z.string().optional(),
+});
+export type DamComponentInput = z.infer<typeof DamComponentInputSchema>;
+
+export const CreateInspectionComponentInputSchema = DamComponentInputSchema;
+export type CreateInspectionComponentInput = DamComponentInput;
+
+export const DamSafetyInspectionSchema = z.object({
+  id: z.string().uuid(),
+  damId: z.string().uuid(),
+  inspectedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  nextDueOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  hazardClassId: z.string().uuid().nullable().optional(),
+  specificHazards: z.string().nullable().optional(),
+  safetyContact: z.string().nullable().optional(),
+  staffOnSite: z.number().int().nullable().optional(),
+  staffQualifications: z.string().nullable().optional(),
+  safetyBudgetNgn: z.string().nullable().optional(),
+  meetsStandard: z.boolean().nullable().optional(),
+  status: InspectionStatusEnum.default('submitted'),
+  submittedBy: z.string().uuid().nullable().optional(),
+  submittedAt: z.string().nullable().optional(),
+  approvedBy: z.string().uuid().nullable().optional(),
+  approvedAt: z.string().nullable().optional(),
+  returnedBy: z.string().uuid().nullable().optional(),
+  returnedAt: z.string().nullable().optional(),
+  returnComment: z.string().nullable().optional(),
+  deviceId: z.string().uuid().nullable().optional(),
+  importBatchId: z.string().uuid().nullable().optional(),
+  createdAt: z.string(),
+  createdBy: z.string().uuid(),
+  updatedAt: z.string(),
+  updatedBy: z.string().uuid(),
+  version: z.number().int().positive(),
+  components: z.array(DamComponentConditionSchema).optional(),
+});
+export type DamSafetyInspection = z.infer<typeof DamSafetyInspectionSchema>;
+
+export const CreateDamSafetyInspectionInputSchema = z.object({
+  damId: z.string().uuid(),
+  inspectedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  nextDueOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  hazardClassId: z.string().uuid().optional(),
+  specificHazards: z.string().optional(),
+  safetyContact: z.string().optional(),
+  staffOnSite: z.number().int().optional(),
+  staffQualifications: z.string().optional(),
+  safetyBudgetNgn: z.string().optional(),
+  meetsStandard: z.boolean().optional(),
+  components: z.array(DamComponentInputSchema).optional(),
+});
+export type CreateDamSafetyInspectionInput = z.infer<typeof CreateDamSafetyInspectionInputSchema>;
+
+export const UpdateDamSafetyInspectionInputSchema = CreateDamSafetyInspectionInputSchema.partial()
+  .omit({ damId: true })
+  .extend({
+    version: z.number().int().positive(),
+  });
+export type UpdateDamSafetyInspectionInput = z.infer<typeof UpdateDamSafetyInspectionInputSchema>;
+
+export const ReturnDamInspectionInputSchema = z.object({
+  comment: z.string().min(1, 'Return comment is required'),
+});
+export type ReturnDamInspectionInput = z.infer<typeof ReturnDamInspectionInputSchema>;
+
+export const ListDamInspectionsQuerySchema = PaginationQuerySchema.extend({
+  damId: z.string().uuid().optional(),
+  status: InspectionStatusEnum.optional(),
+});
+export type ListDamInspectionsQuery = z.infer<typeof ListDamInspectionsQuerySchema>;
+
+export const MvDamStatusSchema = z.object({
+  damId: z.string().uuid(),
+  inspectionId: z.string().uuid(),
+  inspectedOn: z.string(),
+  meetsStandard: z.boolean(),
+  hazardClassId: z.string().uuid().nullable().optional(),
+  hazardClass: z.string().nullable().optional(),
+  nextDueOn: z.string().nullable().optional(),
+  isOverdue: z.boolean(),
+  approvedAt: z.string(),
+});
+export type MvDamStatus = z.infer<typeof MvDamStatusSchema>;

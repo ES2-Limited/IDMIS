@@ -6,7 +6,9 @@ import {
   Logger,
   Inject,
   forwardRef,
+  type OnModuleDestroy,
 } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import {
@@ -16,7 +18,18 @@ import {
   type ImportRowStatus,
   type ImportProgressMessage,
 } from '@idmis/contracts';
-import { db, organisationState, file, importRow, outboxEvent, eq, and, isNull } from '@idmis/db';
+import {
+  db,
+  organisationState,
+  file,
+  importRow,
+  outboxEvent,
+  eq,
+  and,
+  isNull,
+  sql,
+} from '@idmis/db';
+import { resolveUserAuthz } from '@idmis/db/authz';
 import { ImportRepository } from '../repositories/import.repository';
 import { ImportTemplateService } from './import-template.service';
 import { ImportHandlerRegistry } from '../imports/import-handler.registry';
@@ -30,9 +43,10 @@ export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 export const MAX_IMPORT_ROWS = 50000;
 
 @Injectable()
-export class ImportService {
+export class ImportService implements OnModuleDestroy {
   private readonly logger = new Logger(ImportService.name);
   private readonly runningValidations = new Map<string, Promise<unknown>>();
+  private readonly measurementCommitQueue: Queue;
 
   constructor(
     private readonly importRepo: ImportRepository,
@@ -42,7 +56,33 @@ export class ImportService {
     private readonly redisService: RedisService,
     @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,
-  ) {}
+  ) {
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const queueName = process.env.BLIS_MEASUREMENT_COMMIT_QUEUE || 'blis-measurement-commit';
+    this.measurementCommitQueue = new Queue(queueName, {
+      connection: {
+        url: redisUrl,
+        family: 0,
+        lazyConnect: true,
+      },
+    });
+
+    this.measurementCommitQueue.on('error', (err) => {
+      this.logger.warn(`BullMQ measurement commit queue error: ${err.message}`);
+    });
+  }
+
+  async onModuleDestroy() {
+    try {
+      await this.measurementCommitQueue.close();
+    } catch {
+      // ignore clean exit
+    }
+  }
+
+  getMeasurementCommitQueue(): Queue {
+    return this.measurementCommitQueue;
+  }
 
   private getEmbeddedTemplateVersion(workbook: ExcelJS.Workbook): number | null {
     // 1. Check hidden _metadata worksheet
@@ -123,16 +163,28 @@ export class ImportService {
 
     const scope = authz.scopeFor(handler.permission);
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
+    const isBlis = input.dataset.startsWith('blis.');
+    const rbdaId = input.rbdaId ?? null;
 
     if (!scope.isNational && !baseScope.isNational) {
-      const hasStateAccess =
-        (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
-        (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
-      const hasSchemeAccess =
-        (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
-        (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
-      if (!hasStateAccess && !hasSchemeAccess) {
-        throw new ForbiddenException('Target location is outside your assigned scope');
+      if (isBlis) {
+        if (!rbdaId) {
+          throw new BadRequestException('rbdaId is required for BLIS imports');
+        }
+        const userRbdaIds = [...(scope.rbdaIds ?? []), ...(baseScope.rbdaIds ?? [])];
+        if (!userRbdaIds.includes(rbdaId)) {
+          throw new ForbiddenException('Target location is outside your assigned scope');
+        }
+      } else {
+        const hasStateAccess =
+          (derivedStateId && scope.stateIds && scope.stateIds.includes(derivedStateId)) ||
+          (derivedStateId && baseScope.stateIds && baseScope.stateIds.includes(derivedStateId));
+        const hasSchemeAccess =
+          (input.schemeId && scope.schemeIds && scope.schemeIds.includes(input.schemeId)) ||
+          (input.schemeId && baseScope.schemeIds && baseScope.schemeIds.includes(input.schemeId));
+        if (!hasStateAccess && !hasSchemeAccess) {
+          throw new ForbiddenException('Target location is outside your assigned scope');
+        }
       }
     }
 
@@ -145,6 +197,7 @@ export class ImportService {
             fileId: input.fileId,
             schemeId: input.schemeId,
             stateId: derivedStateId,
+            rbdaId,
             createdBy: authz.userId,
           },
           txDb,
@@ -162,6 +215,7 @@ export class ImportService {
             fileId: created.fileId,
             schemeId: created.schemeId,
             stateId: created.stateId,
+            rbdaId: created.rbdaId,
             uploadedBy: authz.userId,
           },
         });
@@ -198,6 +252,10 @@ export class ImportService {
       throw new NotFoundException(`Import batch ${batchId} not found`);
     }
 
+    if (batch.createdBy === authz.userId) {
+      return batch;
+    }
+
     const handler = this.registry.get(batch.dataset);
     const scope = handler
       ? authz.scopeFor(handler.permission)
@@ -205,13 +263,22 @@ export class ImportService {
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
 
     if (!scope.isNational && !baseScope.isNational) {
-      const matchState =
-        (batch.stateId && scope.stateIds?.includes(batch.stateId)) ||
-        (batch.stateId && baseScope.stateIds?.includes(batch.stateId));
-      const matchScheme =
-        (batch.schemeId && scope.schemeIds?.includes(batch.schemeId)) ||
-        (batch.schemeId && baseScope.schemeIds?.includes(batch.schemeId));
-      if (!matchState && !matchScheme) {
+      const matchRbda = Boolean(
+        batch.rbdaId &&
+        ((scope.rbdaIds && scope.rbdaIds.includes(batch.rbdaId)) ||
+          (baseScope.rbdaIds && baseScope.rbdaIds.includes(batch.rbdaId))),
+      );
+      const matchState = Boolean(
+        batch.stateId &&
+        ((scope.stateIds && scope.stateIds.includes(batch.stateId)) ||
+          (baseScope.stateIds && baseScope.stateIds.includes(batch.stateId))),
+      );
+      const matchScheme = Boolean(
+        batch.schemeId &&
+        ((scope.schemeIds && scope.schemeIds.includes(batch.schemeId)) ||
+          (baseScope.schemeIds && baseScope.schemeIds.includes(batch.schemeId))),
+      );
+      if (!matchRbda && !matchState && !matchScheme) {
         throw new NotFoundException(`Import batch ${batchId} not found`);
       }
     }
@@ -436,14 +503,23 @@ export class ImportService {
     let validCount = 0;
     let errorCount = 0;
 
-    // Scope for validation: National or batch state/scheme
-    const scope: import('@idmis/contracts').RequestScope = {
-      isNational: !batch.stateId && !batch.schemeId,
-      stateIds: batch.stateId ? [batch.stateId] : [],
-      rbdaIds: [],
-      schemeIds: batch.schemeId ? [batch.schemeId] : [],
-      sectorIds: [],
-    };
+    // Scope for validation: uploader authz scope or fallback
+    let scope: import('@idmis/contracts').RequestScope;
+    if (batch.createdBy) {
+      const uploaderAuthz = await resolveUserAuthz(db, batch.createdBy);
+      const handler = this.registry.get(batch.dataset);
+      scope = handler
+        ? uploaderAuthz.scopeFor(handler.permission)
+        : uploaderAuthz.scopeFor(permissions.CORE_IMPORT_RUN);
+    } else {
+      scope = {
+        isNational: !batch.stateId && !batch.schemeId,
+        stateIds: batch.stateId ? [batch.stateId] : [],
+        rbdaIds: [],
+        schemeIds: batch.schemeId ? [batch.schemeId] : [],
+        sectorIds: [],
+      };
+    }
 
     await runInTransaction(async (txDb) => {
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
@@ -602,10 +678,13 @@ export class ImportService {
           batch.schemeId ??
           null;
 
+        const rowRbdaId = (data.rbdaId as string | undefined) ?? batch.rbdaId ?? null;
+
+        const rbdaMatch = Boolean(rowRbdaId && commitScope.rbdaIds?.includes(rowRbdaId));
         const stateMatch = Boolean(rowStateId && commitScope.stateIds?.includes(rowStateId));
         const schemeMatch = Boolean(rowSchemeId && commitScope.schemeIds?.includes(rowSchemeId));
 
-        if (!stateMatch && !schemeMatch) {
+        if (!rbdaMatch && !stateMatch && !schemeMatch) {
           throw new ForbiddenException('Target location is outside your assigned scope');
         }
       }
@@ -619,6 +698,22 @@ export class ImportService {
       10,
       'Starting commit transaction',
     );
+
+    // If handler uses async commit (e.g. blis.measurement):
+    if (handler.isAsyncCommit) {
+      try {
+        await this.measurementCommitQueue.add(
+          'commit',
+          { batchId, userId: authz.userId },
+          { jobId: batchId },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Failed to enqueue BullMQ commit job for batch ${batchId}: ${(err as Error).message}`,
+        );
+      }
+      return this.importRepo.getBatchById(batchId);
+    }
 
     const validRows = await this.importRepo.listRows(batchId, {
       status: 'valid',
@@ -720,6 +815,64 @@ export class ImportService {
 
     await this.importRepo.updateBatch(batchId, { status: 'undoing' });
     await this.publishProgress(batchId, batch.dataset, 'undoing', 10, 'Starting undo operation');
+
+    if (handler.undoBatch) {
+      await runInTransaction(
+        async (txDb) => {
+          await handler.undoBatch!(batchId, authz, txDb);
+
+          await txDb.execute(sql`
+            UPDATE core.import_row
+            SET status = 'valid'
+            WHERE batch_id = ${batchId}::uuid AND status = 'committed';
+          `);
+
+          // Write outbox event
+          await txDb.insert(outboxEvent).values({
+            eventType: 'core.import.undone',
+            eventVersion: 1,
+            aggregateType: 'import_batch',
+            aggregateId: batchId,
+            payload: {
+              batchId,
+              dataset: batch.dataset,
+              status: 'undone',
+              undoneBy: authz.userId,
+            },
+          });
+
+          await this.importRepo.updateBatch(
+            batchId,
+            {
+              status: 'undone',
+              undoneAt: new Date().toISOString(),
+            },
+            batch.version,
+            txDb,
+          );
+        },
+        {
+          audit: {
+            action: 'revert',
+            entity: 'core.import_batch',
+            entityId: batchId,
+            stateId: batch.stateId ?? undefined,
+            actorType: 'user',
+            actorUserId: authz.userId,
+          },
+        },
+      );
+
+      await this.publishProgress(
+        batchId,
+        batch.dataset,
+        'undone',
+        100,
+        `Successfully undone batch`,
+      );
+
+      return this.importRepo.getBatchById(batchId);
+    }
 
     const committedRows = await this.importRepo.listRows(batchId, {
       status: 'committed',
