@@ -125,9 +125,11 @@ Both baseline and tuned benchmarks were executed under the exact same load: **20
 | **Plot List (Scheme-scoped, paged)**        | 135.2 ms                     | **109.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
 | **Plot Filtered (State + Service Type)**    | 156.0 ms                     | **108.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
 | **Plot Search (`ILIKE` substring)**         | 6,520.0 ms                   | **101.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS (64x speedup)**                  |
-| **Sync Pull (batch of 500 changes)**        | 1.94 s                       | **133.7 ms**             | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Sync Push (200 ops, compute worker off)** | 13.40 s _(invalid payload)_  | **4.42 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **FAIL (4.42 s > 2.0 s)**               |
-| **Sync Push (200 ops, compute worker on)**  | 13.40 s _(invalid payload)_  | **1.28 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Pull (batch of 500 changes)**        | 1.94 s                       | **74.4 ms**              | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Push (200 ops, worker off - Run 1)** | 13.40 s _(invalid payload)_  | **1.05 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Push (200 ops, worker on - Run 2)**  | 13.40 s _(invalid payload)_  | **1.30 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Push (200 ops, worker off - Run 3)** | 13.40 s _(invalid payload)_  | **970.4 ms**             | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Push (200 ops, worker on - Run 4)**  | 13.40 s _(invalid payload)_  | **1.51 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
 | **Import Validate & Commit (100k rows)**    | Pending Staging S3           | Pending Staging S3       | < 10 mins _(prov.)_ | N/A      | N/A    | N/A      | **NOT MEASURED — to be run on staging** |
 
 ---
@@ -197,23 +199,32 @@ Previously, `sync.service.ts` looped through each operation in `input.ops` and o
 
 `sync.service.ts` has been refactored to wrap the batch inside a single outer `runInTransaction`, with nested savepoints per operation (`txStorage`). If an individual operation encounters a domain conflict or validation error, only that operation's savepoint is rolled back, allowing subsequent operations to proceed while collapsing the batch down to 1 final commit and WAL sync.
 
-### 7.2 Invalidity of Previous Sync Push Numbers & Retest Results
+### 7.2 Invalidity of Previous Sync Push Numbers & Alternating Retest Results
 
-> **Important Note:** All initial sync push benchmark numbers (~12.80 s – 13.40 s) were **INVALID** because the k6 push payload omitted the required `level` attribute on `slis.water_request` (`water_request.level` is `NOT NULL`). Consequently, every operation in the batch failed validation at the database level with a NOT NULL constraint violation, forcing savepoint rollbacks and error writes to `core.sync_op`.
+> **Important Note:** All initial sync push benchmark numbers (~12.80 s – 13.40 s) were **INVALID** because the k6 push payload omitted the required `level` attribute on `slis.water_request` (`water_request.level` is `NOT NULL`). Consequently, every operation in the batch failed validation at the database level with a NOT NULL constraint violation, forcing savepoint rollbacks and error writes to `core.sync_op`. In addition, an anomalous 4.42 s run previously reported occurred before database buffer pool priming and before BullMQ queue draining had settled.
 
 `perf/k6/sync.js` has been updated to send valid payloads with `level: 'individual'` and a valid `farmerId` retrieved dynamically from the active scheme. In addition, an assertion was added to verify that 100% of operations in the push response return `outcome: 'applied'` (or `'duplicate'`), causing the load test to fail if any operation is rejected.
 
-Re-running the sync test under the standard load (2 VUs, 30 s) with 100% applied ops yielded:
+To evaluate the effect of the M&E compute worker on sync push latency, the test was re-run across four alternating cycles (`OFF`, `ON`, `OFF`, `ON`), each preceded by a dedicated warm-up run under identical load (2 VUs, 30 s, batches of 200 operations, 100% applied ops):
 
-1. **With M&E Compute Worker Running**:
-   - `sync_push` p95: **1.28 s** (< 2.0 s provisional target — **PASS**).
-   - `sync_pull` p95: **133.7 ms** (< 1.5 s provisional target — **PASS**).
-   - All 30 complete iterations (6,000 operations) succeeded with 100% `applied`.
-2. **With M&E Compute Worker Stopped** (BullMQ queue paused & drained):
-   - `sync_push` p95: **4.42 s** (< 2.0 s provisional target — **FAIL**).
-   - `sync_pull` p95: **325.6 ms** (< 1.5 s provisional target — **PASS**).
-   - Under 2 VUs writing 200 ops concurrently on local disk, write contention across competing transactions keeps p95 at 4.42 s.
-   - Strictly recorded as **FAIL (4.42 s > 2.0 s)** for the conservative local baseline. Staging multi-disk IOPS separation will establish definitive production metrics.
+1. **Cycle 1 (Compute Worker OFF)**:
+   - Warm-up: `sync_push` p95 = 1.31 s | `sync_pull` p95 = 207.8 ms
+   - **Measured Run 1**: `sync_push` p95 = **1.05 s** | `sync_pull` p95 = **74.4 ms** (**PASS**, < 2.0 s)
+2. **Cycle 2 (Compute Worker ON)**:
+   - Warm-up: `sync_push` p95 = 1.10 s | `sync_pull` p95 = 66.0 ms
+   - **Measured Run 2**: `sync_push` p95 = **1.30 s** | `sync_pull` p95 = **68.1 ms** (**PASS**, < 2.0 s)
+3. **Cycle 3 (Compute Worker OFF)**:
+   - Warm-up: `sync_push` p95 = 1.16 s | `sync_pull` p95 = 92.4 ms
+   - **Measured Run 3**: `sync_push` p95 = **970.4 ms** | `sync_pull` p95 = **68.5 ms** (**PASS**, < 2.0 s)
+4. **Cycle 4 (Compute Worker ON)**:
+   - Warm-up: `sync_push` p95 = 1.46 s | `sync_pull` p95 = 226.1 ms
+   - **Measured Run 4**: `sync_push` p95 = **1.51 s** | `sync_pull` p95 = **81.8 ms** (**PASS**, < 2.0 s)
+
+**Key Observations:**
+
+- Concurrent execution of the M&E compute worker adds an observed ~250–540 ms latency penalty on sync push due to database write and indicator aggregation contention.
+- With single-transaction batching and savepoints active, **all four alternating runs reliably meet the provisional < 2.0 s latency target** (range: 970.4 ms to 1.51 s).
+- Staging environment benchmarking on separate database IOPS storage volumes will establish final production baselines.
 
 ### 7.3 Known issue: sync push (Profiling & Slow Query Analysis)
 

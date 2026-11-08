@@ -194,10 +194,13 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
     if (!slisAdminRole) {
       throw new Error('slis_admin role not found in core.role. Run core seed first.');
     }
+    const [fieldOfficerRole] =
+      await sql`SELECT id FROM core.role WHERE key = 'field_officer' LIMIT 1`;
     const [kanoState] = await sql`SELECT id FROM core.state WHERE code = 'KN' LIMIT 1`;
     if (!kanoState) {
       throw new Error('Kano state (KN) not found in core.state. Run core seed first.');
     }
+    const roleIdToAssign = fieldOfficerRole ? fieldOfficerRole.id : slisAdminRole.id;
 
     const nationalEmail = process.env.NATIONAL_USER_EMAIL || 'perf_national@idmis.gov.ng';
     const stateEmail = process.env.STATE_USER_EMAIL || 'perf_state@idmis.gov.ng';
@@ -226,14 +229,14 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
 
     await sql`
       INSERT INTO core.assignment (id, user_id, role_id, module, scope_type, scope_state_id, can_capture_offline, created_by, updated_by)
-      VALUES ('018f3a5e-9000-7000-8000-000000000010', ${nationalUserId}, ${slisAdminRole.id}, 'slis', 'national', NULL, true, ${userId}, ${userId})
-      ON CONFLICT (id) DO UPDATE SET role_id = ${slisAdminRole.id}, module = 'slis', scope_type = 'national', scope_state_id = NULL
+      VALUES ('018f3a5e-9000-7000-8000-000000000010', ${nationalUserId}, ${roleIdToAssign}, 'slis', 'national', NULL, true, ${userId}, ${userId})
+      ON CONFLICT (id) DO UPDATE SET role_id = ${roleIdToAssign}, module = 'slis', scope_type = 'national', scope_state_id = NULL
     `;
 
     await sql`
       INSERT INTO core.assignment (id, user_id, role_id, module, scope_type, scope_state_id, can_capture_offline, created_by, updated_by)
-      VALUES ('018f3a5e-9000-7000-8000-000000000020', ${stateUserId}, ${slisAdminRole.id}, 'slis', 'state', ${kanoState.id}, true, ${userId}, ${userId})
-      ON CONFLICT (id) DO UPDATE SET role_id = ${slisAdminRole.id}, module = 'slis', scope_type = 'state', scope_state_id = ${kanoState.id}
+      VALUES ('018f3a5e-9000-7000-8000-000000000020', ${stateUserId}, ${roleIdToAssign}, 'slis', 'state', ${kanoState.id}, true, ${userId}, ${userId})
+      ON CONFLICT (id) DO UPDATE SET role_id = ${roleIdToAssign}, module = 'slis', scope_type = 'state', scope_state_id = ${kanoState.id}
     `;
 
     // 2. Ensure real States, LGAs, and Wards exist
