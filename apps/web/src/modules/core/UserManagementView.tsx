@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
   Search,
@@ -19,57 +18,44 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
-import { getApiClient } from '@idmis/api-client';
 import type { AppUserResponse, AssignmentResponse, CreateAppUserInput } from '@idmis/contracts';
 import { mockUsers, mockRoles } from '../../mocks/coreData';
 import { CreateUserDialog } from './CreateUserDialog';
 import { useToast } from '@idmis/ui';
+import { useUsers } from './hooks';
 
 type UserWithAssignments = AppUserResponse & { assignments?: AssignmentResponse[] };
 
 export function UserManagementView() {
-  const queryClient = useQueryClient();
   const toast = useToast();
   const [search, setSearch] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
-  // TanStack Query calling server via ApiClient
+  // Modular custom hook for Users
   const {
-    data: serverUsers,
+    users: serverUsers,
     isLoading,
-    isRefetching,
+    isFetching: isRefetching,
     refetch,
-  } = useQuery({
-    queryKey: ['core', 'users', statusFilter],
-    queryFn: async () => {
-      const client = getApiClient();
-      const res = await client.getUsers({
-        limit: 50,
-        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
-      });
-      return res.items as UserWithAssignments[];
-    },
-    retry: 1,
+    createUser,
+    isCreating,
+  } = useUsers({
+    limit: 50,
+    isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
   });
 
-  // Create User Mutation
-  const createUserMutation = useMutation({
-    mutationFn: async (data: CreateAppUserInput) => {
-      const client = getApiClient();
-      return client.createUser(data);
-    },
-    onSuccess: () => {
+  const handleCreateUser = async (data: CreateAppUserInput) => {
+    try {
+      await createUser(data);
       toast.success('User created successfully');
-      queryClient.invalidateQueries({ queryKey: ['core', 'users'] });
       setIsCreateOpen(false);
-    },
-    onError: (err: unknown) => {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create user on server';
       toast.error(msg);
-    },
-  });
+    }
+  };
 
   // Fallback to mock data if server is offline or empty during dev
   const activeUsers: UserWithAssignments[] =
@@ -91,10 +77,6 @@ export function UserManagementView() {
 
     return matchesSearch && matchesStatus && matchesRole;
   });
-
-  const handleCreateUser = (data: CreateAppUserInput) => {
-    createUserMutation.mutate(data);
-  };
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
@@ -346,7 +328,7 @@ export function UserManagementView() {
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onSubmitUser={handleCreateUser}
-        isLoading={createUserMutation.isPending}
+        isLoading={isCreating}
       />
     </div>
   );

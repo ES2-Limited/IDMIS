@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Search,
   Eye,
@@ -24,10 +23,10 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
-import { getApiClient } from '@idmis/api-client';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
+import { useFarmers } from './hooks';
 
 export interface FarmerRecord {
   id: string;
@@ -132,34 +131,26 @@ export function FarmersListView() {
   const [selectedFarmer, setSelectedFarmer] = React.useState<FarmerRecord | null>(null);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
 
-  // TanStack Query to fetch live farmers from server
-  const {
-    data: serverFarmers,
-    isLoading,
-    isRefetching,
-    refetch,
-  } = useQuery({
-    queryKey: ['slis', 'farmers', currentScope.id, statusFilter, genderFilter],
-    queryFn: async () => {
-      const client = getApiClient();
-      const serverStatus =
-        statusFilter === 'all'
-          ? undefined
-          : statusFilter === 'conflict'
-            ? 'returned'
-            : statusFilter === 'awaiting_review'
-              ? 'submitted'
-              : (statusFilter as 'draft' | 'submitted' | 'approved' | 'returned');
+  const serverStatus =
+    statusFilter === 'all'
+      ? undefined
+      : statusFilter === 'conflict'
+        ? ('returned' as const)
+        : statusFilter === 'awaiting_review'
+          ? ('submitted' as const)
+          : (statusFilter as 'draft' | 'submitted' | 'approved' | 'returned');
 
-      const res = await client.getFarmers({
-        limit: 50,
-        schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
-        status: serverStatus,
-        gender: genderFilter === 'all' ? undefined : (genderFilter as 'male' | 'female'),
-      });
-      return res.items;
-    },
-    retry: 1,
+  // Modular custom hook for Farmers
+  const {
+    farmers: serverFarmers,
+    isLoading,
+    isFetching: isRefetching,
+    refetch,
+  } = useFarmers({
+    limit: 50,
+    schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
+    status: serverStatus,
+    gender: genderFilter === 'all' ? undefined : (genderFilter as 'male' | 'female'),
   });
 
   // Map server response to UI record or fallback to mock
@@ -184,8 +175,14 @@ export function FarmersListView() {
               ? 'conflict'
               : (f.status as FarmerRecord['status']) || 'approved',
         householdCount: 1,
-        nin: f.identities?.find((i) => i.documentTypeId?.includes('nin'))?.numberLast4 || '—',
-        bvn: f.identities?.find((i) => i.documentTypeId?.includes('bvn'))?.numberLast4 || '—',
+        nin:
+          f.identities?.find((i: { documentTypeId?: string; numberLast4?: string }) =>
+            i.documentTypeId?.includes('nin'),
+          )?.numberLast4 || '—',
+        bvn:
+          f.identities?.find((i: { documentTypeId?: string; numberLast4?: string }) =>
+            i.documentTypeId?.includes('bvn'),
+          )?.numberLast4 || '—',
         allocatedPlots: [],
       }));
     }

@@ -1,7 +1,5 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getApiClient } from '@idmis/api-client';
-import { useAuth } from '../auth';
+import { useGeography } from '../modules/core/hooks';
 
 export type ScopeType = 'national' | 'state' | 'rbda' | 'scheme' | 'sector';
 
@@ -30,7 +28,6 @@ export const defaultScopes: ScopeSelection[] = [
 const ScopeContext = React.createContext<ScopeState | undefined>(undefined);
 
 export function ScopeProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
   const [currentScope, setCurrentScope] = React.useState<ScopeSelection>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -43,24 +40,15 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
     return defaultScopes[0];
   });
 
-  // Query live states from server via getApiClient only when authenticated
-  const { data: statesData, isLoading: isLoadingScopes } = useQuery({
-    queryKey: ['geography', 'states'],
-    queryFn: async () => {
-      const client = getApiClient();
-      return client.getStates();
-    },
-    enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 60, // 1 hour cache
-    retry: 1,
-  });
+  // Query live states from server via clean modular hook
+  const { states: statesData, isLoadingStates: isLoadingScopes } = useGeography();
 
   // Merge live server states into available scopes
   const availableScopes = React.useMemo(() => {
-    if (!statesData?.items || statesData.items.length === 0) {
+    if (!statesData || statesData.length === 0) {
       return defaultScopes;
     }
-    const serverStateScopes: ScopeSelection[] = statesData.items.map((s) => ({
+    const serverStateScopes: ScopeSelection[] = statesData.map((s) => ({
       type: 'state' as const,
       id: s.id,
       name: `${s.name} State`,

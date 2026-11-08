@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Compass, Search, ArrowUpRight, Users, Droplets, RefreshCw } from 'lucide-react';
 import {
   Button,
@@ -11,8 +10,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@idmis/ui';
-import { getApiClient } from '@idmis/api-client';
 import { useScope } from '../../shell/ScopeContext';
+import { useBasins } from './hooks';
 
 export interface BasinRecord {
   id: string;
@@ -234,24 +233,13 @@ export function BasinsListView() {
   const [search, setSearch] = React.useState('');
   const [selectedBasin, setSelectedBasin] = React.useState<BasinRecord | null>(null);
 
-  // TanStack Query to fetch live river basins from server
+  // Modular custom hook for Basins
   const {
-    data: serverBasins,
+    basins: serverBasins,
     isLoading,
-    isRefetching,
+    isFetching: isRefetching,
     refetch,
-  } = useQuery({
-    queryKey: ['blis', 'basins', currentScope.id],
-    queryFn: async () => {
-      const client = getApiClient();
-      const res = await client.getBasins({
-        page: 1,
-        limit: 50,
-      });
-      return res.items;
-    },
-    retry: 1,
-  });
+  } = useBasins();
 
   const basins: BasinRecord[] = React.useMemo(() => {
     if (serverBasins && serverBasins.length > 0) {
