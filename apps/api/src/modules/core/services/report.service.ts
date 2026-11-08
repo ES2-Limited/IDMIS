@@ -17,6 +17,8 @@ import {
   type ReportResponse,
   type ReportType,
   type ReportStatus,
+  type ListReportsQuery,
+  type ListReportsResponse,
 } from '@idmis/contracts';
 import { ReportRepository } from '../repositories/report.repository';
 import { OrganisationRepository } from '../repositories/organisation.repository';
@@ -195,6 +197,41 @@ export class ReportService implements OnModuleDestroy {
       errorMessage: job.errorMessage ?? null,
       createdAt: job.createdAt,
       completedAt: job.completedAt ?? null,
+    };
+  }
+
+  async listReports(
+    query: ListReportsQuery,
+    user: RequestUser,
+    authz: UserAuthz,
+  ): Promise<ListReportsResponse> {
+    if (!authz.can(permissions.REPORT_GENERATE)) {
+      throw new ForbiddenException('User lacks permission to access reports');
+    }
+
+    const { items, nextCursor, total, page, limit } = await this.reportRepo.listJobsForUser(
+      user.id,
+      query,
+    );
+
+    const reportResponses: ReportResponse[] = items.map((job) => ({
+      id: job.id,
+      type: job.type as ReportType,
+      params: (job.params as Record<string, unknown>) ?? {},
+      status: job.status as ReportStatus,
+      downloadUrl: null,
+      expiresAt: null,
+      errorMessage: job.errorMessage ?? null,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt ?? null,
+    }));
+
+    return {
+      items: reportResponses,
+      nextCursor,
+      total,
+      page,
+      limit,
     };
   }
 }

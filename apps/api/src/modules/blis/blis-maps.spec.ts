@@ -1140,6 +1140,72 @@ describe('Map Layers, Vector Tiles & Phase 4 Gate Test (BE-4.5)', () => {
     });
   });
 
+  describe('Map Layers Listing and Detail (BE-5.5 / Task 1.3)', () => {
+    it('lists map layers with id, name, type, basin, featureCount, createdAt', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/blis/map/layers',
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const items = res.json();
+      expect(Array.isArray(items)).toBe(true);
+      expect(items.length).toBeGreaterThan(0);
+      const item = items.find((l: { name: string }) => l.name === 'Hadejia Wetlands Catchment');
+      expect(item).toBeDefined();
+      expect(item.id).toBeDefined();
+      expect(item.name).toBe('Hadejia Wetlands Catchment');
+      expect(item.type).toBe('Catchment Boundary');
+      expect(item.basin).toBe("Hadejia-Jama'are Sub-Basin");
+      expect(item.featureCount).toBe(2);
+      expect(item.createdAt).toBeDefined();
+    });
+
+    it('rejects listing without permission with 403 Forbidden', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/blis/map/layers',
+        headers: { authorization: `Bearer ${noMapToken}` },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('retrieves map layer details by ID', async () => {
+      const listRes = await app.inject({
+        method: 'GET',
+        url: '/blis/map/layers',
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+      const items = listRes.json();
+      const targetLayer = items[0];
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/blis/map/layers/${targetLayer.id}`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const layer = res.json();
+      expect(layer.id).toBe(targetLayer.id);
+      expect(layer.name).toBe(targetLayer.name);
+      expect(layer.featureCount).toBeDefined();
+    });
+
+    it('returns 404 for non-existent layer ID', async () => {
+      const nonExistentId = crypto.randomUUID();
+      const res = await app.inject({
+        method: 'GET',
+        url: `/blis/map/layers/${nonExistentId}`,
+        headers: { authorization: `Bearer ${nationalToken}` },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
   // =========================================================================
   // Part 2: Shapefile Upload & Zip Security Hardening
   // =========================================================================

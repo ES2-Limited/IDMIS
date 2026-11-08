@@ -169,6 +169,13 @@
       "when": 1794144691977,
       "tag": "0023_slis_perf_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794170914010,
+      "tag": "0024_dam_inspection_change_log",
+      "breakpoints": true
     }
   ]
 }

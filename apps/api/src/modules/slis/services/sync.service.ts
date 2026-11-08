@@ -27,6 +27,8 @@ import { WaterRequestService } from './water-request.service';
 import { CropProductionService } from './crop-production.service';
 import { StreamFlowService } from './stream-flow.service';
 import { TrainingService } from './training.service';
+import { FeeService } from './fee.service';
+import { DamInspectionService } from '../../blis/public';
 import {
   SurveyService,
   SurveyRepository,
@@ -48,6 +50,8 @@ export class SyncService {
     private readonly cropProductionService: CropProductionService,
     private readonly streamFlowService: StreamFlowService,
     private readonly trainingService: TrainingService,
+    private readonly feeService: FeeService,
+    private readonly damInspectionService: DamInspectionService,
     private readonly surveyService: SurveyService,
     private readonly surveyRepo: SurveyRepository,
     private readonly surveyResponseRepo: SurveyResponseRepository,
@@ -555,6 +559,68 @@ export class SyncService {
             adoptedOn: (data.adoptedOn as string | undefined) ?? undefined,
             version: baseVersion,
           },
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+    }
+
+    if (entity === 'fee_collection') {
+      if (action === 'create') {
+        const res = await this.feeService.createCollection(
+          { ...data, id: recordId } as unknown as Parameters<
+            typeof this.feeService.createCollection
+          >[0],
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+      if (action === 'update') {
+        const res = await this.feeService.updateCollection(
+          recordId,
+          baseVersion,
+          data as unknown as Parameters<typeof this.feeService.updateCollection>[2],
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+    }
+
+    if (entity === 'dam_inspection' || entity === 'dam_safety_inspection') {
+      if (action === 'create') {
+        const res = await this.damInspectionService.create(
+          { ...data, id: recordId } as unknown as Parameters<
+            typeof this.damInspectionService.create
+          >[0],
+          authz,
+          actorUserId,
+        );
+        return res as unknown as Record<string, unknown> & {
+          version?: number;
+          schemeId?: string | null;
+          stateId?: string | null;
+        };
+      }
+      if (action === 'update') {
+        const res = await this.damInspectionService.update(
+          recordId,
+          baseVersion,
+          data as unknown as Parameters<typeof this.damInspectionService.update>[2],
           authz,
           actorUserId,
         );

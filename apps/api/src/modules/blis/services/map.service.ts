@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { mapLayer, basin, eq, and, isNull, inArray, sql } from '@idmis/db';
-import { permissions } from '@idmis/contracts';
+import { permissions, type ListMapLayersQuery } from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { MapRepository } from '../repositories/map.repository';
 import { extractAndValidateShapefileZip } from '../utils/shapefile.helper';
@@ -341,6 +341,20 @@ export class MapService {
     }
 
     return this.mapRepo.getVectorTile({ layer, z, x, y, authz });
+  }
+
+  async listLayers(query: ListMapLayersQuery, authz: UserAuthz) {
+    const scope = authz.scopeFor(permissions.BLIS_MAP_READ);
+    return this.mapRepo.listLayers(scope, query);
+  }
+
+  async getLayer(id: string, authz: UserAuthz) {
+    const scope = authz.scopeFor(permissions.BLIS_MAP_READ);
+    const layer = await this.mapRepo.findLayerById(id, scope);
+    if (!layer) {
+      throw new NotFoundException(`Map layer ${id} not found or outside user scope`);
+    }
+    return layer;
   }
 
   /**

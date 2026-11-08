@@ -56,6 +56,24 @@ export const ReportResponseSchema = z.object({
 });
 export type ReportResponse = z.infer<typeof ReportResponseSchema>;
 
+export const ListReportsQuerySchema = z.object({
+  cursor: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: ReportStatusEnum.optional(),
+  type: ReportTypeEnum.optional(),
+});
+export type ListReportsQuery = z.infer<typeof ListReportsQuerySchema>;
+
+export const ListReportsResponseSchema = z.object({
+  items: z.array(ReportResponseSchema),
+  nextCursor: z.string().uuid().nullable().optional(),
+  total: z.number().int().optional(),
+  page: z.number().int().optional(),
+  limit: z.number().int().optional(),
+});
+export type ListReportsResponse = z.infer<typeof ListReportsResponseSchema>;
+
 export function validateReportParams(
   type: 'scheme_report',
   params: Record<string, unknown>,

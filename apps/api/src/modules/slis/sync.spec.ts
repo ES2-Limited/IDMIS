@@ -24,12 +24,20 @@ import {
   syncQuarantine,
   ward,
   waterRequest,
+  season,
+  feeBilling,
+  feeCollection,
+  basin,
+  dam,
+  damSafetyInspection,
   SYSTEM_USER_ID,
   postgres,
   drizzle,
   migrate,
   setDatabaseUrl,
   eq,
+  and,
+  inArray,
 } from '@idmis/db';
 import * as schema from '@idmis/db';
 import { permissions } from '@idmis/contracts';
@@ -85,6 +93,11 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
   let schemeDataOfficerToken: string;
   let kanoSlisAdminToken: string;
   let testFarmerId: string;
+  let testSeasonId: string;
+  let testBillingId: string;
+  let testBasinId: string;
+  let testDamId: string;
+  const TEST_RBDA_ID = '018f3a5e-4000-7000-8000-000000000099';
 
   const validDeviceId = '018f3a5e-8000-7000-8000-000000000001';
   const expiredDeviceId = '018f3a5e-8000-7000-8000-000000000002';
@@ -226,6 +239,14 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       },
+      {
+        id: TEST_RBDA_ID,
+        type: 'rbda',
+        code: 'HJRBDA',
+        name: 'Hadejia-Jamaare RBDA',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
     ]);
 
     await testDb.insert(organisationState).values([
@@ -272,6 +293,8 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_CREATE },
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_WATER_REQUEST_READ },
       { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_REVIEW_SUBMIT },
+      { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.SLIS_FEE_RECORD },
+      { roleId: ROLE_FIELD_OFFICER_ID, permission: permissions.BLIS_INSPECTION_RECORD },
 
       // Scheme data officer: all above + conflict resolve + review approval
       { roleId: ROLE_SCHEME_DATA_OFFICER_ID, permission: permissions.SLIS_SYNC_PUSH },
@@ -302,6 +325,16 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
 
     // 5. Assignments (Scoped to Kano Scheme & State)
     await testDb.insert(assignment).values([
+      {
+        id: crypto.randomUUID(),
+        userId: FIELD_OFFICER_ID,
+        roleId: ROLE_FIELD_OFFICER_ID,
+        module: 'blis',
+        scopeType: 'rbda',
+        scopeOrgId: TEST_RBDA_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      },
       {
         id: crypto.randomUUID(),
         userId: FIELD_OFFICER_ID,
@@ -387,6 +420,37 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         offlineGrantUntil: grantExpired,
       },
     ]);
+
+    testSeasonId = crypto.randomUUID();
+    await testDb.insert(season).values({
+      id: testSeasonId,
+      schemeId: KANO_SCHEME_ID,
+      name: '2026 Dry Season',
+      startsOn: '2026-01-01',
+      endsOn: '2026-06-30',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    testBasinId = crypto.randomUUID();
+    testDamId = crypto.randomUUID();
+    await testDb.insert(basin).values({
+      id: testBasinId,
+      rbdaId: TEST_RBDA_ID,
+      name: 'Hadejia-Jamaare Basin',
+      code: 'HJB-SYNC-01',
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+    await testDb.insert(dam).values({
+      id: testDamId,
+      basinId: testBasinId,
+      name: 'Tiga Dam Sync Test',
+      code: 'DAM-TIGA-SYNC',
+      lgaId: KANO_LGA_ID,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
 
     // 7. Sessions & JWT tokens
     const sid1 = crypto.randomUUID();
@@ -578,6 +642,230 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         .where(eq(changeLog.recordId, testFarmerId));
       expect(clRows.length).toBeGreaterThan(0);
       expect(clRows[0]?.op).toBe('upsert');
+    });
+
+    it('applies fee_collection create and update via sync push with change_log and conflict checks', async () => {
+      testBillingId = crypto.randomUUID();
+      await testDb.insert(feeBilling).values({
+        id: testBillingId,
+        schemeId: KANO_SCHEME_ID,
+        seasonId: testSeasonId,
+        farmerId: testFarmerId,
+        amountNgn: '50000.00',
+        dueDate: '2026-06-01',
+        status: 'billed',
+        version: 1,
+        createdBy: FIELD_OFFICER_ID,
+        updatedBy: FIELD_OFFICER_ID,
+      });
+
+      const collectionOpId = crypto.randomUUID();
+      const collectionRecordId = crypto.randomUUID();
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: collectionOpId,
+              entity: 'fee_collection',
+              action: 'create',
+              recordId: collectionRecordId,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                seasonId: testSeasonId,
+                farmerId: testFarmerId,
+                billingId: testBillingId,
+                amountNgn: '15000.00',
+                paidOn: '2026-03-25',
+                fieldReceiptRef: 'FIELD-REC-001',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(pushRes.statusCode).toBe(201);
+      const pushBody = pushRes.json();
+      expect(pushBody.results[0]?.outcome).toBe('applied');
+      expect(pushBody.results[0]?.newVersion).toBe(1);
+
+      // Verify db row
+      const [col] = await testDb
+        .select()
+        .from(feeCollection)
+        .where(eq(feeCollection.id, collectionRecordId));
+      expect(col).toBeDefined();
+      expect(col?.amountNgn).toBe('15000.00');
+
+      // Verify change_log row
+      const clRows = await testDb
+        .select()
+        .from(changeLog)
+        .where(eq(changeLog.recordId, collectionRecordId));
+      expect(clRows.length).toBeGreaterThan(0);
+      expect(clRows[0]?.op).toBe('upsert');
+
+      // Update via sync push
+      const updateOpId = crypto.randomUUID();
+      const updateRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: updateOpId,
+              entity: 'fee_collection',
+              action: 'update',
+              recordId: collectionRecordId,
+              baseVersion: 1,
+              data: {
+                fieldReceiptRef: 'FIELD-REC-001-MOD',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(updateRes.statusCode).toBe(201);
+      const updateBody = updateRes.json();
+      expect(updateBody.results[0]?.outcome).toBe('applied');
+      expect(updateBody.results[0]?.newVersion).toBe(2);
+
+      // Stale update triggers conflict
+      const staleOpId = crypto.randomUUID();
+      const staleRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: staleOpId,
+              entity: 'fee_collection',
+              action: 'update',
+              recordId: collectionRecordId,
+              baseVersion: 1, // stale! current is 2
+              data: {
+                fieldReceiptRef: 'FIELD-REC-STALE',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(staleRes.statusCode).toBe(201);
+      const staleBody = staleRes.json();
+      expect(staleBody.results[0]?.outcome).toBe('conflict');
+    });
+
+    it('applies dam_inspection create and update via sync push with change_log and conflict checks', async () => {
+      const inspectionOpId = crypto.randomUUID();
+      const inspectionRecordId = crypto.randomUUID();
+      const pushRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: inspectionOpId,
+              entity: 'dam_inspection',
+              action: 'create',
+              recordId: inspectionRecordId,
+              baseVersion: 1,
+              data: {
+                damId: testDamId,
+                inspectedOn: '2026-04-10',
+                staffOnSite: 5,
+              },
+            },
+          ],
+        },
+      });
+
+      expect(pushRes.statusCode).toBe(201);
+      const pushBody = pushRes.json();
+      expect(pushBody.results[0]?.outcome).toBe('applied');
+      expect(pushBody.results[0]?.newVersion).toBe(1);
+
+      // Verify db row
+      const [insp] = await testDb
+        .select()
+        .from(damSafetyInspection)
+        .where(eq(damSafetyInspection.id, inspectionRecordId));
+      expect(insp).toBeDefined();
+      expect(insp?.damId).toBe(testDamId);
+
+      // Verify change_log row
+      const clRows = await testDb
+        .select()
+        .from(changeLog)
+        .where(eq(changeLog.recordId, inspectionRecordId));
+      expect(clRows.length).toBeGreaterThan(0);
+      expect(clRows[0]?.op).toBe('upsert');
+
+      // Update via sync push
+      const updateOpId = crypto.randomUUID();
+      const updateRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: updateOpId,
+              entity: 'dam_inspection',
+              action: 'update',
+              recordId: inspectionRecordId,
+              baseVersion: 1,
+              data: {
+                staffOnSite: 8,
+              },
+            },
+          ],
+        },
+      });
+
+      expect(updateRes.statusCode).toBe(201);
+      const updateBody = updateRes.json();
+      expect(updateBody.results[0]?.outcome).toBe('applied');
+      expect(updateBody.results[0]?.newVersion).toBe(2);
+
+      // Stale update triggers conflict
+      const staleOpId = crypto.randomUUID();
+      const staleRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: staleOpId,
+              entity: 'dam_inspection',
+              action: 'update',
+              recordId: inspectionRecordId,
+              baseVersion: 1, // stale! current is 2
+              data: {
+                staffOnSite: 99,
+              },
+            },
+          ],
+        },
+      });
+
+      expect(staleRes.statusCode).toBe(201);
+      const staleBody = staleRes.json();
+      expect(staleBody.results[0]?.outcome).toBe('conflict');
     });
 
     it('enforces idempotency: identical opId returns cached outcome without re-executing', async () => {
@@ -1708,6 +1996,212 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
         await clientA.end();
         await clientB.end();
       }
+    });
+  });
+
+  describe('BLIS Dam Safety Inspection Sync Pull Scoping', () => {
+    it("an RBDA user pulls only their basin's dam inspections; a user in another RBDA gets none", async () => {
+      // 1. Set up second RBDA with its own basin and dam
+      const otherRbdaId = crypto.randomUUID();
+      await testDb.insert(organisation).values({
+        id: otherRbdaId,
+        type: 'rbda',
+        code: `RBDA-OTHER-${Date.now().toString(36)}`,
+        name: 'Sokoto-Rima RBDA',
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      const otherBasinId = crypto.randomUUID();
+      await testDb.insert(basin).values({
+        id: otherBasinId,
+        rbdaId: otherRbdaId,
+        name: 'Sokoto Basin',
+        code: `BASIN-SOKOTO-${Date.now().toString(36)}`,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      const otherDamId = crypto.randomUUID();
+      await testDb.insert(dam).values({
+        id: otherDamId,
+        basinId: otherBasinId,
+        name: 'Bakolori Dam',
+        code: `DAM-BAKOLORI-${Date.now().toString(36)}`,
+        lgaId: KADUNA_LGA_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+
+      // 2. Insert dam inspections: one in TEST_RBDA_ID (via testDamId/testBasinId), one in otherRbdaId (via otherDamId/otherBasinId)
+      const inspection1Id = crypto.randomUUID();
+      const inspection2Id = crypto.randomUUID();
+
+      await testDb.insert(damSafetyInspection).values([
+        {
+          id: inspection1Id,
+          damId: testDamId, // Under TEST_RBDA_ID
+          inspectedOn: '2026-04-01',
+          meetsStandard: true,
+          status: 'submitted',
+          version: 1,
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        },
+        {
+          id: inspection2Id,
+          damId: otherDamId, // Under otherRbdaId
+          inspectedOn: '2026-04-02',
+          meetsStandard: false,
+          status: 'submitted',
+          version: 1,
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        },
+      ]);
+
+      // Verify trigger inserted them into change_log with scheme_id = NULL
+      const logRows = await testDb
+        .select()
+        .from(changeLog)
+        .where(
+          and(
+            eq(changeLog.entity, 'dam_safety_inspection'),
+            inArray(changeLog.recordId, [inspection1Id, inspection2Id]),
+          ),
+        );
+      expect(logRows).toHaveLength(2);
+      for (const row of logRows) {
+        expect(row.schemeId).toBeNull();
+      }
+      const log1 = logRows.find((r) => r.recordId === inspection1Id);
+      const log2 = logRows.find((r) => r.recordId === inspection2Id);
+      expect(log1?.basinId).toBe(testBasinId);
+      expect(log2?.basinId).toBe(otherBasinId);
+
+      // 3. User A with RBDA scope for TEST_RBDA_ID
+      const userAId = crypto.randomUUID();
+      const userADeviceId = crypto.randomUUID();
+      await testDb.insert(appUser).values({
+        id: userAId,
+        email: `rbda1-${Date.now()}@idmis.gov.ng`,
+        passwordHash: await argon2.hash('Password123!', { type: argon2.argon2id }),
+        fullName: 'RBDA 1 User',
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+      await testDb.insert(assignment).values({
+        id: crypto.randomUUID(),
+        userId: userAId,
+        roleId: ROLE_FIELD_OFFICER_ID,
+        module: 'slis',
+        scopeType: 'rbda',
+        scopeOrgId: TEST_RBDA_ID,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+      await testDb.insert(device).values({
+        id: userADeviceId,
+        installationId: crypto.randomUUID(),
+        userId: userAId,
+        label: 'RBDA 1 Device',
+        platform: 'android',
+        offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
+      });
+      const sidA = crypto.randomUUID();
+      await testDb.insert(session).values({
+        id: sidA,
+        familyId: crypto.randomUUID(),
+        userId: userAId,
+        refreshTokenHash: crypto.randomUUID(),
+        userAgent: 'test-agent',
+        ip: '127.0.0.1',
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      });
+      const tokenA = (await tokenService.createAccessToken(userAId, sidA)).accessToken;
+
+      // 4. User B with RBDA scope for otherRbdaId
+      const userBId = crypto.randomUUID();
+      const userBDeviceId = crypto.randomUUID();
+      await testDb.insert(appUser).values({
+        id: userBId,
+        email: `rbda2-${Date.now()}@idmis.gov.ng`,
+        passwordHash: await argon2.hash('Password123!', { type: argon2.argon2id }),
+        fullName: 'RBDA 2 User',
+        isActive: true,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+      await testDb.insert(assignment).values({
+        id: crypto.randomUUID(),
+        userId: userBId,
+        roleId: ROLE_FIELD_OFFICER_ID,
+        module: 'slis',
+        scopeType: 'rbda',
+        scopeOrgId: otherRbdaId,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      });
+      await testDb.insert(device).values({
+        id: userBDeviceId,
+        installationId: crypto.randomUUID(),
+        userId: userBId,
+        label: 'RBDA 2 Device',
+        platform: 'android',
+        offlineGrantUntil: new Date(Date.now() + 86400000).toISOString(),
+      });
+      const sidB = crypto.randomUUID();
+      await testDb.insert(session).values({
+        id: sidB,
+        familyId: crypto.randomUUID(),
+        userId: userBId,
+        refreshTokenHash: crypto.randomUUID(),
+        userAgent: 'test-agent',
+        ip: '127.0.0.1',
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      });
+      const tokenB = (await tokenService.createAccessToken(userBId, sidB)).accessToken;
+
+      // 5. User A pulls: must get inspection1, must NOT get inspection2
+      const resA = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${tokenA}`,
+          'x-device-id': userADeviceId,
+        },
+      });
+      expect(resA.statusCode).toBe(200);
+      const bodyA = resA.json();
+      const inspectionsA = bodyA.items.filter(
+        (i: { entity: string }) => i.entity === 'dam_safety_inspection',
+      );
+      const foundA1 = inspectionsA.find((i: { recordId: string }) => i.recordId === inspection1Id);
+      const foundA2 = inspectionsA.find((i: { recordId: string }) => i.recordId === inspection2Id);
+      expect(foundA1).toBeDefined();
+      expect(foundA1.schemeId).toBeNull();
+      expect(foundA2).toBeUndefined();
+
+      // 6. User B pulls: must get inspection2, must NOT get inspection1
+      const resB = await app.inject({
+        method: 'GET',
+        url: '/slis/sync/pull',
+        headers: {
+          authorization: `Bearer ${tokenB}`,
+          'x-device-id': userBDeviceId,
+        },
+      });
+      expect(resB.statusCode).toBe(200);
+      const bodyB = resB.json();
+      const inspectionsB = bodyB.items.filter(
+        (i: { entity: string }) => i.entity === 'dam_safety_inspection',
+      );
+      const foundB1 = inspectionsB.find((i: { recordId: string }) => i.recordId === inspection1Id);
+      const foundB2 = inspectionsB.find((i: { recordId: string }) => i.recordId === inspection2Id);
+      expect(foundB2).toBeDefined();
+      expect(foundB2.schemeId).toBeNull();
+      expect(foundB1).toBeUndefined();
     });
   });
 
