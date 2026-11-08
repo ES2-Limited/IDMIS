@@ -190,17 +190,16 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
       process.env.PERF_USER_PASSWORD_HASH ??
       (await (await import('argon2')).default.hash(perfPassword));
 
-    const [slisAdminRole] = await sql`SELECT id FROM core.role WHERE key = 'slis_admin' LIMIT 1`;
-    if (!slisAdminRole) {
-      throw new Error('slis_admin role not found in core.role. Run core seed first.');
-    }
     const [fieldOfficerRole] =
       await sql`SELECT id FROM core.role WHERE key = 'field_officer' LIMIT 1`;
+    if (!fieldOfficerRole) {
+      throw new Error('field_officer role not found in core.role. Run core seed first.');
+    }
     const [kanoState] = await sql`SELECT id FROM core.state WHERE code = 'KN' LIMIT 1`;
     if (!kanoState) {
       throw new Error('Kano state (KN) not found in core.state. Run core seed first.');
     }
-    const roleIdToAssign = fieldOfficerRole ? fieldOfficerRole.id : slisAdminRole.id;
+    const roleIdToAssign = fieldOfficerRole.id;
 
     const nationalEmail = process.env.NATIONAL_USER_EMAIL || 'perf_national@idmis.gov.ng';
     const stateEmail = process.env.STATE_USER_EMAIL || 'perf_state@idmis.gov.ng';
@@ -557,8 +556,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
 
     await sql`
       INSERT INTO core.assignment (id, user_id, role_id, module, scope_type, scope_org_id, can_capture_offline, created_by, updated_by)
-      VALUES ('018f3a5e-9000-7000-8000-000000000030', ${schemeUserId}, ${slisAdminRole.id}, 'slis', 'scheme', ${krisSchemeId}, true, ${userId}, ${userId})
-      ON CONFLICT (id) DO UPDATE SET role_id = ${slisAdminRole.id}, module = 'slis', scope_type = 'scheme', scope_org_id = ${krisSchemeId}
+      VALUES ('018f3a5e-9000-7000-8000-000000000030', ${schemeUserId}, ${roleIdToAssign}, 'slis', 'scheme', ${krisSchemeId}, true, ${userId}, ${userId})
+      ON CONFLICT (id) DO UPDATE SET role_id = ${roleIdToAssign}, module = 'slis', scope_type = 'scheme', scope_org_id = ${krisSchemeId}
     `;
 
     // 4. Check existing count for resumability
