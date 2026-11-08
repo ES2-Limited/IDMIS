@@ -81,4 +81,12 @@ describe('IdentityHashService (HMAC-SHA256)', () => {
         } as unknown as ApiEnv),
     ).toThrow('IDENTITY_HASH_KEY is required in production');
   });
+
+  it('returns false without throwing when verifying malformed or truncated stored hashes', () => {
+    const nin = '12345678901';
+    expect(service.verify(nin, '1:short')).toBe(false);
+    expect(service.verify(nin, '1:')).toBe(false);
+    expect(service.verify(nin, 'invalid_no_colon')).toBe(false);
+    expect(service.verify(nin, '999:aabbcc')).toBe(false);
+  });
 });

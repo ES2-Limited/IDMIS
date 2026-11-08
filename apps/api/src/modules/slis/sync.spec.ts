@@ -824,6 +824,313 @@ describe('SLIS Sync Server Engine (BE-2.6)', () => {
       expect(op).toBeDefined();
       expect(op?.outcome).toBe('rejected');
     });
+
+    it('batch with one invalid op: that op is rejected, all other ops commit in the same transaction', async () => {
+      const validFarmer1Id = crypto.randomUUID();
+      const validOp1Id = crypto.randomUUID();
+      const invalidFarmer2Id = crypto.randomUUID();
+      const invalidOp2Id = crypto.randomUUID();
+      const validFarmer3Id = crypto.randomUUID();
+      const validOp3Id = crypto.randomUUID();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: validOp1Id,
+              entity: 'farmer',
+              action: 'create',
+              recordId: validFarmer1Id,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-BATCH-V1',
+                wardId: KANO_WARD_ID,
+                firstName: 'ValidFirst',
+                lastName: 'Farmer',
+                gender: 'male',
+                phone: '08091112222',
+              },
+            },
+            {
+              opId: invalidOp2Id,
+              entity: 'farmer',
+              action: 'create',
+              recordId: invalidFarmer2Id,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-BATCH-INV',
+                wardId: KANO_WARD_ID,
+                firstName: 'InvalidSecond',
+                lastName: 'Farmer',
+                gender: 'unknown_gender', // Schema validation error
+                phone: '08092223333',
+              },
+            },
+            {
+              opId: validOp3Id,
+              entity: 'farmer',
+              action: 'create',
+              recordId: validFarmer3Id,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-BATCH-V3',
+                wardId: KANO_WARD_ID,
+                firstName: 'ValidThird',
+                lastName: 'Farmer',
+                gender: 'female',
+                phone: '08093334444',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.results).toHaveLength(3);
+      expect(body.results[0]?.outcome).toBe('applied');
+      expect(body.results[1]?.outcome).toBe('rejected');
+      expect(body.results[2]?.outcome).toBe('applied');
+
+      // Valid ops committed
+      const [f1] = await testDb.select().from(farmer).where(eq(farmer.id, validFarmer1Id));
+      expect(f1).toBeDefined();
+      expect(f1?.farmerCode).toBe('FARM-BATCH-V1');
+
+      const [f3] = await testDb.select().from(farmer).where(eq(farmer.id, validFarmer3Id));
+      expect(f3).toBeDefined();
+      expect(f3?.farmerCode).toBe('FARM-BATCH-V3');
+
+      // Invalid op rolled back via savepoint, logged in sync_op
+      const [f2] = await testDb.select().from(farmer).where(eq(farmer.id, invalidFarmer2Id));
+      expect(f2).toBeUndefined();
+
+      const [op2] = await testDb.select().from(syncOp).where(eq(syncOp.opId, invalidOp2Id));
+      expect(op2).toBeDefined();
+      expect(op2?.outcome).toBe('rejected');
+    });
+
+    it('the same batch sent twice: no duplicate rows (opId idempotency across batch)', async () => {
+      const idemFarmer1Id = crypto.randomUUID();
+      const idemOp1Id = crypto.randomUUID();
+      const idemFarmer2Id = crypto.randomUUID();
+      const idemOp2Id = crypto.randomUUID();
+
+      const payload = {
+        deviceId: validDeviceId,
+        ops: [
+          {
+            opId: idemOp1Id,
+            entity: 'farmer',
+            action: 'create',
+            recordId: idemFarmer1Id,
+            baseVersion: 1,
+            data: {
+              schemeId: KANO_SCHEME_ID,
+              farmerCode: 'FARM-IDEM-BATCH-1',
+              wardId: KANO_WARD_ID,
+              firstName: 'IdemOne',
+              lastName: 'Farmer',
+              gender: 'male',
+              phone: '08094445555',
+            },
+          },
+          {
+            opId: idemOp2Id,
+            entity: 'farmer',
+            action: 'create',
+            recordId: idemFarmer2Id,
+            baseVersion: 1,
+            data: {
+              schemeId: KANO_SCHEME_ID,
+              farmerCode: 'FARM-IDEM-BATCH-2',
+              wardId: KANO_WARD_ID,
+              firstName: 'IdemTwo',
+              lastName: 'Farmer',
+              gender: 'female',
+              phone: '08095556666',
+            },
+          },
+        ],
+      };
+
+      // First run: both applied
+      const res1 = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload,
+      });
+      expect(res1.statusCode).toBe(201);
+      const body1 = res1.json();
+      expect(body1.results[0]?.outcome).toBe('applied');
+      expect(body1.results[1]?.outcome).toBe('applied');
+
+      // Second run with exact same payload: returns cached outcomes, no duplicates
+      const res2 = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload,
+      });
+      expect(res2.statusCode).toBe(201);
+      const body2 = res2.json();
+      expect(body2.results[0]?.outcome).toBe('applied');
+      expect(body2.results[1]?.outcome).toBe('applied');
+
+      // Exactly 1 row in farmer table per record
+      const f1Rows = await testDb.select().from(farmer).where(eq(farmer.id, idemFarmer1Id));
+      expect(f1Rows).toHaveLength(1);
+
+      const f2Rows = await testDb.select().from(farmer).where(eq(farmer.id, idemFarmer2Id));
+      expect(f2Rows).toHaveLength(1);
+    });
+
+    it('a conflict in the middle of a batch: held as a conflict, the rest commit', async () => {
+      // 1. Pre-create a farmer and bump its version to 2
+      const existingFarmerId = crypto.randomUUID();
+      const initOpId = crypto.randomUUID();
+      await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: initOpId,
+              entity: 'farmer',
+              action: 'create',
+              recordId: existingFarmerId,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-CONF-TARGET',
+                wardId: KANO_WARD_ID,
+                firstName: 'ConflictTarget',
+                lastName: 'Initial',
+                gender: 'male',
+                phone: '08096667777',
+              },
+            },
+          ],
+        },
+      });
+
+      // Update farmer directly to version 2
+      await testDb
+        .update(farmer)
+        .set({ version: 2, lastName: 'ServerUpdated' })
+        .where(eq(farmer.id, existingFarmerId));
+
+      // 2. Push batch with 3 operations:
+      // Op 1: Create valid farmer A
+      // Op 2: Update existingFarmerId with stale baseVersion: 1 (triggers conflict)
+      // Op 3: Create valid farmer B
+      const farmerAId = crypto.randomUUID();
+      const opAId = crypto.randomUUID();
+      const conflictOpId = crypto.randomUUID();
+      const farmerBId = crypto.randomUUID();
+      const opBId = crypto.randomUUID();
+
+      const batchRes = await app.inject({
+        method: 'POST',
+        url: '/slis/sync/push',
+        headers: { authorization: `Bearer ${fieldOfficerToken}` },
+        payload: {
+          deviceId: validDeviceId,
+          ops: [
+            {
+              opId: opAId,
+              entity: 'farmer',
+              action: 'create',
+              recordId: farmerAId,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-BATCH-CONF-A',
+                wardId: KANO_WARD_ID,
+                firstName: 'BatchFarmerA',
+                lastName: 'Farmer',
+                gender: 'male',
+                phone: '08097778888',
+              },
+            },
+            {
+              opId: conflictOpId,
+              entity: 'farmer',
+              action: 'update',
+              recordId: existingFarmerId,
+              baseVersion: 1, // Stale! Server is at version 2
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-CONF-TARGET',
+                wardId: KANO_WARD_ID,
+                firstName: 'DeviceModified',
+                lastName: 'StaleUpdate',
+                gender: 'male',
+                phone: '08096667777',
+              },
+            },
+            {
+              opId: opBId,
+              entity: 'farmer',
+              action: 'create',
+              recordId: farmerBId,
+              baseVersion: 1,
+              data: {
+                schemeId: KANO_SCHEME_ID,
+                farmerCode: 'FARM-BATCH-CONF-B',
+                wardId: KANO_WARD_ID,
+                firstName: 'BatchFarmerB',
+                lastName: 'Farmer',
+                gender: 'female',
+                phone: '08098889999',
+              },
+            },
+          ],
+        },
+      });
+
+      expect(batchRes.statusCode).toBe(201);
+      const batchBody = batchRes.json();
+      expect(batchBody.results).toHaveLength(3);
+      expect(batchBody.results[0]?.outcome).toBe('applied');
+      expect(batchBody.results[1]?.outcome).toBe('conflict');
+      expect(batchBody.results[1]?.conflictId).toBeDefined();
+      expect(batchBody.results[2]?.outcome).toBe('applied');
+
+      // Farmer A committed
+      const [fA] = await testDb.select().from(farmer).where(eq(farmer.id, farmerAId));
+      expect(fA).toBeDefined();
+
+      // Farmer B committed
+      const [fB] = await testDb.select().from(farmer).where(eq(farmer.id, farmerBId));
+      expect(fB).toBeDefined();
+
+      // Conflict op is logged in sync_conflict and sync_op, target farmer preserved server state
+      const [targetFarmer] = await testDb
+        .select()
+        .from(farmer)
+        .where(eq(farmer.id, existingFarmerId));
+      expect(targetFarmer?.version).toBe(2);
+      expect(targetFarmer?.lastName).toBe('ServerUpdated');
+
+      const [conf] = await testDb
+        .select()
+        .from(syncConflict)
+        .where(eq(syncConflict.opId, conflictOpId));
+      expect(conf).toBeDefined();
+      expect(conf?.serverVersion).toBe(2);
+      expect(conf?.baseVersion).toBe(1);
+    });
   });
 
   describe('Concurrency & Conflict Resolution', () => {

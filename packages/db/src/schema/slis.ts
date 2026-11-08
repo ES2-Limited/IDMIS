@@ -133,10 +133,21 @@ export const farmer = slisSchema.table(
     check('farmer_gender_check', sql`"gender" IN ('female', 'male')`),
     uniqueIndex('farmer_scheme_code_unique').on(table.schemeId, table.farmerCode),
     index('farmer_scheme_id_idx').on(table.schemeId),
-    index('farmer_state_id_idx').on(table.stateId),
     index('farmer_ward_id_idx').on(table.wardId),
     index('farmer_phone_idx').on(table.phone),
     index('farmer_status_idx').on(table.status),
+    // Query: GET /farmers with scheme-scoped cursor pagination (scheme_id + status + id)
+    index('farmer_scheme_status_id_idx').on(table.schemeId, table.status, table.id),
+    // Query: GET /farmers with state-scoped cursor pagination (state_id + status + id)
+    index('farmer_state_status_id_idx').on(table.stateId, table.status, table.id),
+    // Query: GET /farmers?search=... trigram ILIKE search on farmer code, first name, last name, phone
+    index('farmer_search_trgm_idx').using(
+      'gin',
+      table.farmerCode.op('gin_trgm_ops'),
+      table.firstName.op('gin_trgm_ops'),
+      table.lastName.op('gin_trgm_ops'),
+      table.phone.op('gin_trgm_ops'),
+    ),
   ],
 );
 
@@ -224,8 +235,15 @@ export const plot = slisSchema.table(
     index('plot_scheme_id_idx').on(table.schemeId),
     index('plot_sector_id_idx').on(table.sectorId),
     index('plot_ward_id_idx').on(table.wardId),
-    index('plot_state_id_idx').on(table.stateId),
     index('plot_status_idx').on(table.status),
+    // Query: GET /plots with scheme-scoped cursor pagination (scheme_id + status + id)
+    index('plot_scheme_status_id_idx').on(table.schemeId, table.status, table.id),
+    // Query: GET /plots with state-scoped cursor pagination (state_id + status + id)
+    index('plot_state_status_id_idx').on(table.stateId, table.status, table.id),
+    // Query: GET /plots with state-scoped service_type filter and cursor pagination (state_id + service_type + id)
+    index('plot_state_service_type_id_idx').on(table.stateId, table.serviceType, table.id),
+    // Query: GET /plots?search=... trigram ILIKE search on plot code
+    index('plot_code_trgm_idx').using('gin', table.plotCode.op('gin_trgm_ops')),
   ],
 );
 
