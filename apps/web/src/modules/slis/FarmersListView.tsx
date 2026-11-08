@@ -1,5 +1,15 @@
 import * as React from 'react';
-import { Search, Eye, EyeOff, UploadCloud, ChevronRight, ShieldCheck, MapPin } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Search,
+  Eye,
+  EyeOff,
+  UploadCloud,
+  ChevronRight,
+  ShieldCheck,
+  MapPin,
+  RefreshCw,
+} from 'lucide-react';
 import {
   Button,
   Input,
@@ -14,6 +24,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
+import { getApiClient } from '@idmis/api-client';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
@@ -121,13 +132,73 @@ export function FarmersListView() {
   const [selectedFarmer, setSelectedFarmer] = React.useState<FarmerRecord | null>(null);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
 
+  // TanStack Query to fetch live farmers from server
+  const {
+    data: serverFarmers,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ['slis', 'farmers', currentScope.id, statusFilter, genderFilter],
+    queryFn: async () => {
+      const client = getApiClient();
+      const serverStatus =
+        statusFilter === 'all'
+          ? undefined
+          : statusFilter === 'conflict'
+            ? 'returned'
+            : statusFilter === 'awaiting_review'
+              ? 'submitted'
+              : (statusFilter as 'draft' | 'submitted' | 'approved' | 'returned');
+
+      const res = await client.getFarmers({
+        limit: 50,
+        schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
+        status: serverStatus,
+        gender: genderFilter === 'all' ? undefined : (genderFilter as 'male' | 'female'),
+      });
+      return res.items;
+    },
+    retry: 1,
+  });
+
+  // Map server response to UI record or fallback to mock
+  const activeFarmers: FarmerRecord[] = React.useMemo(() => {
+    if (serverFarmers && serverFarmers.length > 0) {
+      return serverFarmers.map((f) => ({
+        id: f.id,
+        farmerCode: f.farmerCode,
+        firstName: f.firstName,
+        lastName: f.lastName,
+        otherNames: f.otherNames || undefined,
+        gender: (f.gender as 'male' | 'female') || 'male',
+        birthYear: f.birthYear || 1980,
+        phone: f.phone || '—',
+        village: f.village || '—',
+        sectorName: f.sectorId ? `Sector ${f.sectorId.slice(-4)}` : 'Main Sector',
+        wuaName: f.unitWuaId ? `WUA ${f.unitWuaId.slice(-4)}` : 'Apex WUA',
+        status:
+          f.status === 'submitted'
+            ? 'awaiting_review'
+            : f.status === 'returned'
+              ? 'conflict'
+              : (f.status as FarmerRecord['status']) || 'approved',
+        householdCount: 1,
+        nin: f.identities?.find((i) => i.documentTypeId?.includes('nin'))?.numberLast4 || '—',
+        bvn: f.identities?.find((i) => i.documentTypeId?.includes('bvn'))?.numberLast4 || '—',
+        allocatedPlots: [],
+      }));
+    }
+    return mockFarmers;
+  }, [serverFarmers]);
+
   const maskIdentity = (val: string) => {
-    if (!val) return '—';
+    if (!val || val === '—') return '—';
     if (showUnmasked && canViewUnmasked) return val;
     return `••••••••${val.slice(-4)}`;
   };
 
-  const filtered = mockFarmers.filter((f) => {
+  const filtered = activeFarmers.filter((f) => {
     if (statusFilter !== 'all' && f.status !== statusFilter) return false;
     if (genderFilter !== 'all' && f.gender !== genderFilter) return false;
     if (!search) return true;
@@ -153,12 +224,25 @@ export function FarmersListView() {
             <span className="text-xs text-slate-400">·</span>
             <span className="text-xs text-slate-500 font-medium">SLIS Farmer Registry</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
             Farmers & Households
+            {isLoading && (
+              <RefreshCw className="h-4 w-4 animate-spin text-teal-600" aria-label="Loading..." />
+            )}
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="text-xs h-9 font-semibold text-slate-700"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           {canViewUnmasked && (
             <Button
               variant="outline"

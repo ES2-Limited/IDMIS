@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getApiClient } from '@idmis/api-client';
 
 export type ScopeType = 'national' | 'state' | 'rbda' | 'scheme' | 'sector';
 
@@ -12,6 +14,7 @@ export interface ScopeState {
   currentScope: ScopeSelection;
   setScope: (scope: ScopeSelection) => void;
   availableScopes: ScopeSelection[];
+  isLoadingScopes?: boolean;
 }
 
 export const defaultScopes: ScopeSelection[] = [
@@ -38,6 +41,35 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
     return defaultScopes[0];
   });
 
+  // Query live states from server via getApiClient
+  const { data: statesData, isLoading: isLoadingScopes } = useQuery({
+    queryKey: ['geography', 'states'],
+    queryFn: async () => {
+      const client = getApiClient();
+      return client.getStates();
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour cache
+    retry: 1,
+  });
+
+  // Merge live server states into available scopes
+  const availableScopes = React.useMemo(() => {
+    if (!statesData?.items || statesData.items.length === 0) {
+      return defaultScopes;
+    }
+    const serverStateScopes: ScopeSelection[] = statesData.items.map((s) => ({
+      type: 'state' as const,
+      id: s.id,
+      name: `${s.name} State`,
+    }));
+
+    return [
+      defaultScopes[0]!, // National
+      ...serverStateScopes,
+      ...defaultScopes.filter((s) => s.type === 'scheme'),
+    ];
+  }, [statesData]);
+
   const setScope = React.useCallback((scope: ScopeSelection) => {
     setCurrentScope(scope);
     if (typeof window !== 'undefined') {
@@ -50,7 +82,8 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentScope,
         setScope,
-        availableScopes: defaultScopes,
+        availableScopes,
+        isLoadingScopes,
       }}
     >
       {children}
