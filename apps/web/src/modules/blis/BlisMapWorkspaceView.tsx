@@ -28,6 +28,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useToast,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import {
@@ -262,6 +263,7 @@ const SEEDED_FEATURES: BlisFeature[] = [
 
 export function BlisMapWorkspaceView() {
   const { currentScope } = useScope();
+  const { info } = useToast();
 
   // Map view controls
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
@@ -853,10 +855,9 @@ export function BlisMapWorkspaceView() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      // Open complete feature specification
-                      alert(
-                        `Viewing complete specification for ${selectedFeature.name}:\n\n` +
-                          JSON.stringify(selectedFeature.details, null, 2),
+                      info(
+                        `${selectedFeature.name} Specifications`,
+                        `Basin: ${selectedFeature.basinName} · Code: ${selectedFeature.code} · Status: ${selectedFeature.status}`,
                       );
                     }}
                     className="text-xs font-bold gap-1 text-teal-800 border-teal-200 bg-teal-50/50 hover:bg-teal-100/60 cursor-pointer"

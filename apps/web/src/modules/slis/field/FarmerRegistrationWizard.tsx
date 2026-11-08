@@ -29,6 +29,7 @@ import {
   SelectContent,
   SelectItem,
   Badge,
+  useToast,
 } from '@idmis/ui';
 import { CreateFarmerInputSchema, type CreateFarmerInput, type SlisGender } from '@idmis/contracts';
 import { generateUuidV7, localDb, LocalStore, compressFieldPhoto } from '@idmis/sync';
@@ -59,6 +60,7 @@ const STORAGE_AUTOSAVE_KEY = 'idmis_offline_farmer_draft';
 export function FarmerRegistrationWizard() {
   const navigate = useNavigate();
   const { currentScope } = useScope();
+  const { success, error: toastError } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
 
   const [currentStep, setCurrentStep] = React.useState(1);
@@ -333,11 +335,16 @@ export function FarmerRegistrationWizard() {
       // Clear autosave draft
       localStorage.removeItem(STORAGE_AUTOSAVE_KEY);
 
+      success(
+        'Farmer Registered',
+        `${formData.firstName} ${formData.lastName} (${farmerCode}) queued for synchronization.`,
+      );
+
       // Navigate to field records view
       navigate({ to: '/field/records' });
     } catch (err) {
       console.error('Farmer registration error:', err);
-      alert(`Submission failed: ${String(err)}`);
+      toastError('Registration Failed', String(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -626,8 +633,12 @@ export function FarmerRegistrationWizard() {
                               latitude: parseFloat(pos.coords.latitude.toFixed(6)),
                               longitude: parseFloat(pos.coords.longitude.toFixed(6)),
                             }));
+                            success(
+                              'GPS Coordinates Acquired',
+                              `${pos.coords.latitude.toFixed(6)}° N, ${pos.coords.longitude.toFixed(6)}° E`,
+                            );
                           },
-                          (err) => alert(`GPS unavailable: ${err.message}`),
+                          (err) => toastError('GPS Unavailable', err.message),
                           { enableHighAccuracy: true },
                         );
                       }

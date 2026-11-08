@@ -55,7 +55,10 @@ export function PlotMappingView() {
   // Start walking boundary GPS stream
   const startWalking = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your device browser.');
+      toastError(
+        'Geolocation Unavailable',
+        'GPS position tracking is not supported by your device browser.',
+      );
       return;
     }
 

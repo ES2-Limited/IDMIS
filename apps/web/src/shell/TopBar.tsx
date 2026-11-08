@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { ScopePicker } from './ScopePicker';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { SyncDrawer } from './SyncDrawer';
 import { IconButton } from '@idmis/ui';
 import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -15,7 +16,8 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
   const { user, signOut } = useAuth();
-  const { syncState, pendingOpsCount, triggerSync } = useSync();
+  const { syncState, pendingOpsCount } = useSync();
+  const [syncDrawerOpen, setSyncDrawerOpen] = React.useState(false);
 
   const modules = [
     { id: 'core', label: 'Core Admin', path: '/core' },
@@ -84,9 +86,9 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         {/* Offline Sync Status & Manual Trigger */}
         <button
           type="button"
-          onClick={() => triggerSync()}
-          aria-label="Synchronize data with server"
-          title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}`}
+          onClick={() => setSyncDrawerOpen(true)}
+          aria-label="Open synchronization drawer"
+          title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}. Click to open details.`}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
             syncState === 'error'
               ? 'border-red-300 bg-red-50 text-red-800 shadow-2xs font-bold'
@@ -163,6 +165,9 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           </IconButton>
         </div>
       </div>
+
+      {/* Slide-out Offline Sync & Reconciliation Drawer */}
+      <SyncDrawer open={syncDrawerOpen} onOpenChange={setSyncDrawerOpen} />
     </header>
   );
 }
