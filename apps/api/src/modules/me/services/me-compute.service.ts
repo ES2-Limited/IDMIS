@@ -23,6 +23,7 @@ import { IndicatorValueRepository } from '../repositories/indicator-value.reposi
 import { IndicatorMatrixRepository } from '../repositories/indicator-matrix.repository';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { eventBus } from '../../../platform/events/event-bus';
+import { validateApiEnv } from '../../../platform/config/env';
 
 export function getQuarterPeriodEnd(year: number, quarter: number): string {
   switch (quarter) {
@@ -42,6 +43,7 @@ export function getQuarterPeriodEnd(year: number, quarter: number): string {
 export interface RunComputeOptions {
   year?: number;
   quarter?: number;
+  schemeId?: string;
 }
 
 interface ScopeTarget {
@@ -111,6 +113,7 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
           await this.runCompute({
             year: job.data?.year,
             quarter: job.data?.quarter,
+            schemeId: job.data?.schemeId,
           });
         },
         {
@@ -174,25 +177,48 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private getDebounceWindowMs(): number {
+    return validateApiEnv().ME_COMPUTE_DEBOUNCE_MS;
+  }
+
+  private async scheduleDebouncedJob(
+    jobId: string,
+    data: { schemeId?: string; year?: number; quarter?: number },
+    delayMs: number,
+  ) {
+    try {
+      await this.computeQueue.add('compute', data, {
+        jobId,
+        delay: delayMs,
+        removeOnComplete: true,
+        removeOnFail: 100,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to schedule debounced compute job ${jobId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
   /**
-   * Debounced recompute trigger (5 min debounce per scheme).
+   * Debounced recompute trigger.
+   * Collapses rapid event bursts into at most one scheme job and one global job per window.
    */
   async triggerRecompute(schemeId?: string, year?: number, quarter?: number) {
     this.lastTriggered = { schemeId, year, quarter };
-    const jobId = schemeId ? `debounce-scheme-${schemeId}` : 'debounce-global';
-    try {
-      await this.computeQueue.add(
-        'compute',
-        { schemeId, year, quarter },
-        {
-          jobId,
-          delay: 5 * 60 * 1000, // 5 min debounce
-          removeOnComplete: true,
-          removeOnFail: 100,
-        },
-      );
-    } catch (err) {
-      this.logger.warn(`Failed to schedule debounced compute: ${(err as Error).message}`);
+    const delay = this.getDebounceWindowMs();
+
+    if (schemeId) {
+      await Promise.all([
+        this.scheduleDebouncedJob(
+          `debounce-scheme-${schemeId}`,
+          { schemeId, year, quarter },
+          delay,
+        ),
+        this.scheduleDebouncedJob('debounce-global', { year, quarter }, delay),
+      ]);
+    } else {
+      await this.scheduleDebouncedJob('debounce-global', { year, quarter }, delay);
     }
   }
 
@@ -258,33 +284,45 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
 
     const scopeTargets: ScopeTarget[] = [];
 
-    // National
-    scopeTargets.push({
-      scopeType: 'national',
-      scopeStateId: null,
-      scopeOrgId: null,
-      irrigableAreaHa: nationalIrrigableArea > 0 ? nationalIrrigableArea.toFixed(4) : null,
-    });
-
-    // States
-    for (const st of states) {
-      const stateArea = stateIrrigableAreaMap.get(st.id) || 0;
+    if (options.schemeId) {
+      const sc = schemes.find((s) => s.id === options.schemeId);
+      if (sc) {
+        scopeTargets.push({
+          scopeType: 'scheme',
+          scopeStateId: sc.stateId ?? null,
+          scopeOrgId: sc.id,
+          irrigableAreaHa: sc.irrigableAreaHa ?? null,
+        });
+      }
+    } else {
+      // National
       scopeTargets.push({
-        scopeType: 'state',
-        scopeStateId: st.id,
+        scopeType: 'national',
+        scopeStateId: null,
         scopeOrgId: null,
-        irrigableAreaHa: stateArea > 0 ? stateArea.toFixed(4) : null,
+        irrigableAreaHa: nationalIrrigableArea > 0 ? nationalIrrigableArea.toFixed(4) : null,
       });
-    }
 
-    // Schemes
-    for (const sc of schemes) {
-      scopeTargets.push({
-        scopeType: 'scheme',
-        scopeStateId: sc.stateId ?? null,
-        scopeOrgId: sc.id,
-        irrigableAreaHa: sc.irrigableAreaHa ?? null,
-      });
+      // States
+      for (const st of states) {
+        const stateArea = stateIrrigableAreaMap.get(st.id) || 0;
+        scopeTargets.push({
+          scopeType: 'state',
+          scopeStateId: st.id,
+          scopeOrgId: null,
+          irrigableAreaHa: stateArea > 0 ? stateArea.toFixed(4) : null,
+        });
+      }
+
+      // Schemes
+      for (const sc of schemes) {
+        scopeTargets.push({
+          scopeType: 'scheme',
+          scopeStateId: sc.stateId ?? null,
+          scopeOrgId: sc.id,
+          irrigableAreaHa: sc.irrigableAreaHa ?? null,
+        });
+      }
     }
 
     let computedCount = 0;

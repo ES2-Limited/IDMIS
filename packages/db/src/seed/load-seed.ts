@@ -631,6 +631,7 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
 
         const areaHa = (0.5 + (i % 45) * 0.1).toFixed(4);
         const serviceType = i % 3 === 0 ? 'new' : i % 3 === 1 ? 'improved' : 'none';
+        const nowIso = new Date().toISOString();
 
         farmersBatch.push({
           id: fId,
@@ -645,6 +646,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
           birth_year: 1960 + (i % 45),
           phone,
           status: 'approved',
+          approved_at: nowIso,
+          approved_by: userId,
           location: sql`ST_SetSRID(ST_Point(${lon}, ${lat}), 4326)`,
           created_by: userId,
           updated_by: userId,
@@ -672,6 +675,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
           area_ha: areaHa,
           service_type: serviceType,
           status: 'approved',
+          approved_at: nowIso,
+          approved_by: userId,
           geom: sql`ST_SetSRID(ST_Buffer(ST_Point(${lon}, ${lat}), 0.0005), 4326)`,
           gps_accuracy_m: '2.50',
           created_by: userId,
@@ -683,6 +688,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
           plot_id: pId,
           farmer_id: fId,
           status: 'approved',
+          approved_at: nowIso,
+          approved_by: userId,
           created_by: userId,
           updated_by: userId,
         });
@@ -705,6 +712,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
             'birth_year',
             'phone',
             'status',
+            'approved_at',
+            'approved_by',
             'location',
             'created_by',
             'updated_by',
@@ -738,6 +747,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
             'area_ha',
             'service_type',
             'status',
+            'approved_at',
+            'approved_by',
             'geom',
             'gps_accuracy_m',
             'created_by',
@@ -752,6 +763,8 @@ export async function runLoadSeed(options: LoadSeedOptions = {}): Promise<LoadSe
             'plot_id',
             'farmer_id',
             'status',
+            'approved_at',
+            'approved_by',
             'created_by',
             'updated_by',
           )}

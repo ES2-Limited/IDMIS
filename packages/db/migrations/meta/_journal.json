@@ -176,6 +176,13 @@
       "when": 1794170914010,
       "tag": "0024_dam_inspection_change_log",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794207611406,
+      "tag": "0025_me_compute_storm_indexes",
+      "breakpoints": true
     }
   ]
 }
