@@ -43,6 +43,9 @@ import { ImportService } from './services/import.service';
 import { ImportController } from './controllers/import.controller';
 import { ImportHandlerRegistry } from './imports/import-handler.registry';
 import { WuaImportHandler } from './imports/wua.handler';
+import { LgaImportHandler } from './imports/lga.handler';
+import { WardImportHandler } from './imports/ward.handler';
+import { OrganisationImportHandler } from './imports/organisation.handler';
 
 import { ReportRepository } from './repositories/report.repository';
 import { ReportService } from './services/report.service';
@@ -88,6 +91,9 @@ import { ReportController } from './controllers/report.controller';
     ImportService,
     ImportHandlerRegistry,
     WuaImportHandler,
+    LgaImportHandler,
+    WardImportHandler,
+    OrganisationImportHandler,
     ReportRepository,
     ReportService,
   ],
@@ -116,6 +122,9 @@ import { ReportController } from './controllers/report.controller';
     ImportService,
     ImportHandlerRegistry,
     WuaImportHandler,
+    LgaImportHandler,
+    WardImportHandler,
+    OrganisationImportHandler,
     ReportRepository,
     ReportService,
     StorageModule,
@@ -125,9 +134,15 @@ export class CoreModule implements OnModuleInit {
   constructor(
     private readonly registry: ImportHandlerRegistry,
     private readonly wuaHandler: WuaImportHandler,
+    private readonly lgaHandler: LgaImportHandler,
+    private readonly wardHandler: WardImportHandler,
+    private readonly organisationHandler: OrganisationImportHandler,
   ) {}
 
   onModuleInit() {
     this.registry.register(this.wuaHandler);
+    this.registry.register(this.lgaHandler);
+    this.registry.register(this.wardHandler);
+    this.registry.register(this.organisationHandler);
   }
 }

@@ -161,6 +161,10 @@ export class ImportService implements OnModuleDestroy {
       derivedStateId = link?.stateId ?? null;
     }
 
+    if (handler.permission && !authz.can(handler.permission)) {
+      throw new ForbiddenException(`Missing required permission: ${handler.permission}`);
+    }
+
     const scope = authz.scopeFor(handler.permission);
     const baseScope = authz.scopeFor(permissions.CORE_IMPORT_RUN);
     const isBlis = input.dataset.startsWith('blis.');
@@ -884,7 +888,9 @@ export class ImportService implements OnModuleDestroy {
 
     await runInTransaction(
       async (txDb) => {
-        for (const row of committedRows) {
+        // Reverse order so child/dependent entities are undone before parents
+        const rowsToUndo = [...committedRows].reverse();
+        for (const row of rowsToUndo) {
           if (!row.targetEntityId) continue;
 
           const res = await handler.undoRow(

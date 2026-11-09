@@ -1,12 +1,21 @@
 import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import ExcelJS from 'exceljs';
-import { WUA_IMPORT_DEFINITION, type ImportDatasetDefinition } from '@idmis/contracts';
+import {
+  WUA_IMPORT_DEFINITION,
+  LGA_IMPORT_DEFINITION,
+  WARD_IMPORT_DEFINITION,
+  ORGANISATION_IMPORT_DEFINITION,
+  type ImportDatasetDefinition,
+} from '@idmis/contracts';
 import { ImportHandlerRegistry } from '../imports/import-handler.registry';
 
 @Injectable()
 export class ImportTemplateService {
   private readonly fallbackDefinitions: Record<string, ImportDatasetDefinition> = {
     wua: WUA_IMPORT_DEFINITION,
+    lga: LGA_IMPORT_DEFINITION,
+    ward: WARD_IMPORT_DEFINITION,
+    organisation: ORGANISATION_IMPORT_DEFINITION,
   };
 
   constructor(
