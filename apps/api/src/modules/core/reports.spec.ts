@@ -475,4 +475,96 @@ describe('PDF Reports API Endpoints (BE-5.2)', () => {
       expect(res.statusCode).toBe(404);
     });
   });
+
+  describe('GET /reports (Paged User Reports)', () => {
+    it('returns caller own report jobs only, ordered newest first', async () => {
+      const olderId = crypto.randomUUID();
+      const newerId = crypto.randomUUID();
+      const otherUserIdReportId = crypto.randomUUID();
+
+      await testDb.insert(reportJob).values([
+        {
+          id: olderId,
+          userId: kanoUserId,
+          type: 'scheme_report',
+          params: { schemeId: KANO_SCHEME_ID },
+          status: 'completed',
+          createdAt: '2026-01-01T10:00:00.000Z',
+          updatedAt: '2026-01-01T10:00:00.000Z',
+        },
+        {
+          id: newerId,
+          userId: kanoUserId,
+          type: 'scheme_report',
+          params: { schemeId: KANO_SCHEME_ID },
+          status: 'queued',
+          createdAt: '2026-01-02T10:00:00.000Z',
+          updatedAt: '2026-01-02T10:00:00.000Z',
+        },
+        {
+          id: otherUserIdReportId,
+          userId: otherUserId,
+          type: 'dam_safety_summary',
+          params: {},
+          status: 'completed',
+          createdAt: '2026-01-03T10:00:00.000Z',
+          updatedAt: '2026-01-03T10:00:00.000Z',
+        },
+      ]);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/reports',
+        headers: { authorization: `Bearer ${kanoUserToken}` },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(Array.isArray(body.items)).toBe(true);
+
+      const returnedIds = body.items.map((item: { id: string }) => item.id);
+      expect(returnedIds).toContain(newerId);
+      expect(returnedIds).toContain(olderId);
+      expect(returnedIds).not.toContain(otherUserIdReportId);
+
+      // Verify newest first: newerId comes before olderId
+      const newerIndex = returnedIds.indexOf(newerId);
+      const olderIndex = returnedIds.indexOf(olderId);
+      expect(newerIndex).toBeLessThan(olderIndex);
+    });
+
+    it('supports cursor pagination and page limits', async () => {
+      const resPage1 = await app.inject({
+        method: 'GET',
+        url: '/reports?limit=1',
+        headers: { authorization: `Bearer ${kanoUserToken}` },
+      });
+
+      expect(resPage1.statusCode).toBe(200);
+      const body1 = resPage1.json();
+      expect(body1.items.length).toBe(1);
+      expect(body1.nextCursor).toBeDefined();
+
+      const resPage2 = await app.inject({
+        method: 'GET',
+        url: `/reports?limit=1&cursor=${body1.nextCursor}`,
+        headers: { authorization: `Bearer ${kanoUserToken}` },
+      });
+
+      expect(resPage2.statusCode).toBe(200);
+      const body2 = resPage2.json();
+      expect(body2.items.length).toBe(1);
+      expect(body2.items[0].id).not.toBe(body1.items[0].id);
+    });
+
+    it('returns 403 when user lacks REPORT_GENERATE permission', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/reports',
+        headers: { authorization: `Bearer ${noPermUserToken}` },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+  });
 });

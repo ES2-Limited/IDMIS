@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from '@idmis/db';
+import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from '@idmis/db';
 import {
   db,
   device,
@@ -22,6 +22,8 @@ import {
   surveyResponse,
   surveyAnswer,
   techAdoption,
+  damSafetyInspection,
+  basin,
 } from '@idmis/db';
 import { Injectable, Logger } from '@nestjs/common';
 import type {
@@ -57,6 +59,8 @@ export const SYNC_SUPPORTED_ENTITIES = new Set<string>([
   'survey_response',
   'survey_answer',
   'tech_adoption',
+  'dam_safety_inspection',
+  'dam_inspection',
 ]);
 
 @Injectable()
@@ -392,6 +396,13 @@ export class SyncRepository {
             .from(techAdoption)
             .where(inArray(techAdoption.id, ids))) as Array<Record<string, unknown>>;
           break;
+        case 'dam_safety_inspection':
+        case 'dam_inspection':
+          rows = (await txDb
+            .select()
+            .from(damSafetyInspection)
+            .where(inArray(damSafetyInspection.id, ids))) as Array<Record<string, unknown>>;
+          break;
         default:
           this.logger.error(`Unknown sync entity in fetchCurrentEntityRows: "${entity}"`);
           break;
@@ -447,12 +458,50 @@ export class SyncRepository {
     // Ordered by (xid, seq)
     const conditions: SQL[] = [sql`${changeLog.xid} < pg_snapshot_xmin(pg_current_snapshot())`];
 
-    const scopeCond = applyScope(scope, {
-      scheme: changeLog.schemeId,
-      state: changeLog.stateId,
-    });
-    if (scopeCond) {
-      conditions.push(scopeCond);
+    if (!scope.isNational) {
+      const scopeConditions: SQL[] = [];
+
+      // 1. SLIS / standard entities: scoped by schemeId or stateId
+      const slisConditions: SQL[] = [];
+      if (scope.schemeIds && scope.schemeIds.length > 0) {
+        slisConditions.push(inArray(changeLog.schemeId, scope.schemeIds));
+      }
+      if (scope.stateIds && scope.stateIds.length > 0) {
+        slisConditions.push(inArray(changeLog.stateId, scope.stateIds));
+      }
+      if (slisConditions.length > 0) {
+        scopeConditions.push(
+          and(sql`${changeLog.entity} != 'dam_safety_inspection'`, or(...slisConditions)!)!,
+        );
+      }
+
+      // 2. BLIS dam inspections: scoped by RBDA (via basin.rbda_id) or state
+      const damConditions: SQL[] = [];
+      if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+        damConditions.push(
+          inArray(
+            changeLog.basinId,
+            db
+              .select({ id: basin.id })
+              .from(basin)
+              .where(and(inArray(basin.rbdaId, scope.rbdaIds), isNull(basin.deletedAt))),
+          ),
+        );
+      }
+      if (scope.stateIds && scope.stateIds.length > 0) {
+        damConditions.push(inArray(changeLog.stateId, scope.stateIds));
+      }
+      if (damConditions.length > 0) {
+        scopeConditions.push(
+          and(sql`${changeLog.entity} = 'dam_safety_inspection'`, or(...damConditions)!)!,
+        );
+      }
+
+      if (scopeConditions.length === 0) {
+        conditions.push(sql`1 = 0`);
+      } else {
+        conditions.push(or(...scopeConditions)!);
+      }
     }
 
     if (cursor) {

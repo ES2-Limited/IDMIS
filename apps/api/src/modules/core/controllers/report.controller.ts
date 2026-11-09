@@ -7,13 +7,17 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   CreateReportInputSchema,
+  ListReportsQuerySchema,
   permissions,
   type CreateReportInput,
   type CreateReportResponse,
   type ReportResponse,
+  type ListReportsQuery,
+  type ListReportsResponse,
 } from '@idmis/contracts';
 import { ReportService } from '../services/report.service';
 import { Can, CurrentUser, CurrentAuthz, type UserAuthz } from '../../../platform/auth';
@@ -33,6 +37,16 @@ export class ReportController {
     @CurrentAuthz() authz: UserAuthz,
   ): Promise<CreateReportResponse> {
     return this.reportService.createReport(input, user, authz);
+  }
+
+  @Get()
+  @Can(permissions.REPORT_GENERATE)
+  async listReports(
+    @Query(new ZodValidationPipe(ListReportsQuerySchema)) query: ListReportsQuery,
+    @CurrentUser() user: RequestUser,
+    @CurrentAuthz() authz: UserAuthz,
+  ): Promise<ListReportsResponse> {
+    return this.reportService.listReports(query, user, authz);
   }
 
   @Get(':id')

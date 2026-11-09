@@ -23,6 +23,7 @@ import {
   RawReadingsResponseSchema,
   AggregatedReadingsResponseSchema,
   MapLayerSchema,
+  MapLayerListItemSchema,
   UploadGeoJsonInputSchema,
   UploadShapefileInputSchema,
 } from '@idmis/contracts';
@@ -94,6 +95,7 @@ export const blisSchemas: Record<string, unknown> = {
   RawReadingsResponse: toJsonSchema(RawReadingsResponseSchema),
   AggregatedReadingsResponse: toJsonSchema(AggregatedReadingsResponseSchema),
   MapLayer: toJsonSchema(MapLayerSchema),
+  MapLayerListItem: toJsonSchema(MapLayerListItemSchema),
   UploadGeoJsonInput: toJsonSchema(UploadGeoJsonInputSchema),
   UploadShapefileInput: toJsonSchema(UploadShapefileInputSchema),
 };
@@ -1173,6 +1175,75 @@ export const blisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/blis/map/layers': {
+    get: {
+      summary: 'List scoped map layers',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        {
+          name: 'basinId',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'layerTypeId',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', format: 'uuid' },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          required: false,
+          schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'List of map layers',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/MapLayerListItem' },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403),
+      },
+    },
+  },
+
+  '/blis/map/layers/{id}': {
+    get: {
+      summary: 'Get map layer details by ID',
+      tags: ['blis'],
+      security: SECURED,
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Map layer details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MapLayer' },
+            },
+          },
+        },
+        ...standardErrorResponses(401, 403, 404),
       },
     },
   },

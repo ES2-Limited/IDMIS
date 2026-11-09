@@ -12,6 +12,10 @@ export const CreateFeeBillingInputSchema = z
     wuaId: z.string().uuid().optional(),
     farmerId: z.string().uuid().optional(),
     amountNgn: MoneySchema,
+    dueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD')
+      .optional(),
   })
   .refine((data) => Boolean(data.wuaId) !== Boolean(data.farmerId), {
     message: 'Exactly one of wuaId or farmerId must be provided',
@@ -19,12 +23,23 @@ export const CreateFeeBillingInputSchema = z
   });
 export type CreateFeeBillingInput = z.infer<typeof CreateFeeBillingInputSchema>;
 
+export const UpdateFeeBillingInputSchema = z.object({
+  amountNgn: MoneySchema.optional(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD')
+    .optional(),
+  status: RecordStatusSchema.optional(),
+});
+export type UpdateFeeBillingInput = z.infer<typeof UpdateFeeBillingInputSchema>;
+
 export const FeeBillingResponseSchema = StandardResponseColumnsSchema.extend({
   schemeId: z.string().uuid(),
   seasonId: z.string().uuid(),
   wuaId: z.string().uuid().nullable(),
   farmerId: z.string().uuid().nullable(),
   amountNgn: MoneySchema,
+  dueDate: z.string(),
   importBatchId: z.string().uuid().nullable().optional(),
 });
 export type FeeBillingResponse = z.infer<typeof FeeBillingResponseSchema>;
@@ -34,6 +49,7 @@ export const ListFeeBillingsQuerySchema = BaseListQuerySchema.extend({
   seasonId: z.string().uuid().optional(),
   wuaId: z.string().uuid().optional(),
   farmerId: z.string().uuid().optional(),
+  status: RecordStatusSchema.optional(),
 });
 export type ListFeeBillingsQuery = z.infer<typeof ListFeeBillingsQuerySchema>;
 
@@ -43,10 +59,12 @@ export const CreateFeeCollectionInputSchema = z
     id: z.string().uuid({ version: 'v7' }).optional(),
     schemeId: z.string().uuid(),
     seasonId: z.string().uuid(),
+    billingId: z.string().uuid().optional(),
     wuaId: z.string().uuid().optional(),
     farmerId: z.string().uuid().optional(),
     amountNgn: MoneySchema,
     paidOn: z.iso.date(),
+    receiptNo: z.string().min(1).max(100).optional(),
     deviceId: z.string().uuid().optional(),
     fieldReceiptRef: z.string().min(1).max(100).optional(),
   })
@@ -68,6 +86,15 @@ export const CreateFeeCollectionInputSchema = z
     },
   );
 export type CreateFeeCollectionInput = z.infer<typeof CreateFeeCollectionInputSchema>;
+
+export const UpdateFeeCollectionInputSchema = z.object({
+  amountNgn: MoneySchema.optional(),
+  paidOn: z.iso.date().optional(),
+  receiptNo: z.string().min(1).max(100).optional(),
+  fieldReceiptRef: z.string().min(1).max(100).optional(),
+  status: RecordStatusSchema.optional(),
+});
+export type UpdateFeeCollectionInput = z.infer<typeof UpdateFeeCollectionInputSchema>;
 
 export const FeeCollectionResponseSchema = SlisReviewableColumnsSchema.extend({
   schemeId: z.string().uuid(),

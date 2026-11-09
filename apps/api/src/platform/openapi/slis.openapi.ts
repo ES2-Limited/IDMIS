@@ -39,6 +39,12 @@ import {
   WuaSummaryResponseSchema,
   CreateExportInputSchema,
   ExportStatusResponseSchema,
+  FeeBillingResponseSchema,
+  CreateFeeBillingInputSchema,
+  UpdateFeeBillingInputSchema,
+  FeeCollectionResponseSchema,
+  CreateFeeCollectionInputSchema,
+  UpdateFeeCollectionInputSchema,
 } from '@idmis/contracts';
 
 function toJsonSchema(schema: z.ZodTypeAny) {
@@ -127,6 +133,12 @@ export const slisSchemas: Record<string, unknown> = {
   ExportStatusResponse: toJsonSchema(ExportStatusResponseSchema),
   SyncPushResponse: toJsonSchema(SyncPushResponseSchema),
   SyncPullResponse: toJsonSchema(SyncPullResponseSchema),
+  FeeBillingResponse: toJsonSchema(FeeBillingResponseSchema),
+  CreateFeeBillingInput: toJsonSchema(CreateFeeBillingInputSchema),
+  UpdateFeeBillingInput: toJsonSchema(UpdateFeeBillingInputSchema),
+  FeeCollectionResponse: toJsonSchema(FeeCollectionResponseSchema),
+  CreateFeeCollectionInput: toJsonSchema(CreateFeeCollectionInputSchema),
+  UpdateFeeCollectionInput: toJsonSchema(UpdateFeeCollectionInputSchema),
   DeviceRegistrationResponse: { type: 'object' },
 };
 
@@ -1600,6 +1612,231 @@ export const slisPaths: Record<string, Record<string, unknown>> = {
           },
         },
         ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+  },
+
+  // -------------------------------------------------------------
+  // FEE BILLINGS & COLLECTIONS
+  // -------------------------------------------------------------
+  '/slis/fees/billings': {
+    get: {
+      summary: 'List fee billings within user scope',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'seasonId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'wuaId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'farmerId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+      ],
+      responses: {
+        '200': {
+          description: 'Paged fee billings list',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  items: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/FeeBillingResponse' },
+                  },
+                  nextCursor: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Create a new fee billing record',
+      tags: ['slis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateFeeBillingInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Fee billing record created',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeBillingResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/fees/billings/{id}': {
+    get: {
+      summary: 'Get fee billing details by ID',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Fee billing details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeBillingResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+    patch: {
+      summary: 'Update fee billing details',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'if-match', in: 'header', schema: { type: 'string' } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateFeeBillingInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Fee billing updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeBillingResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
+      },
+    },
+  },
+
+  '/slis/fees/collections': {
+    get: {
+      summary: 'List fee collections within user scope',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'schemeId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'seasonId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'wuaId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'farmerId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'receiptNo', in: 'query', schema: { type: 'string' } },
+        { name: 'fieldReceiptRef', in: 'query', schema: { type: 'string' } },
+        { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+      ],
+      responses: {
+        '200': {
+          description: 'Paged fee collections list',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  items: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/FeeCollectionResponse' },
+                  },
+                  nextCursor: { type: 'string', nullable: true },
+                },
+              },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+    post: {
+      summary: 'Record a fee collection',
+      tags: ['slis'],
+      security: SECURED,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateFeeCollectionInput' },
+          },
+        },
+      },
+      responses: {
+        '201': {
+          description: 'Fee collection recorded',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeCollectionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403),
+      },
+    },
+  },
+
+  '/slis/fees/collections/{id}': {
+    get: {
+      summary: 'Get fee collection details by ID',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+      ],
+      responses: {
+        '200': {
+          description: 'Fee collection details',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeCollectionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404),
+      },
+    },
+    patch: {
+      summary: 'Update fee collection details',
+      tags: ['slis'],
+      security: SECURED,
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        { name: 'if-match', in: 'header', schema: { type: 'string' } },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateFeeCollectionInput' },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Fee collection updated successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FeeCollectionResponse' },
+            },
+          },
+        },
+        ...standardErrorResponses(400, 401, 403, 404, 409),
       },
     },
   },

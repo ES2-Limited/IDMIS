@@ -72,6 +72,7 @@ export class DamInspectionService {
       async (tx) => {
         const inspection = await this.damInspectionRepo.create(
           {
+            id: (input as { id?: string }).id,
             damId: input.damId,
             inspectedOn: input.inspectedOn,
             nextDueOn: input.nextDueOn,
@@ -91,7 +92,10 @@ export class DamInspectionService {
           tx,
         );
 
-        return inspection;
+        return {
+          ...inspection,
+          schemeId: damRecord.basinId,
+        };
       },
       {
         audit: {
@@ -193,7 +197,10 @@ export class DamInspectionService {
           tx,
         );
 
-        return updated;
+        return {
+          ...updated,
+          schemeId: existing.basinId,
+        };
       },
       {
         audit: {

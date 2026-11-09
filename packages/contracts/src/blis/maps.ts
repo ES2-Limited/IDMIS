@@ -4,7 +4,10 @@ export const MapLayerSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(255),
   layerTypeId: z.string().uuid(),
+  type: z.string().nullable().optional(),
   basinId: z.string().uuid().nullable().optional(),
+  basin: z.string().nullable().optional(),
+  featureCount: z.number().int().default(0).optional(),
   sourceFileId: z.string().uuid().nullable().optional(),
   sourceSrid: z.number().int().nullable().optional(),
   details: z.string().nullable().optional(),
@@ -56,3 +59,21 @@ export const MapFeatureSchema = z.object({
   geom: z.record(z.string(), z.unknown()),
 });
 export type MapFeature = z.infer<typeof MapFeatureSchema>;
+
+export const ListMapLayersQuerySchema = z.object({
+  basinId: z.string().uuid().optional(),
+  layerTypeId: z.string().uuid().optional(),
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type ListMapLayersQuery = z.infer<typeof ListMapLayersQuerySchema>;
+
+export const MapLayerListItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  type: z.string().nullable().optional(),
+  basin: z.string().nullable().optional(),
+  featureCount: z.number().int().default(0),
+  createdAt: z.string(),
+});
+export type MapLayerListItem = z.infer<typeof MapLayerListItemSchema>;

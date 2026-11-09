@@ -79,6 +79,7 @@ import {
   CreateReportInputSchema,
   CreateReportResponseSchema,
   ReportResponseSchema,
+  ListReportsResponseSchema,
 } from '@idmis/contracts';
 
 export interface OpenApiDoc {
@@ -355,6 +356,7 @@ export function buildOpenApiDocument(
     CreateReportInput: toJsonSchema(CreateReportInputSchema),
     CreateReportResponse: toJsonSchema(CreateReportResponseSchema),
     ReportResponse: toJsonSchema(ReportResponseSchema),
+    ListReportsResponse: toJsonSchema(ListReportsResponseSchema),
   };
 
   const isDevOrTest = process.env.NODE_ENV !== 'production';
@@ -379,6 +381,70 @@ export function buildOpenApiDocument(
                     status: { type: 'string', example: 'ok' },
                   },
                   required: ['status'],
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    '/health/ready': {
+      get: {
+        summary: 'Service readiness probe',
+        tags: ['health'],
+        description:
+          'Performs real connectivity checks for Postgres, Redis, R2/storage, and ClamAV',
+        responses: {
+          '200': {
+            description: 'All dependencies are healthy and ready',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'ok' },
+                    checks: {
+                      type: 'object',
+                      properties: {
+                        postgres: { type: 'string', example: 'ok' },
+                        redis: { type: 'string', example: 'ok' },
+                        r2: { type: 'string', example: 'ok' },
+                        clamav: { type: 'string', example: 'ok' },
+                      },
+                      required: ['postgres', 'redis', 'r2', 'clamav'],
+                    },
+                  },
+                  required: ['status', 'checks'],
+                },
+              },
+            },
+          },
+          '503': {
+            description: 'One or more dependencies are unavailable',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'error' },
+                    failing: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['clamav'],
+                    },
+                    checks: {
+                      type: 'object',
+                      properties: {
+                        postgres: { type: 'string' },
+                        redis: { type: 'string' },
+                        r2: { type: 'string' },
+                        clamav: { type: 'string' },
+                      },
+                      required: ['postgres', 'redis', 'r2', 'clamav'],
+                    },
+                  },
+                  required: ['status', 'failing', 'checks'],
                 },
               },
             },
@@ -1900,6 +1966,56 @@ export function buildOpenApiDocument(
   };
 
   paths['/reports'] = {
+    get: {
+      tags: ['reports'],
+      summary: "List caller's report jobs",
+      operationId: 'listReports',
+      security: SECURED,
+      parameters: [
+        {
+          name: 'cursor',
+          in: 'query',
+          schema: { type: 'string', format: 'uuid' },
+          description: 'Pagination cursor',
+        },
+        {
+          name: 'page',
+          in: 'query',
+          schema: { type: 'integer', minimum: 1 },
+          description: 'Page number',
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          description: 'Page size limit',
+        },
+        {
+          name: 'status',
+          in: 'query',
+          schema: { type: 'string', enum: ['queued', 'processing', 'completed', 'failed'] },
+        },
+        {
+          name: 'type',
+          in: 'query',
+          schema: {
+            type: 'string',
+            enum: ['scheme_report', 'indicator_matrix', 'dam_safety_summary'],
+          },
+        },
+      ],
+      responses: {
+        '200': {
+          description: "List of caller's reports",
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ListReportsResponse' },
+            },
+          },
+        },
+        ...errors([400, 401, 403]),
+      },
+    },
     post: {
       tags: ['reports'],
       summary: 'Request asynchronous generation of an official PDF report',

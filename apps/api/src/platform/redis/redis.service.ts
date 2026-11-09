@@ -33,6 +33,34 @@ export class RedisService implements OnModuleDestroy {
     return this.redisClient;
   }
 
+  async checkHealth(): Promise<boolean> {
+    if (this.redisClient && this.redisClient.status === 'ready') {
+      try {
+        const pong = await this.redisClient.ping();
+        return pong === 'PONG';
+      } catch {
+        return false;
+      }
+    }
+
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    try {
+      const probe = new Redis(redisUrl, {
+        family: 0,
+        maxRetriesPerRequest: 0,
+        enableOfflineQueue: false,
+        connectTimeout: 2000,
+        retryStrategy: () => null,
+      });
+      const pong = await probe.ping();
+      await probe.quit().catch(() => {});
+      probe.disconnect();
+      return pong === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   async get(key: string): Promise<string | null> {
     if (this.redisClient && this.redisClient.status === 'ready') {
       try {

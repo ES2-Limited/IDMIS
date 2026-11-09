@@ -1,6 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { db, mapLayer, basin, eq, and, isNull, inArray, sql, type SQL } from '@idmis/db';
-import { permissions } from '@idmis/contracts';
+import {
+  db,
+  mapLayer,
+  basin,
+  lookupValue,
+  eq,
+  and,
+  isNull,
+  inArray,
+  desc,
+  sql,
+  type SQL,
+} from '@idmis/db';
+import {
+  permissions,
+  type RequestScope,
+  type ListMapLayersQuery,
+  type MapLayerListItem,
+} from '@idmis/contracts';
 import type { UserAuthz } from '../../../platform/auth';
 import { txStorage } from '../../../platform/database/transaction.helper';
 import { SlisTileQueryService } from '../../slis/public';
@@ -316,5 +333,92 @@ export class MapRepository {
 
     const mvtBuffer = Buffer.isBuffer(row.mvt) ? row.mvt : Buffer.from(row.mvt);
     return mvtBuffer.length > 0 ? mvtBuffer : null;
+  }
+
+  async listLayers(
+    scope: RequestScope,
+    query?: ListMapLayersQuery,
+    txDb?: DatabaseOrTx,
+  ): Promise<MapLayerListItem[]> {
+    const client = this.getDb(txDb);
+    const conditions: SQL[] = [isNull(mapLayer.deletedAt)];
+
+    if (query?.basinId) {
+      conditions.push(eq(mapLayer.basinId, query.basinId));
+    }
+    if (query?.layerTypeId) {
+      conditions.push(eq(mapLayer.layerTypeId, query.layerTypeId));
+    }
+
+    if (!scope.isNational) {
+      if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+        conditions.push(
+          sql`(${mapLayer.basinId} IS NULL OR ${basin.rbdaId} = ANY(${sqlUuidArray(scope.rbdaIds)}))`,
+        );
+      } else {
+        conditions.push(sql`${mapLayer.basinId} IS NULL`);
+      }
+    }
+
+    const limit = query?.limit ?? 50;
+
+    const rows = await client
+      .select({
+        id: mapLayer.id,
+        name: mapLayer.name,
+        type: lookupValue.label,
+        basin: basin.name,
+        featureCount: sql<number>`COALESCE((SELECT count(*)::int FROM blis.map_feature mf WHERE mf.layer_id = ${mapLayer.id}), 0)`,
+        createdAt: mapLayer.createdAt,
+      })
+      .from(mapLayer)
+      .leftJoin(lookupValue, eq(lookupValue.id, mapLayer.layerTypeId))
+      .leftJoin(basin, eq(basin.id, mapLayer.basinId))
+      .where(and(...conditions))
+      .orderBy(desc(mapLayer.createdAt))
+      .limit(limit);
+
+    return rows;
+  }
+
+  async findLayerById(id: string, scope?: RequestScope, txDb?: DatabaseOrTx) {
+    const client = this.getDb(txDb);
+    const conditions: SQL[] = [eq(mapLayer.id, id), isNull(mapLayer.deletedAt)];
+
+    if (scope && !scope.isNational) {
+      if (scope.rbdaIds && scope.rbdaIds.length > 0) {
+        conditions.push(
+          sql`(${mapLayer.basinId} IS NULL OR ${basin.rbdaId} = ANY(${sqlUuidArray(scope.rbdaIds)}))`,
+        );
+      } else {
+        conditions.push(sql`${mapLayer.basinId} IS NULL`);
+      }
+    }
+
+    const [row] = await client
+      .select({
+        id: mapLayer.id,
+        name: mapLayer.name,
+        layerTypeId: mapLayer.layerTypeId,
+        type: lookupValue.label,
+        basinId: mapLayer.basinId,
+        basin: basin.name,
+        featureCount: sql<number>`COALESCE((SELECT count(*)::int FROM blis.map_feature mf WHERE mf.layer_id = ${mapLayer.id}), 0)`,
+        sourceFileId: mapLayer.sourceFileId,
+        sourceSrid: mapLayer.sourceSrid,
+        details: mapLayer.details,
+        areaKm2: mapLayer.areaKm2,
+        createdAt: mapLayer.createdAt,
+        createdBy: mapLayer.createdBy,
+        updatedAt: mapLayer.updatedAt,
+        updatedBy: mapLayer.updatedBy,
+        version: mapLayer.version,
+      })
+      .from(mapLayer)
+      .leftJoin(lookupValue, eq(lookupValue.id, mapLayer.layerTypeId))
+      .leftJoin(basin, eq(basin.id, mapLayer.basinId))
+      .where(and(...conditions));
+
+    return row ?? null;
   }
 }

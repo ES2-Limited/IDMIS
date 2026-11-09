@@ -1,11 +1,22 @@
-import { Controller, Get, Post, Param, Body, Res, HttpStatus, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  Body,
+  Res,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
-import { permissions } from '@idmis/contracts';
+import { permissions, ListMapLayersQuerySchema, type ListMapLayersQuery } from '@idmis/contracts';
 import { Can } from '../../../platform/auth/can.decorator';
 import { CurrentAuthz } from '../../../platform/auth/current-authz.decorator';
 import { CurrentUser } from '../../../platform/auth/current-user.decorator';
 import type { UserAuthz } from '../../../platform/auth';
 import type { RequestUser } from '../../../platform/context';
+import { ZodValidationPipe } from '../../../platform/pipes/zod-validation.pipe';
 import {
   MapService,
   type UploadGeoJsonInput,
@@ -78,6 +89,21 @@ export class BlisMapController {
     @Res() res: FastifyReply,
   ) {
     return serveVectorTile(this.mapService, layer, z, x, y, authz, res);
+  }
+
+  @Get('layers')
+  @Can(permissions.BLIS_MAP_READ)
+  async listLayers(
+    @Query(new ZodValidationPipe(ListMapLayersQuerySchema)) query: ListMapLayersQuery,
+    @CurrentAuthz() authz: UserAuthz,
+  ) {
+    return this.mapService.listLayers(query, authz);
+  }
+
+  @Get('layers/:id')
+  @Can(permissions.BLIS_MAP_READ)
+  async getLayer(@Param('id') id: string, @CurrentAuthz() authz: UserAuthz) {
+    return this.mapService.getLayer(id, authz);
   }
 
   @Post('layers/geojson')

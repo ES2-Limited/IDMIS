@@ -100,6 +100,7 @@ describe('OpenAPI & Swagger UI (FEAT-DOCS)', () => {
       // Public endpoints that must not require bearerAuth
       const publicEndpoints: Array<{ path: string; method: string }> = [
         { path: '/health', method: 'get' },
+        { path: '/health/ready', method: 'get' },
         { path: '/auth/sign-in', method: 'post' },
         { path: '/auth/refresh', method: 'post' },
         { path: '/imports/{batchId}/progress', method: 'get' },

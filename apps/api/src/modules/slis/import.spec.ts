@@ -1738,6 +1738,19 @@ describe('SLIS Import Specification (BE-2.7)', () => {
       }));
       const rowMap = await syncRepo.fetchCurrentEntityRows(sampleItems);
       expect(rowMap).toBeInstanceOf(Map);
+
+      // Explicit check for fee_collection and dam_inspection support
+      expect(SYNC_SUPPORTED_ENTITIES.has('fee_collection')).toBe(true);
+      expect(SYNC_SUPPORTED_ENTITIES.has('dam_inspection')).toBe(true);
+      expect(SYNC_SUPPORTED_ENTITIES.has('dam_safety_inspection')).toBe(true);
+
+      const specificItems = [
+        { entity: 'fee_collection', recordId: crypto.randomUUID() },
+        { entity: 'dam_inspection', recordId: crypto.randomUUID() },
+        { entity: 'dam_safety_inspection', recordId: crypto.randomUUID() },
+      ];
+      const specificMap = await syncRepo.fetchCurrentEntityRows(specificItems);
+      expect(specificMap).toBeInstanceOf(Map);
     });
   });
 });

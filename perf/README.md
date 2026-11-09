@@ -65,6 +65,8 @@ All scripts read configuration strictly from environment variables:
 - `SCHEME_USER_EMAIL`: Scheme-scoped user email (`perf_scheme@idmis.gov.ng`)
 - `SCHEME_USER_PASSWORD`: Scheme-scoped user password
 
+> **Note on Performance User Roles:** Benchmark test users are assigned the `field_officer` role (`can_capture_offline: true`, full sync permissions across the scheme/state) rather than administrative roles (`system_admin`, `slis_admin`), because administrative roles require mandatory two-factor authentication (TOTP) under security policy.
+
 Pass these via `-e` flags to the k6 Docker container.
 
 ### A. List Endpoints (Farmers & Plots)

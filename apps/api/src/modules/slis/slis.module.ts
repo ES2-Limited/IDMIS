@@ -36,6 +36,7 @@ import { SyncService } from './services/sync.service';
 import { SyncController } from './controllers/sync.controller';
 import { FeeRepository } from './repositories/fee.repository';
 import { FeeService } from './services/fee.service';
+import { FeeController } from './controllers/fee.controller';
 import { ReportRepository } from './repositories/report.repository';
 import { ReportService } from './services/report.service';
 import { ReportController } from './controllers/report.controller';
@@ -77,6 +78,7 @@ import { StreamFlowImportHandler } from './imports/stream-flow.handler';
     StreamFlowController,
     ReviewController,
     SyncController,
+    FeeController,
     ReportController,
     ExportController,
   ],
