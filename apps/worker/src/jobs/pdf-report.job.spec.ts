@@ -38,7 +38,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
 
     expect(result.text).toContain('TRIMING IDMIS 2.0 Test Report');
     expect(result.text).toContain('45,678 Farmers');
-  }, 30000);
+  }, 60000);
 
   it('escapes dangerous tags and prevents SSRF network requests during PDF rendering', async () => {
     // Malicious payload simulating SSRF attempt

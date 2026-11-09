@@ -23,6 +23,7 @@ import { IndicatorValueRepository } from '../repositories/indicator-value.reposi
 import { IndicatorMatrixRepository } from '../repositories/indicator-matrix.repository';
 import { runInTransaction } from '../../../platform/database/transaction.helper';
 import { eventBus } from '../../../platform/events/event-bus';
+import { validateApiEnv } from '../../../platform/config/env';
 
 export function getQuarterPeriodEnd(year: number, quarter: number): string {
   switch (quarter) {
@@ -177,14 +178,7 @@ export class MeComputeService implements OnModuleInit, OnModuleDestroy {
   }
 
   private getDebounceWindowMs(): number {
-    const raw = process.env.ME_COMPUTE_DEBOUNCE_MS;
-    if (raw) {
-      const parsed = parseInt(raw, 10);
-      if (!isNaN(parsed) && parsed >= 0) {
-        return parsed;
-      }
-    }
-    return 60000;
+    return validateApiEnv().ME_COMPUTE_DEBOUNCE_MS;
   }
 
   private async scheduleDebouncedJob(

@@ -127,8 +127,8 @@ Both baseline and tuned benchmarks were executed under the exact same load: **20
 | **Plot List (Scheme-scoped, paged)**       | 135.2 ms                     | **109.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
 | **Plot Filtered (State + Service Type)**   | 156.0 ms                     | **108.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
 | **Plot Search (`ILIKE` substring)**        | 6,520.0 ms                   | **101.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS (64x speedup)**                  |
-| **Sync Pull (batch of 500 changes)**       | 1.94 s                       | **2.45 s**               | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **FAIL**                                |
-| **Sync Push (200 ops, worker on - Valid)** | 13.40 s _(invalid payload)_  | **5.08 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **FAIL**                                |
+| **Sync Pull (batch of 500 changes)**       | 1.94 s                       | **66.71 ms – 72.26 ms**  | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
+| **Sync Push (200 ops, worker on - Valid)** | 13.40 s _(invalid payload)_  | **1.25 s – 1.29 s**      | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
 | **Import Validate & Commit (100k rows)**   | Pending Staging S3           | Pending Staging S3       | < 10 mins _(prov.)_ | N/A      | N/A    | N/A      | **NOT MEASURED — to be run on staging** |
 
 ---
@@ -198,32 +198,24 @@ Previously, `sync.service.ts` looped through each operation in `input.ops` and o
 
 `sync.service.ts` has been refactored to wrap the batch inside a single outer `runInTransaction`, with nested savepoints per operation (`txStorage`). If an individual operation encounters a domain conflict or validation error, only that operation's savepoint is rolled back, allowing subsequent operations to proceed while collapsing the batch down to 1 final commit and WAL sync.
 
-### 7.2 Invalidity of Previous Sync Push Numbers & Alternating Retest Results
+### 7.2 Sync Push Benchmark Runs & Retest History
 
-> **Important Note:** All initial sync push benchmark numbers (~12.80 s – 13.40 s) were **INVALID** because the k6 push payload omitted the required `level` attribute on `slis.water_request` (`water_request.level` is `NOT NULL`). Consequently, every operation in the batch failed validation at the database level with a NOT NULL constraint violation, forcing savepoint rollbacks and error writes to `core.sync_op`. In addition, an anomalous 4.42 s run previously reported occurred before database buffer pool priming and before BullMQ queue draining had settled.
-
-`perf/k6/sync.js` has been updated to send valid payloads with `level: 'individual'` and a valid `farmerId` retrieved dynamically from the active scheme. In addition, an assertion was added to verify that 100% of operations in the push response return `outcome: 'applied'` (or `'duplicate'`), causing the load test to fail if any operation is rejected.
-
-To evaluate the effect of the M&E compute worker on sync push latency, the test was re-run across four alternating cycles (`OFF`, `ON`, `OFF`, `ON`), each preceded by a dedicated warm-up run under identical load (2 VUs, 30 s, batches of 200 operations, 100% applied ops):
-
-1. **Cycle 1 (Compute Worker OFF)**:
-   - Warm-up: `sync_push` p95 = 1.31 s | `sync_pull` p95 = 207.8 ms
-   - **Measured Run 1**: `sync_push` p95 = **1.05 s** | `sync_pull` p95 = **74.4 ms** (**PASS**, < 2.0 s)
-2. **Cycle 2 (Compute Worker ON)**:
-   - Warm-up: `sync_push` p95 = 1.10 s | `sync_pull` p95 = 66.0 ms
-   - **Measured Run 2**: `sync_push` p95 = **1.30 s** | `sync_pull` p95 = **68.1 ms** (**PASS**, < 2.0 s)
-3. **Cycle 3 (Compute Worker OFF)**:
-   - Warm-up: `sync_push` p95 = 1.16 s | `sync_pull` p95 = 92.4 ms
-   - **Measured Run 3**: `sync_push` p95 = **970.4 ms** | `sync_pull` p95 = **68.5 ms** (**PASS**, < 2.0 s)
-4. **Cycle 4 (Compute Worker ON)**:
-   - Warm-up: `sync_push` p95 = 1.46 s | `sync_pull` p95 = 226.1 ms
-   - **Measured Run 4**: `sync_push` p95 = **1.51 s** | `sync_pull` p95 = **81.8 ms** (**PASS**, < 2.0 s)
-
-**Key Observations:**
-
-- Concurrent execution of the M&E compute worker adds an observed ~250–540 ms latency penalty on sync push due to database write and indicator aggregation contention.
-- With single-transaction batching and savepoints active, **all four alternating runs reliably meet the provisional < 2.0 s latency target** (range: 970.4 ms to 1.51 s).
-- Staging environment benchmarking on separate database IOPS storage volumes will establish final production baselines.
+> **Important Note on Sync Benchmarks:**
+>
+> 1. Initial benchmarks (~12.80 s – 13.40 s) were **INVALID** because the k6 push payload omitted the required `level` attribute on `slis.water_request` (`water_request.level` is `NOT NULL`). Every operation in the batch failed validation at the database level with a NOT NULL constraint violation, forcing savepoint rollbacks and error writes to `core.sync_op`.
+> 2. The earlier reported `5.08 s` sync push and `2.45 s` sync pull results occurred because the un-debounced compute worker executed hundreds of unindexed aggregate queries over 1,000,000 rows concurrently, saturating database CPU and buffer cache.
+> 3. With the debouncing mechanism in `MeComputeService` (collapsing burst events into at most 1 scheme job and 1 global job per window) and consolidated covering `INCLUDE` indexes in migration `0025`, two consecutive verification runs were executed with compute worker ON under full load (2 concurrent VUs, 30 s duration, batches of 200 operations, valid payloads with `level: 'individual'` and valid `farmerId`, and an assertion that 100% of operations return `outcome: 'applied'`):
+>
+> - **Run 1 (Compute ON, 2 VUs, 30 s, Valid Payloads, 100% Applied)**:
+>   - `sync_push` p95: **1.29 s** (**PASS**, target < 2.0 s)
+>   - `sync_pull` p95: **66.71 ms** (**PASS**, target < 1.5 s)
+>   - Ops Outcome: **100.00% applied** (154/154 checks passed, 0 failures)
+> - **Run 2 (Compute ON, 2 VUs, 30 s, Valid Payloads, 100% Applied)**:
+>   - `sync_push` p95: **1.25 s** (**PASS**, target < 2.0 s)
+>   - `sync_pull` p95: **72.26 ms** (**PASS**, target < 1.5 s)
+>   - Ops Outcome: **100.00% applied** (154/154 checks passed, 0 failures)
+>
+> Both runs comfortably pass the provisional < 2.0 s push threshold and are faster than the 1.30 s – 1.51 s range observed on #118.
 
 ### 7.3 Known issue: sync push (Profiling & Slow Query Analysis)
 
@@ -295,11 +287,72 @@ Execution Time: 1263.534 ms
 
 ---
 
-## 7. Compute Storm Optimization Results (`fix/me-compute-storm`)
+## 8. Compute Storm Optimization & Index Consolidation (`fix/me-compute-storm`)
 
-Migration `0025_me_compute_storm_indexes.sql` introduced covering indexes with `INCLUDE` clauses on `slis.plot` and `slis.farmer`, and `SlisComputeQueryService` replaced redundant `count(distinct id)` on primary key columns with `count(*)`.
+Migration `0025_me_compute_storm_indexes.sql` consolidates list pagination and analytical indexes on `slis.plot` and `slis.farmer` into unified covering `INCLUDE` indexes, eliminating 6 redundant single-purpose indexes that previously degraded sync write throughput. In addition, `SlisComputeQueryService` replaced redundant `count(distinct id)` on primary key columns with `count(*)`.
 
-### 7.1 Before vs After Query Timing on 1,000,000 Dataset
+### 8.1 Index Consolidation Details
+
+To eliminate write amplification during batch sync pushes:
+
+1. **`slis.plot`**:
+   - Replaced separate `plot_scheme_status_id_idx` and `plot_scheme_status_compute_idx` with **one consolidated index**:
+     `plot_scheme_status_id_idx` `btree (scheme_id, status, id) INCLUDE (service_type, area_ha, approved_at, deleted_at)`
+   - Replaced separate `plot_state_status_id_idx` and `plot_state_status_compute_idx` with **one consolidated index**:
+     `plot_state_status_id_idx` `btree (state_id, status, id) INCLUDE (service_type, area_ha, approved_at, deleted_at)`
+   - Dropped redundant `plot_status_idx` (completely subsumed by `plot_status_compute_idx` on `(status) INCLUDE (...)`).
+2. **`slis.farmer`**:
+   - Replaced separate `farmer_scheme_status_id_idx` and `farmer_scheme_status_compute_idx` with **one consolidated index**:
+     `farmer_scheme_status_id_idx` `btree (scheme_id, status, id) INCLUDE (gender, approved_at, deleted_at)`
+   - Replaced separate `farmer_state_status_id_idx` and `farmer_state_status_compute_idx` with **one consolidated index**:
+     `farmer_state_status_id_idx` `btree (state_id, status, id) INCLUDE (gender, approved_at, deleted_at)`
+   - Dropped redundant `farmer_status_idx` (completely subsumed by `farmer_status_compute_idx` on `(status) INCLUDE (...)`).
+
+#### Final Index Lists:
+
+- **`slis.plot` (10 indexes total)**:
+  1. `plot_pkey`: PRIMARY KEY, btree (`id`)
+  2. `plot_code_trgm_idx`: gin (`plot_code` gin_trgm_ops)
+  3. `plot_scheme_code_unique`: UNIQUE, btree (`scheme_id`, `plot_code`)
+  4. `plot_scheme_id_idx`: btree (`scheme_id`)
+  5. `plot_scheme_status_id_idx`: btree (`scheme_id`, `status`, `id`) INCLUDE (`service_type`, `area_ha`, `approved_at`, `deleted_at`)
+  6. `plot_sector_id_idx`: btree (`sector_id`)
+  7. `plot_state_service_type_id_idx`: btree (`state_id`, `service_type`, `id`)
+  8. `plot_state_status_id_idx`: btree (`state_id`, `status`, `id`) INCLUDE (`service_type`, `area_ha`, `approved_at`, `deleted_at`)
+  9. `plot_status_compute_idx`: btree (`status`) INCLUDE (`service_type`, `area_ha`, `approved_at`, `deleted_at`)
+  10. `plot_ward_id_idx`: btree (`ward_id`)
+
+- **`slis.farmer` (9 indexes total)**:
+  1. `farmer_pkey`: PRIMARY KEY, btree (`id`)
+  2. `farmer_phone_idx`: btree (`phone`)
+  3. `farmer_scheme_code_unique`: UNIQUE, btree (`scheme_id`, `farmer_code`)
+  4. `farmer_scheme_id_idx`: btree (`scheme_id`)
+  5. `farmer_scheme_status_id_idx`: btree (`scheme_id`, `status`, `id`) INCLUDE (`gender`, `approved_at`, `deleted_at`)
+  6. `farmer_search_trgm_idx`: gin (`farmer_code` gin_trgm_ops, `first_name` gin_trgm_ops, `last_name` gin_trgm_ops, `phone` gin_trgm_ops)
+  7. `farmer_state_status_id_idx`: btree (`state_id`, `status`, `id`) INCLUDE (`gender`, `approved_at`, `deleted_at`)
+  8. `farmer_status_compute_idx`: btree (`status`) INCLUDE (`gender`, `approved_at`, `deleted_at`)
+  9. `farmer_ward_id_idx`: btree (`ward_id`)
+
+Both the list queries (`GET /plots` and `GET /farmers` with cursor pagination) and analytical aggregation queries utilize index scans and parallel index-only scans on these consolidated indexes, avoiding sequential scans and maintaining sub-second query performance.
+
+### 8.2 Top Queries During Sync Push (`pg_stat_statements`)
+
+With debouncing active and consolidated indexes applied, `pg_stat_statements` shows that analytical queries are eliminated from the top queries list. Execution time is dominated by fast OLTP writes:
+
+| Total Time (ms) | Calls | Mean Time (ms) | Query Preview                                                 |
+| :-------------- | :---- | :------------- | :------------------------------------------------------------ |
+| **1,624.97**    | 6,000 | 0.27           | `insert into "slis"."water_request" ("id", "version", ...)`   |
+| **487.28**      | 6,000 | 0.08           | `insert into "core"."audit_log" ("id", "occurred_at", ...)`   |
+| **389.03**      | 6,000 | 0.06           | `insert into "core"."sync_op" ("op_id", "device_id", ...)`    |
+| **267.30**      | 6,000 | 0.04           | `update "core"."sync_op" set "outcome" = $1, ...`             |
+| **199.87**      | 6,000 | 0.03           | `insert into "core"."outbox_event" ("id", "event_type", ...)` |
+| **193.08**      | 30    | 6.44           | `select "id", "version", ... from "slis"."water_request"`     |
+| **58.98**       | 6,000 | 0.01           | `select "id", "type", "parent_id" from "core"."organisation"` |
+| **57.77**       | 30    | 1.93           | `select "xid", "seq", "entity", ... from "core"."change_log"` |
+| **51.42**       | 6,000 | 0.01           | `select "state_id" from "core"."organisation_state"`          |
+| **47.00**       | 6,000 | 0.01           | `select "id", "sector_id" from "slis"."farmer"`               |
+
+### 8.3 Before vs After Query Timing on 1,000,000 Dataset
 
 | Query Target                      | Level    | Baseline Plan & Duration                                 | Optimized Plan & Duration                              | Speedup   | Sequential Scan |
 | :-------------------------------- | :------- | :------------------------------------------------------- | :----------------------------------------------------- | :-------- | :-------------- |
@@ -310,15 +363,15 @@ Migration `0025_me_compute_storm_indexes.sql` introduced covering indexes with `
 | **`slis.farmer` (Beneficiaries)** | State    | Parallel Seq Scan + Sort (**899.9 ms**, 19,422 buffers)  | Parallel Index Only Scan (**130.4 ms**, 1,432 buffers) | **6.9x**  | **NONE**        |
 | **`slis.farmer` (Beneficiaries)** | National | Parallel Seq Scan + Sort (**366.9 ms**, 19,326 buffers)  | Parallel Index Only Scan (**276.2 ms**, 4,929 buffers) | **1.3x**  | **NONE**        |
 
-### 7.2 Debounce & Deduplication Verification
+### 8.4 Debounce & Deduplication Verification
 
-- **Configurable Debounce Window**: `ME_COMPUTE_DEBOUNCE_MS` (default 60000 ms = 1 minute), documented in `.env.example`.
+- **Configurable Debounce Window**: `ME_COMPUTE_DEBOUNCE_MS` (default 60000 ms = 1 minute), read from validated `env.ts`.
 - **Deduplication Enforcement**: When rapid event bursts occur (e.g. 500 `water_request` creates), events collapse into exactly **one scheme job** (`debounce-scheme-${schemeId}`) and **one global job** (`debounce-global`). Subsequent triggers during the waiting window do not duplicate or reset the job delay.
 - **Invariance Guarantee**: Automated tests (`apps/api/src/modules/me/compute-storm.spec.ts`) verify that optimized `count(*)` outputs match the previous `count(distinct id)` outputs byte-for-byte across scheme, state, and national scopes.
 
 ---
 
-## 8. Dedicated Test Users Created by Seed
+## 9. Dedicated Test Users Created by Seed
 
 The load seed (`packages/db/src/seed/load-seed.ts`) idempotently provisions dedicated performance testing users:
 

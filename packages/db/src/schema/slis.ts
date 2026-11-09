@@ -135,7 +135,6 @@ export const farmer = slisSchema.table(
     index('farmer_scheme_id_idx').on(table.schemeId),
     index('farmer_ward_id_idx').on(table.wardId),
     index('farmer_phone_idx').on(table.phone),
-    index('farmer_status_idx').on(table.status),
     // Query: GET /farmers with scheme-scoped cursor pagination (scheme_id + status + id)
     index('farmer_scheme_status_id_idx').on(table.schemeId, table.status, table.id),
     // Query: GET /farmers with state-scoped cursor pagination (state_id + status + id)
@@ -148,11 +147,11 @@ export const farmer = slisSchema.table(
       table.lastName.op('gin_trgm_ops'),
       table.phone.op('gin_trgm_ops'),
     ),
-    // NOTE: The following covering INCLUDE indexes exist only in custom migration
+    // NOTE: The following consolidated covering INCLUDE indexes are managed via custom migration
     // 0025_me_compute_storm_indexes.sql (drizzle-kit does not natively model PostgreSQL INCLUDE clauses):
-    // - farmer_scheme_status_compute_idx ON slis.farmer (scheme_id, status) INCLUDE (gender, approved_at, deleted_at)
-    // - farmer_state_status_compute_idx ON slis.farmer (state_id, status) INCLUDE (gender, approved_at, deleted_at)
-    // - farmer_status_compute_idx ON slis.farmer (status) INCLUDE (gender, approved_at, deleted_at)
+    // - farmer_scheme_status_id_idx ON slis.farmer (scheme_id, status, id) INCLUDE (gender, approved_at, deleted_at)
+    // - farmer_state_status_id_idx ON slis.farmer (state_id, status, id) INCLUDE (gender, approved_at, deleted_at)
+    // - farmer_status_compute_idx ON slis.farmer (status) INCLUDE (gender, approved_at, deleted_at) [subsumes farmer_status_idx]
     // Do NOT add standard Drizzle indexes for these patterns without INCLUDE to prevent duplicate redundant indexes.
   ],
 );
@@ -241,7 +240,6 @@ export const plot = slisSchema.table(
     index('plot_scheme_id_idx').on(table.schemeId),
     index('plot_sector_id_idx').on(table.sectorId),
     index('plot_ward_id_idx').on(table.wardId),
-    index('plot_status_idx').on(table.status),
     // Query: GET /plots with scheme-scoped cursor pagination (scheme_id + status + id)
     index('plot_scheme_status_id_idx').on(table.schemeId, table.status, table.id),
     // Query: GET /plots with state-scoped cursor pagination (state_id + status + id)
@@ -250,11 +248,11 @@ export const plot = slisSchema.table(
     index('plot_state_service_type_id_idx').on(table.stateId, table.serviceType, table.id),
     // Query: GET /plots?search=... trigram ILIKE search on plot code
     index('plot_code_trgm_idx').using('gin', table.plotCode.op('gin_trgm_ops')),
-    // NOTE: The following covering INCLUDE indexes exist only in custom migration
+    // NOTE: The following consolidated covering INCLUDE indexes are managed via custom migration
     // 0025_me_compute_storm_indexes.sql (drizzle-kit does not natively model PostgreSQL INCLUDE clauses):
-    // - plot_scheme_status_compute_idx ON slis.plot (scheme_id, status) INCLUDE (service_type, area_ha, approved_at, deleted_at)
-    // - plot_state_status_compute_idx ON slis.plot (state_id, status) INCLUDE (service_type, area_ha, approved_at, deleted_at)
-    // - plot_status_compute_idx ON slis.plot (status) INCLUDE (service_type, area_ha, approved_at, deleted_at)
+    // - plot_scheme_status_id_idx ON slis.plot (scheme_id, status, id) INCLUDE (service_type, area_ha, approved_at, deleted_at)
+    // - plot_state_status_id_idx ON slis.plot (state_id, status, id) INCLUDE (service_type, area_ha, approved_at, deleted_at)
+    // - plot_status_compute_idx ON slis.plot (status) INCLUDE (service_type, area_ha, approved_at, deleted_at) [subsumes plot_status_idx]
     // Do NOT add standard Drizzle indexes for these patterns without INCLUDE to prevent duplicate redundant indexes.
   ],
 );
