@@ -31,10 +31,10 @@
   },
   "dependencies": {
     "@idmis/contracts": "workspace:*",
-    "argon2": "^0.45.1",
+    "argon2": "^0.45.2",
     "drizzle-orm": "^0.45.4",
     "ioredis": "^6.0.0",
-    "postgres": "^4.0.0"
+    "postgres": "^4.1.0"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
