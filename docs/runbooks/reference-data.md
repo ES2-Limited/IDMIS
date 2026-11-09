@@ -43,11 +43,19 @@ Expected command output:
 [seed:reference] Seeding LGAs...
 [seed:reference] Table lga: 774 inserted / 0 updated / 0 unchanged
 [seed:reference] Seeding wards...
-[seed:reference] Table ward: 5637 inserted / 0 updated / 0 unchanged
+[seed:reference] Table ward: 5691 inserted / 0 updated / 0 unchanged
 [seed:reference] Reference geography seed completed successfully in 1.42s.
 ```
 
 _(Note: On subsequent runs, all counts will report `0 inserted / 0 updated / X unchanged`.)_
+
+> [!IMPORTANT]
+> **Frozen Snapshot Notice & Seed Safety Rules:**
+>
+> 1. The v3.0 extraction is a **frozen baseline snapshot**. Because `OBJECTID` is software-generated in spatial exports, **never re-extract from a newer GRID3 version without explicit code remapping and verification**; doing so could silently turn one ward into another.
+> 2. Any new, missing, or corrected wards must go in through the **Ward Import wizard** (`dataset = ward`) rather than automated re-extraction.
+> 3. **Prohibited Parent Changes**: Any change to an existing ward's parent LGA (or an existing LGA's parent State) aborts the seed run with an error and performs zero database writes.
+> 4. **Rename Protection**: Modifying an existing ward or LGA name aborts with an error unless `REFERENCE_ALLOW_RENAMES=yes` is explicitly set in the environment. When enabled, every applied rename is audited and printed to stdout.
 
 ### Verification Queries
 
@@ -69,7 +77,7 @@ SELECT 'core.ward', count(*) FROM core.ward;
 | :----------- | :---------- |
 | `core.state` | 37          |
 | `core.lga`   | 774         |
-| `core.ward`  | 5637        |
+| `core.ward`  | 5691        |
 
 #### 2. Spot Check TRIMING Programme States
 

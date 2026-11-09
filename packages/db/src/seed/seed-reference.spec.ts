@@ -182,4 +182,161 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
       await db.delete(lga).where(eq(lga.code, 'NG020099'));
     });
   });
+
+  describe('Safety Guards: Parent Changes & Rename Restrictions', () => {
+    const testStates: StateReferenceItem[] = [
+      { code: 'NG020', state_code: 'KN', name: 'Kano' },
+      { code: 'NG018', state_code: 'JI', name: 'Jigawa' },
+    ];
+    const testLgas: LgaReferenceItem[] = [
+      { code: 'NG020098', name: 'Initial LGA A', state_pcode: 'NG020', state_code: 'KN' },
+      { code: 'NG020097', name: 'Initial LGA B', state_pcode: 'NG020', state_code: 'KN' },
+    ];
+    const testWards: WardReferenceItem[] = [
+      { code: 'G3-99002', name: 'Initial Ward A', lga_code: 'NG020098', state_code: 'KN' },
+    ];
+
+    it('prohibits parent LGA change for an existing ward and rolls back without writes', async () => {
+      // 1. Seed initial records
+      await seedReferenceData({
+        confirm: true,
+        customData: {
+          states: testStates,
+          lgas: testLgas,
+          wards: testWards,
+        },
+      });
+
+      // 2. Attempt to re-parent G3-99002 to NG020097
+      const reParentedWards: WardReferenceItem[] = [
+        { code: 'G3-99002', name: 'Initial Ward A', lga_code: 'NG020097', state_code: 'KN' },
+      ];
+
+      await expect(
+        seedReferenceData({
+          confirm: true,
+          customData: {
+            states: testStates,
+            lgas: testLgas,
+            wards: reParentedWards,
+          },
+        }),
+      ).rejects.toThrow(/Prohibited parent LGA change detected for existing Ward\(s\): G3-99002/);
+
+      // Verify DB was NOT updated (still parented to NG020098)
+      const [expectedParentLga] = await db
+        .select()
+        .from(lga)
+        .where(eq(lga.code, 'NG020098'))
+        .limit(1);
+      const [wardRow] = await db.select().from(ward).where(eq(ward.code, 'G3-99002')).limit(1);
+      expect(wardRow?.lgaId).toBe(expectedParentLga?.id);
+    });
+
+    it('prohibits ward rename unless allowRenames=true or REFERENCE_ALLOW_RENAMES=yes', async () => {
+      const renamedWards: WardReferenceItem[] = [
+        { code: 'G3-99002', name: 'Altered Ward Name', lga_code: 'NG020098', state_code: 'KN' },
+      ];
+
+      // Fails when allowRenames is false
+      await expect(
+        seedReferenceData({
+          confirm: true,
+          allowRenames: false,
+          customData: {
+            states: testStates,
+            lgas: testLgas,
+            wards: renamedWards,
+          },
+        }),
+      ).rejects.toThrow(/Prohibited entity rename detected for existing Ward\(s\): G3-99002/);
+
+      // Verify name in DB remains unchanged
+      const [wardBefore] = await db.select().from(ward).where(eq(ward.code, 'G3-99002')).limit(1);
+      expect(wardBefore?.name).toBe('Initial Ward A');
+
+      // Succeeds when allowRenames is true
+      const result = await seedReferenceData({
+        confirm: true,
+        allowRenames: true,
+        customData: {
+          states: testStates,
+          lgas: testLgas,
+          wards: renamedWards,
+        },
+      });
+      expect(result.ward.updated).toBe(1);
+
+      const [wardAfter] = await db.select().from(ward).where(eq(ward.code, 'G3-99002')).limit(1);
+      expect(wardAfter?.name).toBe('Altered Ward Name');
+    });
+
+    it('prohibits parent State change for an existing LGA and rolls back without writes', async () => {
+      // Attempt to re-parent NG020098 from KN to JI
+      const reParentedLgas: LgaReferenceItem[] = [
+        { code: 'NG020098', name: 'Initial LGA A', state_pcode: 'NG018', state_code: 'JI' },
+        { code: 'NG020097', name: 'Initial LGA B', state_pcode: 'NG020', state_code: 'KN' },
+      ];
+
+      await expect(
+        seedReferenceData({
+          confirm: true,
+          customData: {
+            states: testStates,
+            lgas: reParentedLgas,
+            wards: testWards,
+          },
+        }),
+      ).rejects.toThrow(/Prohibited parent State change detected for existing LGA\(s\): NG020098/);
+    });
+
+    it('prohibits LGA rename unless allowRenames=true or REFERENCE_ALLOW_RENAMES=yes', async () => {
+      const renamedLgas: LgaReferenceItem[] = [
+        { code: 'NG020098', name: 'Altered LGA Name', state_pcode: 'NG020', state_code: 'KN' },
+        { code: 'NG020097', name: 'Initial LGA B', state_pcode: 'NG020', state_code: 'KN' },
+      ];
+
+      // Fails when allowRenames is false
+      await expect(
+        seedReferenceData({
+          confirm: true,
+          allowRenames: false,
+          customData: {
+            states: testStates,
+            lgas: renamedLgas,
+            wards: [
+              {
+                code: 'G3-99002',
+                name: 'Altered Ward Name',
+                lga_code: 'NG020098',
+                state_code: 'KN',
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow(/Prohibited entity rename detected for existing LGA\(s\): NG020098/);
+
+      // Succeeds when allowRenames is true
+      const result = await seedReferenceData({
+        confirm: true,
+        allowRenames: true,
+        customData: {
+          states: testStates,
+          lgas: renamedLgas,
+          wards: [
+            { code: 'G3-99002', name: 'Altered Ward Name', lga_code: 'NG020098', state_code: 'KN' },
+          ],
+        },
+      });
+      expect(result.lga.updated).toBe(1);
+
+      const [lgaAfter] = await db.select().from(lga).where(eq(lga.code, 'NG020098')).limit(1);
+      expect(lgaAfter?.name).toBe('Altered LGA Name');
+
+      // Cleanup
+      await db.delete(ward).where(eq(ward.code, 'G3-99002'));
+      await db.delete(lga).where(eq(lga.code, 'NG020098'));
+      await db.delete(lga).where(eq(lga.code, 'NG020097'));
+    });
+  });
 });

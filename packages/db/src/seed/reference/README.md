@@ -43,8 +43,15 @@ This directory contains standardized administrative reference data for Nigeria's
    - GRID3 v3.0 operational wards were matched to COD-AB LGAs by state and LGA name.
    - For TRIMING programme states (Gombe, Jigawa, Kano, Sokoto, Zamfara), naming discrepancies between GRID3 and COD-AB are explicitly resolved using `reference/lga-name-aliases.csv` (`grid3_lga_name,state_code,cod_ab_lga_pcode`), with no fuzzy matching.
    - 5,691 wards successfully matched to COD-AB LGAs across 24 states (including 100% of wards across all 5 TRIMING programme states).
-   - Stable Ward Identifiers: Rather than generating alphabetical sequential codes that would shift upon ward additions or renames, each ward code uses GRID3's own persistent feature identifier from the source (`OBJECTID`, documented as `fid` in the CIESIN/GRID3 Codebook). Format: `G3-<grid3_ward_id>` (e.g. `G3-1` to `G3-5872`). `lga_code` retains the official OCHA LGA P-code (e.g. `NG020001`).
+   - Stable Ward Identifiers: Rather than generating alphabetical sequential codes that would shift upon ward additions or renames, each ward code uses GRID3's feature identifier from the v3.0 source (`OBJECTID`, documented as `fid` in the CIESIN/GRID3 Codebook). Format: `G3-<grid3_ward_id>` (e.g. `G3-1` to `G3-5872`). `lga_code` retains the official OCHA LGA P-code (e.g. `NG020001`).
    - 181 wards in non-TRIMING states could not be matched automatically and are catalogued in `unmatched-wards.csv` without guessing.
+
+3. **Frozen Snapshot Notice & Seed Safety Rules**:
+   - The v3.0 extraction in `wards.json` is a **frozen baseline snapshot**. Because `OBJECTID` is software-generated in spatial exports, **do not re-extract from a newer GRID3 version without explicit code remapping and verification**; doing so could silently turn one ward into another.
+   - Any new, missing, or corrected wards must be introduced through the standard administrative **Ward Import** (`dataset = ward`) rather than automated re-extraction.
+   - Seed safety guards enforced in `seedReferenceData`:
+     - **Prohibited Parent Changes**: An existing ward whose LGA would change (or an existing LGA whose State would change) immediately aborts the seed run with an error listing the offending codes before any writes persist.
+     - **Rename Protection**: An existing ward or LGA whose name would change is rejected with an error listing the code and old/new names, unless `REFERENCE_ALLOW_RENAMES=yes` is explicitly provided. When enabled, all applied renames are audited and printed.
 
 ---
 

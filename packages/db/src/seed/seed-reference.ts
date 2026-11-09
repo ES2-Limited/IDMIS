@@ -101,6 +101,7 @@ export function validateParentLinks(
 
 export async function seedReferenceData(options?: {
   confirm?: boolean;
+  allowRenames?: boolean;
   databaseClient?: typeof db;
   customData?: {
     states: StateReferenceItem[];
@@ -115,6 +116,7 @@ export async function seedReferenceData(options?: {
     );
   }
 
+  const allowRenames = options?.allowRenames ?? process.env.REFERENCE_ALLOW_RENAMES === 'yes';
   const targetDb = options?.databaseClient ?? db;
   const { states, lgas, wards } = options?.customData ?? loadReferenceData();
 
@@ -144,6 +146,7 @@ export async function seedReferenceData(options?: {
         updatedBy: SYSTEM_USER_ID,
       })
       .onConflictDoNothing({ target: appUser.id });
+
     // ---------------------------------------------------------------------------
     // 1. States: Existing states keep their current IDs, mapped by code
     // ---------------------------------------------------------------------------
@@ -156,6 +159,9 @@ export async function seedReferenceData(options?: {
       existingStateByCode.set(s.code.toUpperCase(), s);
     }
 
+    const stateRenames: Array<{ id: string; code: string; oldName: string; newName: string }> = [];
+    const statesToInsert: Array<typeof state.$inferInsert> = [];
+
     for (const item of states) {
       const match =
         existingStateByCode.get(item.state_code.toUpperCase()) ||
@@ -166,15 +172,12 @@ export async function seedReferenceData(options?: {
         stateIdMap.set(item.code.toUpperCase(), match.id);
 
         if (match.name !== item.name) {
-          await tx
-            .update(state)
-            .set({
-              name: item.name,
-              updatedBy: SYSTEM_USER_ID,
-              updatedAt: new Date().toISOString(),
-            })
-            .where(eq(state.id, match.id));
-          stats.state.updated++;
+          stateRenames.push({
+            id: match.id,
+            code: item.code,
+            oldName: match.name,
+            newName: item.name,
+          });
         } else {
           stats.state.unchanged++;
         }
@@ -183,24 +186,25 @@ export async function seedReferenceData(options?: {
         stateIdMap.set(item.state_code.toUpperCase(), newId);
         stateIdMap.set(item.code.toUpperCase(), newId);
 
-        await tx.insert(state).values({
+        statesToInsert.push({
           id: newId,
           code: item.state_code,
           name: item.name,
           createdBy: SYSTEM_USER_ID,
           updatedBy: SYSTEM_USER_ID,
         });
-        stats.state.inserted++;
       }
     }
 
     // ---------------------------------------------------------------------------
-    // 2. LGAs: Deterministic ID from type + code (UUID v5), upserted by code
+    // 2. LGAs: Validate parent states and renames against existing rows
     // ---------------------------------------------------------------------------
     const existingLgas = await tx.select().from(lga);
     const existingLgaByCode = new Map(existingLgas.map((l) => [l.code.toUpperCase(), l]));
     const lgaIdMap = new Map<string, string>();
 
+    const lgaParentChanges: Array<{ code: string; oldStateId: string; newStateId: string }> = [];
+    const lgaRenames: Array<{ id: string; code: string; oldName: string; newName: string }> = [];
     const lgasToInsert: Array<typeof lga.$inferInsert> = [];
 
     for (const item of lgas) {
@@ -219,15 +223,20 @@ export async function seedReferenceData(options?: {
 
       if (existing) {
         lgaIdMap.set(item.code.toUpperCase(), existing.id);
-        if (existing.name !== item.name || existing.stateId !== stateId) {
-          await tx
-            .update(lga)
-            .set({
-              name: item.name,
-              stateId,
-            })
-            .where(eq(lga.id, existing.id));
-          stats.lga.updated++;
+
+        if (existing.stateId !== stateId) {
+          lgaParentChanges.push({
+            code: item.code,
+            oldStateId: existing.stateId,
+            newStateId: stateId,
+          });
+        } else if (existing.name !== item.name) {
+          lgaRenames.push({
+            id: existing.id,
+            code: item.code,
+            oldName: existing.name,
+            newName: item.name,
+          });
         } else {
           stats.lga.unchanged++;
         }
@@ -239,23 +248,17 @@ export async function seedReferenceData(options?: {
           code: item.code,
           name: item.name,
         });
-        stats.lga.inserted++;
       }
     }
 
-    // Batch insert new LGAs in chunks of 250
-    const LGA_CHUNK_SIZE = 250;
-    for (let i = 0; i < lgasToInsert.length; i += LGA_CHUNK_SIZE) {
-      const chunk = lgasToInsert.slice(i, i + LGA_CHUNK_SIZE);
-      await tx.insert(lga).values(chunk);
-    }
-
     // ---------------------------------------------------------------------------
-    // 3. Wards: Deterministic ID from type + code (UUID v5), upserted by code
+    // 3. Wards: Validate parent LGAs and renames against existing rows
     // ---------------------------------------------------------------------------
     const existingWards = await tx.select().from(ward);
     const existingWardByCode = new Map(existingWards.map((w) => [w.code.toUpperCase(), w]));
 
+    const wardParentChanges: Array<{ code: string; oldLgaId: string; newLgaId: string }> = [];
+    const wardRenames: Array<{ id: string; code: string; oldName: string; newName: string }> = [];
     const wardsToInsert: Array<typeof ward.$inferInsert> = [];
 
     for (const item of wards) {
@@ -270,15 +273,19 @@ export async function seedReferenceData(options?: {
       const deterministicId = generateDeterministicId('ward', item.code);
 
       if (existing) {
-        if (existing.name !== item.name || existing.lgaId !== lgaId) {
-          await tx
-            .update(ward)
-            .set({
-              name: item.name,
-              lgaId,
-            })
-            .where(eq(ward.id, existing.id));
-          stats.ward.updated++;
+        if (existing.lgaId !== lgaId) {
+          wardParentChanges.push({
+            code: item.code,
+            oldLgaId: existing.lgaId,
+            newLgaId: lgaId,
+          });
+        } else if (existing.name !== item.name) {
+          wardRenames.push({
+            id: existing.id,
+            code: item.code,
+            oldName: existing.name,
+            newName: item.name,
+          });
         } else {
           stats.ward.unchanged++;
         }
@@ -289,15 +296,105 @@ export async function seedReferenceData(options?: {
           code: item.code,
           name: item.name,
         });
-        stats.ward.inserted++;
       }
     }
 
-    // Batch insert new Wards in chunks of 500
+    // ---------------------------------------------------------------------------
+    // Safety Enforcements: Stop run with error before executing any writes
+    // ---------------------------------------------------------------------------
+    if (lgaParentChanges.length > 0) {
+      const codes = lgaParentChanges.map((c) => c.code).join(', ');
+      throw new Error(
+        `Reference seed safety check failed: Prohibited parent State change detected for existing LGA(s): ${codes}. Parent changes for existing entities are strictly forbidden.`,
+      );
+    }
+
+    if (wardParentChanges.length > 0) {
+      const codes = wardParentChanges.map((c) => c.code).join(', ');
+      throw new Error(
+        `Reference seed safety check failed: Prohibited parent LGA change detected for existing Ward(s): ${codes}. Parent changes for existing entities are strictly forbidden.`,
+      );
+    }
+
+    if (
+      !allowRenames &&
+      (stateRenames.length > 0 || lgaRenames.length > 0 || wardRenames.length > 0)
+    ) {
+      const parts: string[] = [];
+      if (stateRenames.length > 0) {
+        parts.push(
+          `State(s): ${stateRenames.map((r) => `${r.code} ('${r.oldName}' -> '${r.newName}')`).join(', ')}`,
+        );
+      }
+      if (lgaRenames.length > 0) {
+        parts.push(
+          `LGA(s): ${lgaRenames.map((r) => `${r.code} ('${r.oldName}' -> '${r.newName}')`).join(', ')}`,
+        );
+      }
+      if (wardRenames.length > 0) {
+        parts.push(
+          `Ward(s): ${wardRenames.map((r) => `${r.code} ('${r.oldName}' -> '${r.newName}')`).join(', ')}`,
+        );
+      }
+      throw new Error(
+        `Reference seed safety check failed: Prohibited entity rename detected for existing ${parts.join('; ')}. Set REFERENCE_ALLOW_RENAMES=yes to permit reference entity renames.`,
+      );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Apply Permitted Renames (Listing every applied change)
+    // ---------------------------------------------------------------------------
+    for (const r of stateRenames) {
+      await tx
+        .update(state)
+        .set({
+          name: r.newName,
+          updatedBy: SYSTEM_USER_ID,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(state.id, r.id));
+      stats.state.updated++;
+      console.log(
+        `[seed:reference] Applied State rename: ${r.code} ('${r.oldName}' -> '${r.newName}')`,
+      );
+    }
+
+    for (const r of lgaRenames) {
+      await tx.update(lga).set({ name: r.newName }).where(eq(lga.id, r.id));
+      stats.lga.updated++;
+      console.log(
+        `[seed:reference] Applied LGA rename: ${r.code} ('${r.oldName}' -> '${r.newName}')`,
+      );
+    }
+
+    for (const r of wardRenames) {
+      await tx.update(ward).set({ name: r.newName }).where(eq(ward.id, r.id));
+      stats.ward.updated++;
+      console.log(
+        `[seed:reference] Applied Ward rename: ${r.code} ('${r.oldName}' -> '${r.newName}')`,
+      );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Apply Inserts
+    // ---------------------------------------------------------------------------
+    for (const item of statesToInsert) {
+      await tx.insert(state).values(item);
+      stats.state.inserted++;
+    }
+
+    const LGA_CHUNK_SIZE = 250;
+    for (let i = 0; i < lgasToInsert.length; i += LGA_CHUNK_SIZE) {
+      const chunk = lgasToInsert.slice(i, i + LGA_CHUNK_SIZE);
+      await tx.insert(lga).values(chunk);
+      stats.lga.inserted += chunk.length;
+    }
+
     const WARD_CHUNK_SIZE = 500;
     for (let i = 0; i < wardsToInsert.length; i += WARD_CHUNK_SIZE) {
       const chunk = wardsToInsert.slice(i, i + WARD_CHUNK_SIZE);
       await tx.insert(ward).values(chunk);
+      stats.ward.inserted += chunk.length;
     }
   });
 
