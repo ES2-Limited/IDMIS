@@ -12,11 +12,11 @@ This directory contains standardized administrative reference data for Nigeria's
 - **Dataset**: Nigeria - Subnational Administrative Boundaries (COD-AB) (`cod-ab-nga`)
 - **Official URL**: [https://data.humdata.org/dataset/cod-ab-nga](https://data.humdata.org/dataset/cod-ab-nga)
 - **Direct Resource**: `nga_admin_boundaries.xlsx`
-- **Licence**: Creative Commons Attribution for Intergovernmental Organisations (CC BY-IGO) / [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Licence**: [Creative Commons Attribution for Intergovernmental Organisations (CC BY-IGO)](http://creativecommons.org/licenses/by/3.0/igo/legalcode)
 - **Version**: `v01` (validity date: 2019-04-17)
 - **Extraction Date**: 2026-11-09
 - **Required Attribution**:
-  > _Source: UN OCHA (Nigeria - Subnational Administrative Boundaries / COD-AB), licensed under CC BY-IGO / CC BY 4.0._
+  > _Source: UN OCHA (Nigeria - Subnational Administrative Boundaries / COD-AB), licensed under Creative Commons Attribution for Intergovernmental Organisations (CC BY-IGO)._
 
 ### Source 2: Operational Wards
 
@@ -39,11 +39,12 @@ This directory contains standardized administrative reference data for Nigeria's
    - 774 LGAs were extracted directly from COD-AB `nga_admin2`.
    - Official OCHA P-codes (`NG001` to `NG037` for states; `NG001001` to `NG037014` for LGAs) are adopted as our standardized reference codes.
 
-2. **Ward Matching & P-Code Assignment**:
-   - GRID3 v3.0 operational wards were matched to COD-AB LGAs by state and normalized LGA name.
-   - 5,637 wards successfully matched to COD-AB LGAs across 24 states.
-   - For matched wards, hierarchical P-codes adhering to the OCHA COD-AB convention (`{lga_pcode}{index:03d}`) were deterministically generated based on alphabetical ordering within each LGA.
-   - 235 wards could not be matched due to LGA name discrepancies in GRID3 (e.g. spelling variations or historical boundary names) and were recorded without guessing in `unmatched-wards.csv`.
+2. **Ward Matching & Stable Identifier Assignment**:
+   - GRID3 v3.0 operational wards were matched to COD-AB LGAs by state and LGA name.
+   - For TRIMING programme states (Gombe, Jigawa, Kano, Sokoto, Zamfara), naming discrepancies between GRID3 and COD-AB are explicitly resolved using `reference/lga-name-aliases.csv` (`grid3_lga_name,state_code,cod_ab_lga_pcode`), with no fuzzy matching.
+   - 5,691 wards successfully matched to COD-AB LGAs across 24 states (including 100% of wards across all 5 TRIMING programme states).
+   - Stable Ward Identifiers: Rather than generating alphabetical sequential codes that would shift upon ward additions or renames, each ward code uses GRID3's own persistent feature identifier from the source (`OBJECTID`, documented as `fid` in the CIESIN/GRID3 Codebook). Format: `G3-<grid3_ward_id>` (e.g. `G3-1` to `G3-5872`). `lga_code` retains the official OCHA LGA P-code (e.g. `NG020001`).
+   - 181 wards in non-TRIMING states could not be matched automatically and are catalogued in `unmatched-wards.csv` without guessing.
 
 ---
 
@@ -68,9 +69,9 @@ This directory contains standardized administrative reference data for Nigeria's
 | Federal Capital Territory | 6           | 50           | 12              |                             |
 | Gombe                     | 11          | 114          | 0               | **TRIMING Programme State** |
 | Imo                       | 27          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Jigawa                    | 27          | 266          | 22              | **TRIMING Programme State** |
+| Jigawa                    | 27          | 288          | 0               | **TRIMING Programme State** |
 | Kaduna                    | 23          | 234          | 21              |                             |
-| Kano                      | 44          | 473          | 11              | **TRIMING Programme State** |
+| Kano                      | 44          | 484          | 0               | **TRIMING Programme State** |
 | Katsina                   | 34          | 361          | 0               |                             |
 | Kebbi                     | 21          | 225          | 0               |                             |
 | Kogi                      | 21          | 229          | 10              |                             |
@@ -84,8 +85,8 @@ This directory contains standardized administrative reference data for Nigeria's
 | Oyo                       | 33          | 341          | 10              |                             |
 | Plateau                   | 17          | 0            | 0               | No GRID3 v3.0 coverage      |
 | Rivers                    | 23          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Sokoto                    | 23          | 233          | 11              | **TRIMING Programme State** |
+| Sokoto                    | 23          | 244          | 0               | **TRIMING Programme State** |
 | Taraba                    | 16          | 0            | 0               | No GRID3 v3.0 coverage      |
 | Yobe                      | 17          | 168          | 10              |                             |
-| Zamfara                   | 14          | 137          | 10              | **TRIMING Programme State** |
-| **Total**                 | **774**     | **5,637**    | **235**         |                             |
+| Zamfara                   | 14          | 147          | 0               | **TRIMING Programme State** |
+| **Total**                 | **774**     | **5,691**    | **181**         |                             |

@@ -92,10 +92,10 @@ ORDER BY s.code;
 | State Code | State Name | LGAs | Wards |
 | :--------- | :--------- | :--- | :---- |
 | `GM`       | Gombe      | 11   | 114   |
-| `JI`       | Jigawa     | 27   | 266   |
-| `KN`       | Kano       | 44   | 473   |
-| `SO`       | Sokoto     | 23   | 233   |
-| `ZA`       | Zamfara    | 14   | 137   |
+| `JI`       | Jigawa     | 27   | 288   |
+| `KN`       | Kano       | 44   | 484   |
+| `SO`       | Sokoto     | 23   | 244   |
+| `ZA`       | Zamfara    | 14   | 147   |
 
 ---
 
@@ -103,7 +103,7 @@ ORDER BY s.code;
 
 ### Context
 
-GRID3 NGA Operational Wards v3.0 contains 235 wards whose LGA names could not be matched automatically to official OCHA COD-AB LGA boundaries without guessing. These are catalogued in `packages/db/src/seed/reference/unmatched-wards.csv`.
+GRID3 NGA Operational Wards v3.0 contains 181 wards (in non-TRIMING states) whose LGA names could not be matched automatically to official OCHA COD-AB LGA boundaries without guessing. These are catalogued in `packages/db/src/seed/reference/unmatched-wards.csv`.
 
 ### Import Procedure Once LGA Is Confirmed
 
@@ -115,7 +115,7 @@ GRID3 NGA Operational Wards v3.0 contains 235 wards whose LGA names could not be
 3. In Excel, populate the **Data** sheet:
    | Column        | Description                                        | Example        |
    | :------------ | :------------------------------------------------- | :------------- |
-   | `Ward Code *` | Unique ward identifier (e.g. `{LGA_PCODE}{INDEX}`) | `NG020001901`  |
+   | `Ward Code *` | Unique ward identifier (e.g. `G3-<grid3_ward_id>`) | `G3-1001`      |
    | `Ward Name *` | Official ward name                                 | `Dawanau Ward` |
    | `LGA Code *`  | Official COD-AB LGA P-code                         | `NG020001`     |
 4. Upload via the Web UI Import Wizard:

@@ -43,7 +43,7 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
       { code: 'NG020001', name: 'Ajingi', state_pcode: 'NG020', state_code: 'KN' },
     ];
     const wards: WardReferenceItem[] = [
-      { code: 'NG020001001', name: 'Ajingi Ward', lga_code: 'NG020001', state_code: 'KN' },
+      { code: 'G3-1001', name: 'Ajingi Ward', lga_code: 'NG020001', state_code: 'KN' },
     ];
 
     it('succeeds when all parent links are valid', () => {
@@ -59,7 +59,7 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
 
     it('throws before DB write when Ward parent LGA is invalid', () => {
       const badWards: WardReferenceItem[] = [
-        { code: 'NG020001999', name: 'Bad Ward', lga_code: 'NG999999', state_code: 'KN' },
+        { code: 'G3-99999', name: 'Bad Ward', lga_code: 'NG999999', state_code: 'KN' },
       ];
       expect(() => validateParentLinks(states, lgas, badWards)).toThrow(/parent LGA 'NG999999'/);
     });
@@ -86,7 +86,7 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
         { code: 'NG020099', name: 'Test Ref LGA', state_pcode: 'NG020', state_code: 'KN' },
       ];
       const testWards: WardReferenceItem[] = [
-        { code: 'NG020099001', name: 'Test Ref Ward', lga_code: 'NG020099', state_code: 'KN' },
+        { code: 'G3-99001', name: 'Test Ref Ward', lga_code: 'NG020099', state_code: 'KN' },
       ];
 
       // Ensure SYSTEM_USER_ID exists in DB
@@ -145,13 +145,13 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
 
       // Verify LGA & Ward deterministic IDs
       const expectedLgaId = generateDeterministicId('lga', 'NG020099');
-      const expectedWardId = generateDeterministicId('ward', 'NG020099001');
+      const expectedWardId = generateDeterministicId('ward', 'G3-99001');
 
       const [lgaRow] = await db.select().from(lga).where(eq(lga.code, 'NG020099')).limit(1);
       expect(lgaRow?.id).toBe(expectedLgaId);
       expect(lgaRow?.stateId).toBe(initialKanoId);
 
-      const [wardRow] = await db.select().from(ward).where(eq(ward.code, 'NG020099001')).limit(1);
+      const [wardRow] = await db.select().from(ward).where(eq(ward.code, 'G3-99001')).limit(1);
       expect(wardRow?.id).toBe(expectedWardId);
       expect(wardRow?.lgaId).toBe(expectedLgaId);
 
@@ -178,7 +178,7 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
       expect(run2.ward.unchanged).toBe(1);
 
       // Clean up test rows
-      await db.delete(ward).where(eq(ward.code, 'NG020099001'));
+      await db.delete(ward).where(eq(ward.code, 'G3-99001'));
       await db.delete(lga).where(eq(lga.code, 'NG020099'));
     });
   });

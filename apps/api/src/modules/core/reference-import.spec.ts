@@ -477,7 +477,7 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
 
     it('rejects a Ward referencing a non-existent lga_code', async () => {
       const buffer = await createWorkbookBuffer('ward', wardColumns, [
-        { code: 'NG020701001', name: 'Ghost Ward', lga_code: 'NON_EXISTENT_LGA' },
+        { code: 'G3-701001', name: 'Ghost Ward', lga_code: 'NON_EXISTENT_LGA' },
       ]);
       activeBuffer = buffer;
 
@@ -501,7 +501,7 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
     });
 
     it('upserts by code, supports re-import without duplicates, and undoes cleanly', async () => {
-      const rows = [{ code: 'NG020701001', name: 'Kano Ward A', lga_code: 'NG020701' }];
+      const rows = [{ code: 'G3-701001', name: 'Kano Ward A', lga_code: 'NG020701' }];
       const buffer = await createWorkbookBuffer('ward', wardColumns, rows);
       activeBuffer = buffer;
 
@@ -522,13 +522,13 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
       });
       expect(commitRes.statusCode).toBe(201);
 
-      const [insertedWard] = await testDb.select().from(ward).where(eq(ward.code, 'NG020701001'));
+      const [insertedWard] = await testDb.select().from(ward).where(eq(ward.code, 'G3-701001'));
       expect(insertedWard).toBeDefined();
       expect(insertedWard?.name).toBe('Kano Ward A');
 
       // 2. Re-import with name update
       const updateBuffer = await createWorkbookBuffer('ward', wardColumns, [
-        { code: 'NG020701001', name: 'Kano Ward A Updated', lga_code: 'NG020701' },
+        { code: 'G3-701001', name: 'Kano Ward A Updated', lga_code: 'NG020701' },
       ]);
       activeBuffer = updateBuffer;
 
@@ -548,7 +548,7 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
       });
       expect(commit2.statusCode).toBe(201);
 
-      const [updatedWard] = await testDb.select().from(ward).where(eq(ward.code, 'NG020701001'));
+      const [updatedWard] = await testDb.select().from(ward).where(eq(ward.code, 'G3-701001'));
       expect(updatedWard?.name).toBe('Kano Ward A Updated');
 
       // 3. Undo re-import restores previous name
@@ -559,7 +559,7 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
       });
       expect(undo2.statusCode).toBe(201);
 
-      const [restoredWard] = await testDb.select().from(ward).where(eq(ward.code, 'NG020701001'));
+      const [restoredWard] = await testDb.select().from(ward).where(eq(ward.code, 'G3-701001'));
       expect(restoredWard?.name).toBe('Kano Ward A');
 
       // 4. Undo initial import deletes ward
@@ -570,7 +570,7 @@ describe('Reference Data Import Handlers (BE-Geography & Reference Imports)', ()
       });
       expect(undo1.statusCode).toBe(201);
 
-      const [deletedWard] = await testDb.select().from(ward).where(eq(ward.code, 'NG020701001'));
+      const [deletedWard] = await testDb.select().from(ward).where(eq(ward.code, 'G3-701001'));
       expect(deletedWard).toBeUndefined();
     });
   });

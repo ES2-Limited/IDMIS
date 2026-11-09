@@ -21,7 +21,7 @@ export interface LgaReferenceItem {
 }
 
 export interface WardReferenceItem {
-  code: string; // e.g. "NG001001001"
+  code: string; // e.g. "G3-1001"
   name: string;
   lga_code: string;
   state_code: string;

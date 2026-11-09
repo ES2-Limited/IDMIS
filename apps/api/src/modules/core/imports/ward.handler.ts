@@ -25,7 +25,7 @@ export class WardImportHandler implements ImportDatasetHandler {
 
   getExampleRow(): Record<string, unknown> {
     return {
-      code: 'NG020001001',
+      code: 'G3-1001',
       name: 'Ajingi Ward',
       lga_code: 'NG020001',
     };

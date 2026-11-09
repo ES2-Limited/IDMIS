@@ -41,28 +41,6 @@ grid3_objectid,state_name,state_code,lga_name,ward_name,reason
 3956,"FCT, Abuja",FC,Municipal Area Council,Nyanya 1,LGA name did not match COD-AB administrative boundaries
 3957,"FCT, Abuja",FC,Municipal Area Council,Orozo,LGA name did not match COD-AB administrative boundaries
 3958,"FCT, Abuja",FC,Municipal Area Council,Wuse,LGA name did not match COD-AB administrative boundaries
-745,Jigawa,JI,Birnin Kudu,Birnin Kudu,LGA name did not match COD-AB administrative boundaries
-746,Jigawa,JI,Birnin Kudu,Kangire,LGA name did not match COD-AB administrative boundaries
-747,Jigawa,JI,Birnin Kudu,Kantoga,LGA name did not match COD-AB administrative boundaries
-748,Jigawa,JI,Birnin Kudu,Kiyako,LGA name did not match COD-AB administrative boundaries
-749,Jigawa,JI,Birnin Kudu,Kwangwara,LGA name did not match COD-AB administrative boundaries
-750,Jigawa,JI,Birnin Kudu,Lafia,LGA name did not match COD-AB administrative boundaries
-751,Jigawa,JI,Birnin Kudu,Sundimina,LGA name did not match COD-AB administrative boundaries
-752,Jigawa,JI,Birnin Kudu,Surko,LGA name did not match COD-AB administrative boundaries
-753,Jigawa,JI,Birnin Kudu,Unguwar Ya,LGA name did not match COD-AB administrative boundaries
-754,Jigawa,JI,Birnin Kudu,Wurno,LGA name did not match COD-AB administrative boundaries
-755,Jigawa,JI,Birnin Kudu,Yalwan Damai,LGA name did not match COD-AB administrative boundaries
-766,Jigawa,JI,Birniwa,Batu,LGA name did not match COD-AB administrative boundaries
-767,Jigawa,JI,Birniwa,Birniwa,LGA name did not match COD-AB administrative boundaries
-768,Jigawa,JI,Birniwa,Dangwaleri,LGA name did not match COD-AB administrative boundaries
-769,Jigawa,JI,Birniwa,Diginsa,LGA name did not match COD-AB administrative boundaries
-770,Jigawa,JI,Birniwa,Fagi,LGA name did not match COD-AB administrative boundaries
-771,Jigawa,JI,Birniwa,Kachallari,LGA name did not match COD-AB administrative boundaries
-772,Jigawa,JI,Birniwa,Karanga,LGA name did not match COD-AB administrative boundaries
-773,Jigawa,JI,Birniwa,Kazura,LGA name did not match COD-AB administrative boundaries
-774,Jigawa,JI,Birniwa,Machinamari,LGA name did not match COD-AB administrative boundaries
-775,Jigawa,JI,Birniwa,Matamu,LGA name did not match COD-AB administrative boundaries
-776,Jigawa,JI,Birniwa,Nguwa,LGA name did not match COD-AB administrative boundaries
 3670,Kaduna,KD,Makarfi,Dandamisa,LGA name did not match COD-AB administrative boundaries
 3671,Kaduna,KD,Makarfi,Danguziri,LGA name did not match COD-AB administrative boundaries
 3672,Kaduna,KD,Makarfi,Gazara,LGA name did not match COD-AB administrative boundaries
@@ -84,17 +62,6 @@ grid3_objectid,state_name,state_code,lga_name,ward_name,reason
 5836,Kaduna,KD,Zangon Kataf,Zango Urban,LGA name did not match COD-AB administrative boundaries
 5837,Kaduna,KD,Zangon Kataf,Zonkwa,LGA name did not match COD-AB administrative boundaries
 5838,Kaduna,KD,Zangon Kataf,Zonzon,LGA name did not match COD-AB administrative boundaries
-4031,Kano,KN,Nassarawa,Dakata,LGA name did not match COD-AB administrative boundaries
-4032,Kano,KN,Nassarawa,Gama,LGA name did not match COD-AB administrative boundaries
-4033,Kano,KN,Nassarawa,Gawuna,LGA name did not match COD-AB administrative boundaries
-4034,Kano,KN,Nassarawa,Giginyu,LGA name did not match COD-AB administrative boundaries
-4035,Kano,KN,Nassarawa,Gwagwarwa,LGA name did not match COD-AB administrative boundaries
-4036,Kano,KN,Nassarawa,Hotoro North,LGA name did not match COD-AB administrative boundaries
-4037,Kano,KN,Nassarawa,Hotoro South,LGA name did not match COD-AB administrative boundaries
-4038,Kano,KN,Nassarawa,Kaura Goje,LGA name did not match COD-AB administrative boundaries
-4039,Kano,KN,Nassarawa,Kawaji,LGA name did not match COD-AB administrative boundaries
-4040,Kano,KN,Nassarawa,Tudun Murtala,LGA name did not match COD-AB administrative boundaries
-4041,Kano,KN,Nassarawa,Tudun Wada,LGA name did not match COD-AB administrative boundaries
 4450,Kogi,KO,Olamaboro,Adeh I,LGA name did not match COD-AB administrative boundaries
 4451,Kogi,KO,Olamaboro,Efabo,LGA name did not match COD-AB administrative boundaries
 4452,Kogi,KO,Olamaboro,Efofe,LGA name did not match COD-AB administrative boundaries
@@ -203,17 +170,6 @@ grid3_objectid,state_name,state_code,lga_name,ward_name,reason
 394,Oyo,OY,Atisbo,Ofiki,LGA name did not match COD-AB administrative boundaries
 395,Oyo,OY,Atisbo,Owo,LGA name did not match COD-AB administrative boundaries
 396,Oyo,OY,Atisbo,Oyada,LGA name did not match COD-AB administrative boundaries
-5535,Sokoto,SO,Wamakko,Arkilla,LGA name did not match COD-AB administrative boundaries
-5536,Sokoto,SO,Wamakko,Bado,LGA name did not match COD-AB administrative boundaries
-5537,Sokoto,SO,Wamakko,Dundaye,LGA name did not match COD-AB administrative boundaries
-5538,Sokoto,SO,Wamakko,Gidan Bubu,LGA name did not match COD-AB administrative boundaries
-5539,Sokoto,SO,Wamakko,Gidan Hamidu,LGA name did not match COD-AB administrative boundaries
-5540,Sokoto,SO,Wamakko,Gumbi,LGA name did not match COD-AB administrative boundaries
-5541,Sokoto,SO,Wamakko,Gwamatse,LGA name did not match COD-AB administrative boundaries
-5542,Sokoto,SO,Wamakko,Kalambaina,LGA name did not match COD-AB administrative boundaries
-5543,Sokoto,SO,Wamakko,Kammata,LGA name did not match COD-AB administrative boundaries
-5544,Sokoto,SO,Wamakko,Kaura,LGA name did not match COD-AB administrative boundaries
-5545,Sokoto,SO,Wamakko,Wamakko,LGA name did not match COD-AB administrative boundaries
 5227,Yobe,YO,Tarmuwa,Babangida,LGA name did not match COD-AB administrative boundaries
 5228,Yobe,YO,Tarmuwa,Biriri,LGA name did not match COD-AB administrative boundaries
 5229,Yobe,YO,Tarmuwa,Guduram,LGA name did not match COD-AB administrative boundaries
@@ -224,13 +180,3 @@ grid3_objectid,state_name,state_code,lga_name,ward_name,reason
 5234,Yobe,YO,Tarmuwa,Mandadawa,LGA name did not match COD-AB administrative boundaries
 5235,Yobe,YO,Tarmuwa,Shekau,LGA name did not match COD-AB administrative boundaries
 5236,Yobe,YO,Tarmuwa,Sungul Koka,LGA name did not match COD-AB administrative boundaries
-756,Zamfara,ZA,Birnin Magaji/Kiyaw,Birnin Magaji,LGA name did not match COD-AB administrative boundaries
-757,Zamfara,ZA,Birnin Magaji/Kiyaw,Danfami Sabon Birni,LGA name did not match COD-AB administrative boundaries
-758,Zamfara,ZA,Birnin Magaji/Kiyaw,Gora,LGA name did not match COD-AB administrative boundaries
-759,Zamfara,ZA,Birnin Magaji/Kiyaw,Gusami Gari,LGA name did not match COD-AB administrative boundaries
-760,Zamfara,ZA,Birnin Magaji/Kiyaw,Gusami Hayi,LGA name did not match COD-AB administrative boundaries
-761,Zamfara,ZA,Birnin Magaji/Kiyaw,Madomawa East,LGA name did not match COD-AB administrative boundaries
-762,Zamfara,ZA,Birnin Magaji/Kiyaw,Madomawa West,LGA name did not match COD-AB administrative boundaries
-763,Zamfara,ZA,Birnin Magaji/Kiyaw,N Godel East,LGA name did not match COD-AB administrative boundaries
-764,Zamfara,ZA,Birnin Magaji/Kiyaw,N Godel West,LGA name did not match COD-AB administrative boundaries
-765,Zamfara,ZA,Birnin Magaji/Kiyaw,Nasarawa Mailayi,LGA name did not match COD-AB administrative boundaries
