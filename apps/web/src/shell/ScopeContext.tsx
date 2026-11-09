@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useGeography } from '../modules/core/hooks';
 
 export type ScopeType = 'national' | 'state' | 'rbda' | 'scheme' | 'sector';
 
@@ -12,6 +13,7 @@ export interface ScopeState {
   currentScope: ScopeSelection;
   setScope: (scope: ScopeSelection) => void;
   availableScopes: ScopeSelection[];
+  isLoadingScopes?: boolean;
 }
 
 export const defaultScopes: ScopeSelection[] = [
@@ -38,6 +40,27 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
     return defaultScopes[0];
   });
 
+  // Query live states from server via clean modular hook
+  const { states: statesData, isLoadingStates: isLoadingScopes } = useGeography();
+
+  // Merge live server states into available scopes
+  const availableScopes = React.useMemo(() => {
+    if (!statesData || statesData.length === 0) {
+      return defaultScopes;
+    }
+    const serverStateScopes: ScopeSelection[] = statesData.map((s) => ({
+      type: 'state' as const,
+      id: s.id,
+      name: `${s.name} State`,
+    }));
+
+    return [
+      defaultScopes[0]!, // National
+      ...serverStateScopes,
+      ...defaultScopes.filter((s) => s.type === 'scheme'),
+    ];
+  }, [statesData]);
+
   const setScope = React.useCallback((scope: ScopeSelection) => {
     setCurrentScope(scope);
     if (typeof window !== 'undefined') {
@@ -50,7 +73,8 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentScope,
         setScope,
-        availableScopes: defaultScopes,
+        availableScopes,
+        isLoadingScopes,
       }}
     >
       {children}
