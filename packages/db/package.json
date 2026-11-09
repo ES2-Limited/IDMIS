@@ -21,10 +21,12 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/cli/seed.ts",
     "db:seed:load": "tsx src/cli/seed-load.ts",
+    "db:seed:reference": "tsx src/cli/seed-reference.ts",
     "db:hash-password": "tsx scripts/hash-password.ts",
     "migrate": "node dist/cli/migrate.js",
     "seed": "node dist/cli/seed.js",
     "seed:load": "node dist/cli/seed-load.js",
+    "seed:reference": "node dist/cli/seed-reference.js",
     "release": "node dist/release.js"
   },
   "dependencies": {

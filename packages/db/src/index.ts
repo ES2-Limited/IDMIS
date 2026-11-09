@@ -33,3 +33,5 @@ export * from './authz/index';
 export * from './security/index';
 export * from './seed/me-indicators';
 export * from './seed/me-indicators.data';
+export * from './seed/deterministic-id';
+export * from './seed/seed-reference';

@@ -214,3 +214,142 @@ export const WUA_IMPORT_DEFINITION: ImportDatasetDefinition = {
     },
   ],
 };
+
+// Geography: LGA Import Definition
+export const LGA_IMPORT_DEFINITION: ImportDatasetDefinition = {
+  dataset: 'lga',
+  targetTable: 'core.lga',
+  version: 1,
+  naturalKeyColumns: ['code'],
+  columns: [
+    {
+      name: 'code',
+      header: 'LGA Code',
+      required: true,
+      type: 'string',
+      description: 'Unique code of the Local Government Area (e.g. OCHA P-code NG020001)',
+    },
+    {
+      name: 'name',
+      header: 'LGA Name',
+      required: true,
+      type: 'string',
+      description: 'Official name of the LGA',
+    },
+    {
+      name: 'state_code',
+      header: 'State Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the parent State (e.g. KN or NG020)',
+    },
+  ],
+};
+
+// Geography: Ward Import Definition
+export const WARD_IMPORT_DEFINITION: ImportDatasetDefinition = {
+  dataset: 'ward',
+  targetTable: 'core.ward',
+  version: 1,
+  naturalKeyColumns: ['code'],
+  columns: [
+    {
+      name: 'code',
+      header: 'Ward Code',
+      required: true,
+      type: 'string',
+      description: 'Unique code of the Ward (e.g. P-code or administrative code)',
+    },
+    {
+      name: 'name',
+      header: 'Ward Name',
+      required: true,
+      type: 'string',
+      description: 'Official name of the Ward',
+    },
+    {
+      name: 'lga_code',
+      header: 'LGA Code',
+      required: true,
+      type: 'string',
+      description: 'Code of the parent LGA (e.g. NG020001)',
+    },
+  ],
+};
+
+// Organisations: RBDA, Scheme, Sector Import Definition
+export const ORGANISATION_IMPORT_DEFINITION: ImportDatasetDefinition = {
+  dataset: 'organisation',
+  targetTable: 'core.organisation',
+  version: 1,
+  naturalKeyColumns: ['code'],
+  columns: [
+    {
+      name: 'code',
+      header: 'Organisation Code',
+      required: true,
+      type: 'string',
+      description: 'Unique code of the organisation (e.g. HJRBDA, KRIS, SEC-01)',
+    },
+    {
+      name: 'name',
+      header: 'Organisation Name',
+      required: true,
+      type: 'string',
+      description: 'Full official name of the organisation',
+    },
+    {
+      name: 'type',
+      header: 'Type',
+      required: true,
+      type: 'string',
+      description: 'Organisation type: rbda | scheme | sector',
+    },
+    {
+      name: 'parent_code',
+      header: 'Parent Code',
+      required: false,
+      type: 'string',
+      description: 'Parent organisation code (required for scheme -> rbda, sector -> scheme)',
+    },
+    {
+      name: 'state_codes',
+      header: 'State Codes',
+      required: false,
+      type: 'string',
+      description: 'Comma-separated state codes associated with this organisation (e.g. KN,JI)',
+    },
+    {
+      name: 'short_name',
+      header: 'Short Name',
+      required: false,
+      type: 'string',
+      description: 'Short or abbreviated name of the organisation',
+    },
+    {
+      name: 'address',
+      header: 'Address',
+      required: false,
+      type: 'string',
+    },
+    {
+      name: 'phone',
+      header: 'Phone',
+      required: false,
+      type: 'string',
+    },
+    {
+      name: 'email',
+      header: 'Email',
+      required: false,
+      type: 'string',
+    },
+    {
+      name: 'irrigable_area_ha',
+      header: 'Irrigable Area (Ha)',
+      required: false,
+      type: 'number',
+      description: 'Irrigable area in hectares',
+    },
+  ],
+};

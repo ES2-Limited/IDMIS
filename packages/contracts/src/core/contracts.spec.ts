@@ -12,6 +12,9 @@ import {
   sanitizeFormulaSafety,
   isFormulaUnsafe,
   WUA_IMPORT_DEFINITION,
+  LGA_IMPORT_DEFINITION,
+  WARD_IMPORT_DEFINITION,
+  ORGANISATION_IMPORT_DEFINITION,
 } from './import';
 import {
   KNOWN_EVENT_TYPES,
@@ -143,6 +146,41 @@ describe('Contracts Specification (BE-1.7, BE-1.6, BE-1.8)', () => {
 
       const nameCol = WUA_IMPORT_DEFINITION.columns.find((c) => c.name === 'name');
       expect(nameCol?.required).toBe(true);
+    });
+
+    it('verifies LGA, Ward, and Organisation import definitions match expected constraints', () => {
+      // LGA definition
+      expect(LGA_IMPORT_DEFINITION.dataset).toBe('lga');
+      expect(LGA_IMPORT_DEFINITION.targetTable).toBe('core.lga');
+      expect(LGA_IMPORT_DEFINITION.naturalKeyColumns).toEqual(['code']);
+      expect(LGA_IMPORT_DEFINITION.columns.map((c) => c.name)).toEqual([
+        'code',
+        'name',
+        'state_code',
+      ]);
+      expect(LGA_IMPORT_DEFINITION.columns.every((c) => c.required)).toBe(true);
+
+      // Ward definition
+      expect(WARD_IMPORT_DEFINITION.dataset).toBe('ward');
+      expect(WARD_IMPORT_DEFINITION.targetTable).toBe('core.ward');
+      expect(WARD_IMPORT_DEFINITION.naturalKeyColumns).toEqual(['code']);
+      expect(WARD_IMPORT_DEFINITION.columns.map((c) => c.name)).toEqual([
+        'code',
+        'name',
+        'lga_code',
+      ]);
+      expect(WARD_IMPORT_DEFINITION.columns.every((c) => c.required)).toBe(true);
+
+      // Organisation definition
+      expect(ORGANISATION_IMPORT_DEFINITION.dataset).toBe('organisation');
+      expect(ORGANISATION_IMPORT_DEFINITION.targetTable).toBe('core.organisation');
+      expect(ORGANISATION_IMPORT_DEFINITION.naturalKeyColumns).toEqual(['code']);
+      const orgColNames = ORGANISATION_IMPORT_DEFINITION.columns.map((c) => c.name);
+      expect(orgColNames).toContain('code');
+      expect(orgColNames).toContain('name');
+      expect(orgColNames).toContain('type');
+      expect(orgColNames).toContain('parent_code');
+      expect(orgColNames).toContain('state_codes');
     });
   });
 

@@ -1,0 +1,187 @@
+[
+  {
+    "code": "NG001",
+    "state_code": "AB",
+    "name": "Abia"
+  },
+  {
+    "code": "NG002",
+    "state_code": "AD",
+    "name": "Adamawa"
+  },
+  {
+    "code": "NG003",
+    "state_code": "AK",
+    "name": "Akwa Ibom"
+  },
+  {
+    "code": "NG004",
+    "state_code": "AN",
+    "name": "Anambra"
+  },
+  {
+    "code": "NG005",
+    "state_code": "BA",
+    "name": "Bauchi"
+  },
+  {
+    "code": "NG006",
+    "state_code": "BY",
+    "name": "Bayelsa"
+  },
+  {
+    "code": "NG007",
+    "state_code": "BE",
+    "name": "Benue"
+  },
+  {
+    "code": "NG008",
+    "state_code": "BO",
+    "name": "Borno"
+  },
+  {
+    "code": "NG009",
+    "state_code": "CR",
+    "name": "Cross River"
+  },
+  {
+    "code": "NG010",
+    "state_code": "DE",
+    "name": "Delta"
+  },
+  {
+    "code": "NG011",
+    "state_code": "EB",
+    "name": "Ebonyi"
+  },
+  {
+    "code": "NG012",
+    "state_code": "ED",
+    "name": "Edo"
+  },
+  {
+    "code": "NG013",
+    "state_code": "EK",
+    "name": "Ekiti"
+  },
+  {
+    "code": "NG014",
+    "state_code": "EN",
+    "name": "Enugu"
+  },
+  {
+    "code": "NG015",
+    "state_code": "FC",
+    "name": "Federal Capital Territory"
+  },
+  {
+    "code": "NG016",
+    "state_code": "GO",
+    "name": "Gombe"
+  },
+  {
+    "code": "NG017",
+    "state_code": "IM",
+    "name": "Imo"
+  },
+  {
+    "code": "NG018",
+    "state_code": "JI",
+    "name": "Jigawa"
+  },
+  {
+    "code": "NG019",
+    "state_code": "KD",
+    "name": "Kaduna"
+  },
+  {
+    "code": "NG020",
+    "state_code": "KN",
+    "name": "Kano"
+  },
+  {
+    "code": "NG021",
+    "state_code": "KT",
+    "name": "Katsina"
+  },
+  {
+    "code": "NG022",
+    "state_code": "KE",
+    "name": "Kebbi"
+  },
+  {
+    "code": "NG023",
+    "state_code": "KO",
+    "name": "Kogi"
+  },
+  {
+    "code": "NG024",
+    "state_code": "KW",
+    "name": "Kwara"
+  },
+  {
+    "code": "NG025",
+    "state_code": "LA",
+    "name": "Lagos"
+  },
+  {
+    "code": "NG026",
+    "state_code": "NA",
+    "name": "Nasarawa"
+  },
+  {
+    "code": "NG027",
+    "state_code": "NI",
+    "name": "Niger"
+  },
+  {
+    "code": "NG028",
+    "state_code": "OG",
+    "name": "Ogun"
+  },
+  {
+    "code": "NG029",
+    "state_code": "ON",
+    "name": "Ondo"
+  },
+  {
+    "code": "NG030",
+    "state_code": "OS",
+    "name": "Osun"
+  },
+  {
+    "code": "NG031",
+    "state_code": "OY",
+    "name": "Oyo"
+  },
+  {
+    "code": "NG032",
+    "state_code": "PL",
+    "name": "Plateau"
+  },
+  {
+    "code": "NG033",
+    "state_code": "RI",
+    "name": "Rivers"
+  },
+  {
+    "code": "NG034",
+    "state_code": "SO",
+    "name": "Sokoto"
+  },
+  {
+    "code": "NG035",
+    "state_code": "TA",
+    "name": "Taraba"
+  },
+  {
+    "code": "NG036",
+    "state_code": "YO",
+    "name": "Yobe"
+  },
+  {
+    "code": "NG037",
+    "state_code": "ZA",
+    "name": "Zamfara"
+  }
+]
