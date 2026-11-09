@@ -24,6 +24,65 @@ import { SlisComputeQueryService } from '../slis/services/slis-compute-query.ser
 import { BlisComputeQueryService } from '../blis/services/blis-compute-query.service';
 import { eventBus } from '../../platform/events/event-bus';
 
+interface TestJob {
+  id: string;
+  name: string;
+  data: unknown;
+  delay: number;
+  timestamp: number;
+  opts: Record<string, unknown>;
+  remove: () => Promise<void>;
+}
+
+interface TestJobOpts {
+  jobId?: string;
+  delay?: number;
+  [key: string]: unknown;
+}
+
+class InMemoryTestQueue {
+  private jobs = new Map<string, TestJob>();
+
+  async add(name: string, data: unknown, opts?: TestJobOpts): Promise<TestJob> {
+    if (opts?.jobId && this.jobs.has(opts.jobId)) {
+      return this.jobs.get(opts.jobId)!;
+    }
+    const job: TestJob = {
+      id: opts?.jobId || crypto.randomUUID(),
+      name,
+      data,
+      delay: opts?.delay || 0,
+      timestamp: Date.now(),
+      opts: opts || {},
+      remove: async () => {
+        this.jobs.delete(opts?.jobId || job.id);
+      },
+    };
+    this.jobs.set(job.id, job);
+    return job;
+  }
+
+  async getJobs(): Promise<TestJob[]> {
+    return Array.from(this.jobs.values());
+  }
+
+  async getJob(jobId: string): Promise<TestJob | null> {
+    return this.jobs.get(jobId) || null;
+  }
+
+  async drain(): Promise<void> {
+    this.jobs.clear();
+  }
+
+  async obliterate(): Promise<void> {
+    this.jobs.clear();
+  }
+
+  async close(): Promise<void> {
+    this.jobs.clear();
+  }
+}
+
 describe('M&E Compute Storm Fix: Debounce & Query Invariance', () => {
   const TEST_DB_NAME = `idmis_test_compute_storm_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const BASE_URL = process.env.DATABASE_URL || 'postgresql://idmis:idmis@localhost:5432/idmis';
@@ -38,6 +97,7 @@ describe('M&E Compute Storm Fix: Debounce & Query Invariance', () => {
   let computeService: MeComputeService;
   let slisQueryService: SlisComputeQueryService;
   let testQueue: Queue;
+  let isRedisConnected = false;
   const QUEUE_NAME = `test-me-compute-storm-${Date.now()}`;
 
   const SCHEME_ID = crypto.randomUUID();
@@ -81,6 +141,16 @@ describe('M&E Compute Storm Fix: Debounce & Query Invariance', () => {
     );
     await computeService.onModuleInit();
     testQueue = computeService.getQueue();
+    try {
+      const client = await testQueue.client;
+      await client.ping();
+      isRedisConnected = true;
+    } catch {
+      isRedisConnected = false;
+      const memQueue = new InMemoryTestQueue();
+      Object.assign(computeService, { computeQueue: memQueue });
+      testQueue = memQueue as unknown as Queue;
+    }
     slisQueryService = new SlisComputeQueryService();
 
     // 3. Seed minimal geography & scheme
@@ -133,10 +203,12 @@ describe('M&E Compute Storm Fix: Debounce & Query Invariance', () => {
   });
 
   afterAll(async () => {
-    await computeService.onModuleDestroy();
-    if (testQueue) {
-      await testQueue.obliterate({ force: true }).catch(() => {});
-      await testQueue.close().catch(() => {});
+    if (isRedisConnected) {
+      await computeService.onModuleDestroy();
+      if (testQueue) {
+        await testQueue.obliterate({ force: true }).catch(() => {});
+        await testQueue.close().catch(() => {});
+      }
     }
     await testClient.end();
     await adminClient.unsafe(
