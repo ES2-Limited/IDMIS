@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
 import { db } from '../index';
-import { state, lga, ward } from '../schema';
+import { appUser, state, lga, ward } from '../schema';
 import { SYSTEM_USER_ID } from '../constants';
 import { generateDeterministicId } from './deterministic-id';
 
@@ -128,6 +128,22 @@ export async function seedReferenceData(options?: {
   };
 
   await targetDb.transaction(async (tx) => {
+    // Ensure System User exists for FK integrity
+    await tx
+      .insert(appUser)
+      .values({
+        id: SYSTEM_USER_ID,
+        email: 'system@idmis.internal',
+        username: 'system',
+        fullName: 'System',
+        passwordHash: '*',
+        isActive: false,
+        mustChangePassword: false,
+        failedSignIns: 0,
+        createdBy: SYSTEM_USER_ID,
+        updatedBy: SYSTEM_USER_ID,
+      })
+      .onConflictDoNothing({ target: appUser.id });
     // ---------------------------------------------------------------------------
     // 1. States: Existing states keep their current IDs, mapped by code
     // ---------------------------------------------------------------------------

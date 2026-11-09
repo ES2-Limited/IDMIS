@@ -8,7 +8,7 @@ import {
   type WardReferenceItem,
 } from './seed-reference';
 import { db } from '../index';
-import { state, lga, ward } from '../schema';
+import { appUser, state, lga, ward } from '../schema';
 import { SYSTEM_USER_ID } from '../constants';
 import { eq } from 'drizzle-orm';
 
@@ -88,6 +88,23 @@ describe('Reference Data Seed & Deterministic IDs (BE-Geography)', () => {
       const testWards: WardReferenceItem[] = [
         { code: 'NG020099001', name: 'Test Ref Ward', lga_code: 'NG020099', state_code: 'KN' },
       ];
+
+      // Ensure SYSTEM_USER_ID exists in DB
+      await db
+        .insert(appUser)
+        .values({
+          id: SYSTEM_USER_ID,
+          email: 'system@idmis.internal',
+          username: 'system',
+          fullName: 'System',
+          passwordHash: '*',
+          isActive: false,
+          mustChangePassword: false,
+          failedSignIns: 0,
+          createdBy: SYSTEM_USER_ID,
+          updatedBy: SYSTEM_USER_ID,
+        })
+        .onConflictDoNothing({ target: appUser.id });
 
       // Ensure Kano state exists in DB
       let [existingKano] = await db.select().from(state).where(eq(state.code, 'KN')).limit(1);
