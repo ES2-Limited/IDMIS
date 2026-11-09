@@ -142,11 +142,29 @@ describe('M&E Compute Storm Fix: Debounce & Query Invariance', () => {
     await computeService.onModuleInit();
     testQueue = computeService.getQueue();
     try {
-      const client = await testQueue.client;
-      await client.ping();
+      const queueWithClient = testQueue as unknown as {
+        client: Promise<{ ping: () => Promise<string> }>;
+      };
+      const client = await Promise.race([
+        queueWithClient.client,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Redis client init timeout')), 1000),
+        ),
+      ]);
+      await Promise.race([
+        client.ping(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Redis ping timeout')), 1000),
+        ),
+      ]);
       isRedisConnected = true;
     } catch {
       isRedisConnected = false;
+      try {
+        await testQueue.close();
+      } catch {
+        // ignore close error on uninitialized queue
+      }
       const memQueue = new InMemoryTestQueue();
       Object.assign(computeService, { computeQueue: memQueue });
       testQueue = memQueue as unknown as Queue;
