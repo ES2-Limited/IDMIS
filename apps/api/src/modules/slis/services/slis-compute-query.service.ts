@@ -84,12 +84,12 @@ export class SlisComputeQueryService {
 
     const [row] = await db
       .select({
-        total: sql<number>`count(distinct ${farmer.id})::int`,
-        female: sql<number>`count(distinct case when ${farmer.gender} = 'female' then ${farmer.id} end)::int`,
-        male: sql<number>`count(distinct case when ${farmer.gender} = 'male' then ${farmer.id} end)::int`,
+        total: sql<number>`count(*)::int`,
+        female: sql<number>`count(*) filter (where ${farmer.gender} = 'female')::int`,
+        male: sql<number>`count(*) filter (where ${farmer.gender} = 'male')::int`,
         femalePct: sql<
           string | null
-        >`case when count(distinct ${farmer.id}) > 0 then round((count(distinct case when ${farmer.gender} = 'female' then ${farmer.id} end)::numeric / count(distinct ${farmer.id})::numeric) * 100, 2)::text else null end`,
+        >`case when count(*) > 0 then round((count(*) filter (where ${farmer.gender} = 'female')::numeric / count(*)::numeric) * 100, 2)::text else null end`,
       })
       .from(farmer)
       .where(and(...conditions));

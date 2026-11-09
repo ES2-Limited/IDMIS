@@ -30,6 +30,9 @@ export const ApiEnvSchema = z
     CLAMAV_HOST: z.string().optional(),
     CLAMAV_PORT: z.coerce.number().default(3310),
 
+    // M&E Compute Debounce
+    ME_COMPUTE_DEBOUNCE_MS: z.coerce.number().default(60000),
+
     // Rate Limits (requests per window)
     RATE_LIMIT_AUTH_MAX: z.coerce.number().default(5),
     RATE_LIMIT_REFRESH_MAX: z.coerce.number().default(30),

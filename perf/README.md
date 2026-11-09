@@ -115,24 +115,21 @@ The table below summarizes p95 latencies before and after adding query and index
 
 Both baseline and tuned benchmarks were executed under the exact same load: **20 concurrent VUs for 60 seconds** for all list endpoints, and **2 concurrent VUs for 30 seconds** for sync endpoints. A result is marked **PASS** strictly if the measured p95 number meets the target threshold; otherwise it is marked **FAIL**.
 
-| Operation / Scenario                        | Baseline p95 (Before Tuning) | Tuned p95 (After Tuning) | Target Threshold    | Source   | VUs    | Duration | Result                                  |
-| :------------------------------------------ | :--------------------------- | :----------------------- | :------------------ | :------- | :----- | :------- | :-------------------------------------- |
-| **Farmer List (National, paged)**           | 241.1 ms                     | **123.4 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Farmer List (State-scoped, paged)**       | 197.0 ms                     | **129.0 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Farmer List (Scheme-scoped, paged)**      | 200.1 ms                     | **143.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Farmer Search (Common name substring)**   | 269.8 ms                     | **173.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Farmer Search (Rare code / 1 match)**     | 2,504.8 ms _(seq scan)_      | **262.4 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 30 s     | **PASS (9.5x speedup)**                 |
-| **Plot List (National, paged)**             | 111.5 ms                     | **108.6 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Plot List (State-scoped, paged)**         | 143.4 ms                     | **131.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Plot List (Scheme-scoped, paged)**        | 135.2 ms                     | **109.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Plot Filtered (State + Service Type)**    | 156.0 ms                     | **108.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
-| **Plot Search (`ILIKE` substring)**         | 6,520.0 ms                   | **101.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS (64x speedup)**                  |
-| **Sync Pull (batch of 500 changes)**        | 1.94 s                       | **74.4 ms**              | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Sync Push (200 ops, worker off - Run 1)** | 13.40 s _(invalid payload)_  | **1.05 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Sync Push (200 ops, worker on - Run 2)**  | 13.40 s _(invalid payload)_  | **1.30 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Sync Push (200 ops, worker off - Run 3)** | 13.40 s _(invalid payload)_  | **970.4 ms**             | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Sync Push (200 ops, worker on - Run 4)**  | 13.40 s _(invalid payload)_  | **1.51 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **PASS**                                |
-| **Import Validate & Commit (100k rows)**    | Pending Staging S3           | Pending Staging S3       | < 10 mins _(prov.)_ | N/A      | N/A    | N/A      | **NOT MEASURED — to be run on staging** |
+| Operation / Scenario                       | Baseline p95 (Before Tuning) | Tuned p95 (After Tuning) | Target Threshold    | Source   | VUs    | Duration | Result                                  |
+| :----------------------------------------- | :--------------------------- | :----------------------- | :------------------ | :------- | :----- | :------- | :-------------------------------------- |
+| **Farmer List (National, paged)**          | 241.1 ms                     | **123.4 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Farmer List (State-scoped, paged)**      | 197.0 ms                     | **129.0 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Farmer List (Scheme-scoped, paged)**     | 200.1 ms                     | **143.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Farmer Search (Common name substring)**  | 269.8 ms                     | **173.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Farmer Search (Rare code / 1 match)**    | 2,504.8 ms _(seq scan)_      | **262.4 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 30 s     | **PASS (9.5x speedup)**                 |
+| **Plot List (National, paged)**            | 111.5 ms                     | **108.6 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Plot List (State-scoped, paged)**        | 143.4 ms                     | **131.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Plot List (Scheme-scoped, paged)**       | 135.2 ms                     | **109.1 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Plot Filtered (State + Service Type)**   | 156.0 ms                     | **108.7 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS**                                |
+| **Plot Search (`ILIKE` substring)**        | 6,520.0 ms                   | **101.8 ms**             | < 500 ms            | k6 p(95) | 20 VUs | 60 s     | **PASS (64x speedup)**                  |
+| **Sync Pull (batch of 500 changes)**       | 1.94 s                       | **2.45 s**               | < 1.5 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **FAIL**                                |
+| **Sync Push (200 ops, worker on - Valid)** | 13.40 s _(invalid payload)_  | **5.08 s**               | < 2.0 s _(prov.)_   | k6 p(95) | 2 VUs  | 30 s     | **FAIL**                                |
+| **Import Validate & Commit (100k rows)**   | Pending Staging S3           | Pending Staging S3       | < 10 mins _(prov.)_ | N/A      | N/A    | N/A      | **NOT MEASURED — to be run on staging** |
 
 ---
 
@@ -295,6 +292,29 @@ Execution Time: 1263.534 ms
 
 - **Plan Bottleneck**: The planner performs a `Parallel Seq Scan on plot`, reading **96,834 buffer pages (~775 MB)** to evaluate `scheme_id` and `status` with `approved_at <= now()`.
 - **Resolution**: Kept as strictly **FAIL** for BE-5.3. A composite index on `(scheme_id, status, approved_at)` and decoupling compute execution will be addressed in its own dedicated optimization PR.
+
+---
+
+## 7. Compute Storm Optimization Results (`fix/me-compute-storm`)
+
+Migration `0025_me_compute_storm_indexes.sql` introduced covering indexes with `INCLUDE` clauses on `slis.plot` and `slis.farmer`, and `SlisComputeQueryService` replaced redundant `count(distinct id)` on primary key columns with `count(*)`.
+
+### 7.1 Before vs After Query Timing on 1,000,000 Dataset
+
+| Query Target                      | Level    | Baseline Plan & Duration                                 | Optimized Plan & Duration                              | Speedup   | Sequential Scan |
+| :-------------------------------- | :------- | :------------------------------------------------------- | :----------------------------------------------------- | :-------- | :-------------- |
+| **`slis.plot` (Area Serviced)**   | Scheme   | Parallel Seq Scan (**6,529.4 ms**, 99,975 buffers)       | Parallel Index Only Scan (**148.0 ms**, 1,723 buffers) | **44.1x** | **NONE**        |
+| **`slis.plot` (Area Serviced)**   | State    | Parallel Seq Scan (**670.3 ms**, 99,879 buffers)         | Parallel Index Only Scan (**139.7 ms**, 1,700 buffers) | **4.8x**  | **NONE**        |
+| **`slis.plot` (Area Serviced)**   | National | Parallel Seq Scan (**3,903.7 ms**, 99,783 buffers)       | Parallel Index Only Scan (**302.4 ms**, 6,837 buffers) | **12.9x** | **NONE**        |
+| **`slis.farmer` (Beneficiaries)** | Scheme   | Bitmap Heap Scan + Sort (**2,815.5 ms**, 33,334 buffers) | Parallel Index Only Scan (**97.4 ms**, 1,434 buffers)  | **28.9x** | **NONE**        |
+| **`slis.farmer` (Beneficiaries)** | State    | Parallel Seq Scan + Sort (**899.9 ms**, 19,422 buffers)  | Parallel Index Only Scan (**130.4 ms**, 1,432 buffers) | **6.9x**  | **NONE**        |
+| **`slis.farmer` (Beneficiaries)** | National | Parallel Seq Scan + Sort (**366.9 ms**, 19,326 buffers)  | Parallel Index Only Scan (**276.2 ms**, 4,929 buffers) | **1.3x**  | **NONE**        |
+
+### 7.2 Debounce & Deduplication Verification
+
+- **Configurable Debounce Window**: `ME_COMPUTE_DEBOUNCE_MS` (default 60000 ms = 1 minute), documented in `.env.example`.
+- **Deduplication Enforcement**: When rapid event bursts occur (e.g. 500 `water_request` creates), events collapse into exactly **one scheme job** (`debounce-scheme-${schemeId}`) and **one global job** (`debounce-global`). Subsequent triggers during the waiting window do not duplicate or reset the job delay.
+- **Invariance Guarantee**: Automated tests (`apps/api/src/modules/me/compute-storm.spec.ts`) verify that optimized `count(*)` outputs match the previous `count(distinct id)` outputs byte-for-byte across scheme, state, and national scopes.
 
 ---
 
