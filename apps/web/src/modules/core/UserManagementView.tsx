@@ -18,12 +18,11 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
-import type { AppUserResponse, AssignmentResponse, CreateAppUserInput } from '@idmis/contracts';
+import type { AppUserResponse, AssignmentResponse, CreateAppUserInput, CreateAssignmentInput } from '@idmis/contracts';
 import { CreateUserDialog } from './CreateUserDialog';
+import { EditScopeDialog } from './EditScopeDialog';
 import { useToast } from '@idmis/ui';
-import { useUsers, useRoles } from './hooks';
-
-type UserWithAssignments = AppUserResponse & { assignments?: AssignmentResponse[] };
+import { useUsers, useRoles, type UserWithAssignments } from './hooks';
 
 export function UserManagementView() {
   const toast = useToast();
@@ -31,6 +30,7 @@ export function UserManagementView() {
   const [roleFilter, setRoleFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [userToEditScope, setUserToEditScope] = React.useState<UserWithAssignments | null>(null);
 
   const { roles } = useRoles();
 
@@ -42,6 +42,8 @@ export function UserManagementView() {
     refetch,
     createUser,
     isCreating,
+    assignScope,
+    isAssigningScope,
   } = useUsers({
     limit: 50,
     isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
@@ -55,6 +57,18 @@ export function UserManagementView() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create user on server';
       toast.error(msg);
+    }
+  };
+
+  const handleAssignScope = async (data: CreateAssignmentInput) => {
+    try {
+      await assignScope(data);
+      toast.success('Scope assignment updated successfully');
+      setUserToEditScope(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update scope assignment';
+      toast.error(msg);
+      throw err;
     }
   };
 
@@ -235,6 +249,18 @@ export function UserManagementView() {
                     <span>Offline PWA Device Authorized</span>
                   </div>
                 )}
+
+                <div className="pt-2 border-t border-slate-100 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUserToEditScope(user)}
+                    className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50 cursor-pointer h-7 px-2"
+                  >
+                    Edit Scope
+                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -309,7 +335,8 @@ export function UserManagementView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50"
+                          onClick={() => setUserToEditScope(user)}
+                          className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50 cursor-pointer"
                         >
                           Edit Scope
                           <ChevronRight className="h-3.5 w-3.5 ml-1" />
@@ -329,6 +356,14 @@ export function UserManagementView() {
         onOpenChange={setIsCreateOpen}
         onSubmitUser={handleCreateUser}
         isLoading={isCreating}
+      />
+
+      <EditScopeDialog
+        user={userToEditScope}
+        open={Boolean(userToEditScope)}
+        onOpenChange={(open) => !open && setUserToEditScope(null)}
+        onSubmitAssignment={handleAssignScope}
+        isLoading={isAssigningScope}
       />
     </div>
   );
