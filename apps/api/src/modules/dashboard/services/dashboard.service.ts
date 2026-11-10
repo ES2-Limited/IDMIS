@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
   permissions,
@@ -34,12 +34,15 @@ function toMoneyString(val: unknown): string {
 @Injectable()
 export class DashboardService {
   constructor(
+    @Inject(forwardRef(() => GeographyRepository))
     private readonly geographyRepo: GeographyRepository,
+    @Inject(forwardRef(() => OrganisationRepository))
     private readonly organisationRepo: OrganisationRepository,
-    private readonly reportRepo: ReportRepository,
+    @Inject(forwardRef(() => ReportRepository)) private readonly reportRepo: ReportRepository,
+    @Inject(forwardRef(() => IndicatorMatrixRepository))
     private readonly indicatorMatrixRepo: IndicatorMatrixRepository,
-    private readonly blisService: BlisPublicService,
-    private readonly redisService: RedisService,
+    @Inject(forwardRef(() => BlisPublicService)) private readonly blisService: BlisPublicService,
+    @Inject(forwardRef(() => RedisService)) private readonly redisService: RedisService,
   ) {}
 
   async invalidateCache(): Promise<void> {

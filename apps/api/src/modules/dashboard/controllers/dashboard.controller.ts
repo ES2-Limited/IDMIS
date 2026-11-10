@@ -1,11 +1,13 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Inject, forwardRef } from '@nestjs/common';
 import { permissions, DashboardQuerySchema } from '@idmis/contracts';
 import { Can, CurrentAuthz, type UserAuthz } from '../../../platform/auth';
 import { DashboardService } from '../services/dashboard.service';
 
 @Controller('dashboards')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    @Inject(forwardRef(() => DashboardService)) private readonly dashboardService: DashboardService,
+  ) {}
 
   @Get('programme')
   @Can(permissions.DASHBOARD_VIEW)

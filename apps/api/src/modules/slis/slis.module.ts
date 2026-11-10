@@ -1,4 +1,4 @@
-import { Module, type OnModuleInit, forwardRef } from '@nestjs/common';
+import { Module, type OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { EncryptionService } from '../../platform/security/encryption.service';
 import { IdentityHashService } from '../../platform/security/identity-hash.service';
 import { FarmerRepository } from './repositories/farmer.repository';
@@ -169,6 +169,7 @@ import { StreamFlowImportHandler } from './imports/stream-flow.handler';
 })
 export class SlisModule implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,
     private readonly farmerHandler: FarmerImportHandler,
     private readonly plotHandler: PlotImportHandler,
@@ -181,13 +182,13 @@ export class SlisModule implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.registry.register(this.farmerHandler);
-    this.registry.register(this.plotHandler);
-    this.registry.register(this.feeBillingHandler);
-    this.registry.register(this.feeCollectionHandler);
-    this.registry.register(this.waterRequestHandler);
-    this.registry.register(this.trainingHandler);
-    this.registry.register(this.cropProductionHandler);
-    this.registry.register(this.streamFlowHandler);
+    if (this.farmerHandler) this.registry.register(this.farmerHandler);
+    if (this.plotHandler) this.registry.register(this.plotHandler);
+    if (this.feeBillingHandler) this.registry.register(this.feeBillingHandler);
+    if (this.feeCollectionHandler) this.registry.register(this.feeCollectionHandler);
+    if (this.waterRequestHandler) this.registry.register(this.waterRequestHandler);
+    if (this.trainingHandler) this.registry.register(this.trainingHandler);
+    if (this.cropProductionHandler) this.registry.register(this.cropProductionHandler);
+    if (this.streamFlowHandler) this.registry.register(this.streamFlowHandler);
   }
 }

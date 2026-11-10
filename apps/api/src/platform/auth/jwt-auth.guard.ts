@@ -4,6 +4,8 @@ import {
   ExecutionContext,
   UnauthorizedException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
@@ -20,10 +22,10 @@ import type { Permission } from '@idmis/contracts';
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
-    private readonly tokenService: TokenService,
-    private readonly authRepository: AuthRepository,
-    private readonly authzService: AuthzService,
+    @Inject(Reflector) private readonly reflector: Reflector,
+    @Inject(forwardRef(() => TokenService)) private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => AuthRepository)) private readonly authRepository: AuthRepository,
+    @Inject(forwardRef(() => AuthzService)) private readonly authzService: AuthzService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

@@ -1,4 +1,4 @@
-import { Module, type OnModuleInit } from '@nestjs/common';
+import { Module, type OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { StorageModule } from '../../platform/storage/storage.module';
 import { EncryptionService } from '../../platform/security/encryption.service';
 import { FileRepository } from './repositories/file.repository';
@@ -132,7 +132,9 @@ import { ReportController } from './controllers/report.controller';
 })
 export class CoreModule implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,
+    @Inject(forwardRef(() => WuaImportHandler))
     private readonly wuaHandler: WuaImportHandler,
     private readonly lgaHandler: LgaImportHandler,
     private readonly wardHandler: WardImportHandler,

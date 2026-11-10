@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   NotFoundException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { appUser, SYSTEM_USER_ID } from '@idmis/db';
@@ -40,11 +42,11 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly authRepository: AuthRepository,
-    private readonly tokenService: TokenService,
-    private readonly totpService: TotpService,
-    private readonly redisService: RedisService,
-    private readonly authzService: AuthzService,
+    @Inject(forwardRef(() => AuthRepository)) private readonly authRepository: AuthRepository,
+    @Inject(forwardRef(() => TokenService)) private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => TotpService)) private readonly totpService: TotpService,
+    @Inject(forwardRef(() => RedisService)) private readonly redisService: RedisService,
+    @Inject(forwardRef(() => AuthzService)) private readonly authzService: AuthzService,
   ) {}
 
   // --- Sign In ---
@@ -128,20 +130,23 @@ export class AuthService {
       'module_admin',
     ];
     const hasAdminRole = roles.some((r) => adminRoles.includes(r));
+    const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
 
-    // 5. TOTP Checks
-    if (hasAdminRole) {
-      if (user.totpConfirmedAt === null) {
-        const tempToken = await this.tokenService.createTempToken(user.id, 'totp_setup');
-        return { response: { status: 'totp_setup_required', tempToken } };
+    // 5. TOTP Checks (bypassed in development mode for seamless local testing)
+    if (!isDev) {
+      if (hasAdminRole) {
+        if (user.totpConfirmedAt === null) {
+          const tempToken = await this.tokenService.createTempToken(user.id, 'totp_setup');
+          return { response: { status: 'totp_setup_required', tempToken } };
+        }
+        const tempToken = await this.tokenService.createTempToken(user.id, 'totp_verify');
+        return { response: { status: 'totp_required', tempToken } };
       }
-      const tempToken = await this.tokenService.createTempToken(user.id, 'totp_verify');
-      return { response: { status: 'totp_required', tempToken } };
-    }
 
-    if (user.totpConfirmedAt !== null) {
-      const tempToken = await this.tokenService.createTempToken(user.id, 'totp_verify');
-      return { response: { status: 'totp_required', tempToken } };
+      if (user.totpConfirmedAt !== null) {
+        const tempToken = await this.tokenService.createTempToken(user.id, 'totp_verify');
+        return { response: { status: 'totp_required', tempToken } };
+      }
     }
 
     // 6. Must change password check

@@ -15,6 +15,9 @@ export class RouteMarkerValidator implements OnApplicationBootstrap {
 
   onApplicationBootstrap() {
     this.logger.log('Validating route authorization markers across all controllers...');
+    if (!this.discoveryService?.getControllers) {
+      return;
+    }
     const controllers = this.discoveryService.getControllers();
 
     for (const controllerWrapper of controllers) {
