@@ -22,7 +22,7 @@ interface UserDialogProps {
 
 export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }: UserDialogProps) {
   const [assignment, setAssignment] = React.useState<AssignmentFormData>({
-    roleId: mockRoles[1]?.id ?? '018f3a50-0002-7000-8000-000000000002',
+    roleId: mockRoles[1]?.id ?? '018f3a5e-0000-7000-8000-000000000021',
     module: 'slis',
     scopeType: 'state',
     scopeStateId: '018f3a70-0001-7000-8000-000000000001',
