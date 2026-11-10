@@ -81,33 +81,48 @@ export function ImportWizard({
     document.body.removeChild(link);
   };
 
+  const [commitError, setCommitError] = React.useState<string | null>(null);
+
   const handleCommitBatch = async () => {
     setIsProcessing(true);
-    const newBatchId = `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
+    setCommitError(null);
+    const targetBatchId = committedBatchId || `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
     try {
       if (commitBatch) {
-        await commitBatch(newBatchId);
+        await commitBatch(targetBatchId);
       }
-    } catch {
-      // Fallback local update
+      setCommittedBatchId(targetBatchId);
+      setCurrentStep('done');
+      onBatchCommitted?.(targetBatchId);
+    } catch (err: unknown) {
+      const errorMsg =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Failed to commit import batch to database. The batch does not exist or has already been processed.';
+      setCommitError(errorMsg);
+    } finally {
+      setIsProcessing(false);
     }
-    setCommittedBatchId(newBatchId);
-    setIsProcessing(false);
-    setCurrentStep('done');
-    onBatchCommitted?.(newBatchId);
   };
 
   const handleUndoBatch = async () => {
+    if (!committedBatchId) return;
     setIsProcessing(true);
+    setCommitError(null);
     try {
-      if (undoBatch && committedBatchId) {
+      if (undoBatch) {
         await undoBatch(committedBatchId);
       }
-    } catch {
-      // Fallback local update
+      setIsUndone(true);
+    } catch (err: unknown) {
+      const errorMsg =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Failed to rollback import batch.';
+      setCommitError(errorMsg);
+    } finally {
+      setIsProcessing(false);
     }
-    setIsUndone(true);
-    setIsProcessing(false);
   };
 
   return (
@@ -422,6 +437,16 @@ export function ImportWizard({
           </div>
 
           {/* Validation Grid */}
+          {commitError && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold">Failed to commit batch</div>
+                <div className="text-[11px] text-rose-700 mt-0.5">{commitError}</div>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs min-w-[650px]">

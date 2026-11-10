@@ -39,10 +39,10 @@ export function SlisHome() {
         'Farmer profiles, household member rosters, national identity (NIN/BVN) verification, and tenure documents.',
       stats: loadingFarmers
         ? 'Loading...'
-        : totalFarmers !== undefined && totalFarmers > 0
+        : totalFarmers !== undefined
           ? `${totalFarmers.toLocaleString()} Farmers`
-          : '28,490 Farmers',
-      statLabel: '94% Identity Verified',
+          : '—',
+      statLabel: totalFarmers !== undefined && totalFarmers > 0 ? 'Verified In Scope' : 'No records yet',
       icon: Users,
       badge: 'Field Ready',
       badgeStatus: 'saved_on_device' as const,
@@ -62,10 +62,10 @@ export function SlisHome() {
         'Cadastral irrigation parcels, GPS boundary walks, vertex smoothing, and crop rotation cycles.',
       stats: loadingPlots
         ? 'Loading...'
-        : totalPlots !== undefined && totalPlots > 0
+        : totalPlots !== undefined
           ? `${totalPlots.toLocaleString()} Parcels`
-          : '46,120 Hectares',
-      statLabel: '34,210 Polygons',
+          : '—',
+      statLabel: totalPlots !== undefined && totalPlots > 0 ? 'Digitized Boundaries' : 'No parcels yet',
       icon: MapPin,
       badge: 'Spatial GIS',
       badgeStatus: 'approved' as const,
@@ -87,8 +87,8 @@ export function SlisHome() {
         ? 'Loading...'
         : totalReviewItems !== undefined
           ? `${totalReviewItems} Pending`
-          : '14 Held Conflicts',
-      statLabel: 'Needs Supervisor',
+          : '—',
+      statLabel: totalReviewItems && totalReviewItems > 0 ? 'Needs Supervisor' : 'Queue Clear',
       icon: AlertTriangle,
       badge: 'Resolution Required',
       badgeStatus: 'conflict' as const,
@@ -109,19 +109,19 @@ export function SlisHome() {
       label: 'Registered Farmers',
       value: loadingFarmers
         ? '...'
-        : totalFarmers !== undefined && totalFarmers > 0
+        : totalFarmers !== undefined
           ? totalFarmers.toLocaleString()
-          : '28,490',
-      sub: 'Live Registry',
+          : '0',
+      sub: totalFarmers !== undefined && totalFarmers > 0 ? 'Live Registry' : 'Empty database',
     },
     {
       label: 'Mapped Farmland',
       value: loadingPlots
         ? '...'
-        : totalPlots !== undefined && totalPlots > 0
+        : totalPlots !== undefined
           ? `${totalPlots.toLocaleString()} parcels`
-          : '46,120 ha',
-      sub: '92% irrigated',
+          : '0 parcels',
+      sub: totalPlots !== undefined && totalPlots > 0 ? 'Irrigated' : 'No parcels mapped',
     },
     { label: 'Unsynced Records', value: '0 Saved', sub: 'Cached on device' },
     {
@@ -131,7 +131,7 @@ export function SlisHome() {
         : totalReviewItems !== undefined
           ? String(totalReviewItems)
           : '0',
-      sub: 'Awaiting Action',
+      sub: totalReviewItems && totalReviewItems > 0 ? 'Awaiting Action' : 'Up to date',
     },
   ];
 
