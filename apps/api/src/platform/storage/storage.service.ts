@@ -37,7 +37,7 @@ export class StorageService {
 
   constructor(@Optional() @Inject('API_ENV') customEnv?: ApiEnv) {
     const env = customEnv ?? validateApiEnv();
-    this.bucket = env.S3_BUCKET;
+    this.bucket = env.S3_BUCKET || 'idmis-files';
 
     this.s3Client = new S3Client({
       region: env.S3_REGION || 'auto',

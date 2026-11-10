@@ -1,4 +1,4 @@
-import { sql, eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { loadMeIndicators } from './seed/me-indicators';
 
 import { db } from './index';
@@ -371,14 +371,7 @@ export async function seed() {
         createdBy: SYSTEM_USER_ID,
         updatedBy: SYSTEM_USER_ID,
       })
-      .onConflictDoUpdate({
-        target: appUser.id,
-        set: {
-          email: adminEmail,
-          passwordHash: adminPasswordHash,
-          updatedAt: sql`NOW()`,
-        },
-      });
+      .onConflictDoNothing();
   }
 
   // 3. Nigeria 36 States + FCT (37 rows)

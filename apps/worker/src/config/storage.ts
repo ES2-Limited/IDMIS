@@ -9,6 +9,15 @@ export function getWorkerS3Config(): { s3Client: S3Client; bucket: string } {
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
 
   if (isProduction) {
+    if (!endpoint) {
+      throw new Error('S3_ENDPOINT is required when NODE_ENV=production');
+    }
+    if (!process.env.S3_BUCKET) {
+      throw new Error('S3_BUCKET is required when NODE_ENV=production');
+    }
+    if (!process.env.S3_REGION) {
+      throw new Error('S3_REGION is required when NODE_ENV=production');
+    }
     if (!accessKeyId) {
       throw new Error('S3_ACCESS_KEY_ID is required when NODE_ENV=production');
     }

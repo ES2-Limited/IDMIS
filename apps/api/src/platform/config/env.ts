@@ -13,8 +13,8 @@ export const ApiEnvSchema = z
 
     // MinIO / S3 object storage
     S3_ENDPOINT: z.string().optional(),
-    S3_REGION: z.string().default('auto'),
-    S3_BUCKET: z.string().default('idmis-files'),
+    S3_REGION: z.string().optional(),
+    S3_BUCKET: z.string().optional(),
     S3_ACCESS_KEY_ID: z.string().optional(),
     S3_SECRET_ACCESS_KEY: z.string().optional(),
 
@@ -29,6 +29,17 @@ export const ApiEnvSchema = z
     // ClamAV Antivirus
     CLAMAV_HOST: z.string().optional(),
     CLAMAV_PORT: z.coerce.number().default(3310),
+
+    // Auth TOTP Enforcement
+    AUTH_TOTP_ENFORCE_ADMINS: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          if (val.toLowerCase() === 'true' || val === '1') return true;
+          if (val.toLowerCase() === 'false' || val === '0') return false;
+        }
+        return val;
+      }, z.boolean())
+      .default(true),
 
     // M&E Compute Debounce
     ME_COMPUTE_DEBOUNCE_MS: z.coerce.number().default(60000),
@@ -80,6 +91,31 @@ export const ApiEnvSchema = z
           path: ['CLAMAV_HOST'],
           message: 'CLAMAV_HOST is required when NODE_ENV=production',
         });
+      }
+
+      const requiredS3Vars = [
+        'S3_ENDPOINT',
+        'S3_BUCKET',
+        'S3_REGION',
+        'S3_ACCESS_KEY_ID',
+        'S3_SECRET_ACCESS_KEY',
+      ] as const;
+
+      for (const key of requiredS3Vars) {
+        if (!data[key]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} is required when NODE_ENV=production`,
+          });
+        }
+      }
+    } else {
+      if (!data.S3_REGION) {
+        data.S3_REGION = 'auto';
+      }
+      if (!data.S3_BUCKET) {
+        data.S3_BUCKET = 'idmis-files';
       }
     }
   });

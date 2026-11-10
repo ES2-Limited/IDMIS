@@ -367,10 +367,20 @@ describe('API Platform Plumbing (BE-1.2)', () => {
       const prevEnc = process.env.ENCRYPTION_KEY;
       const prevIdHash = process.env.IDENTITY_HASH_KEY;
       const prevClamav = process.env.CLAMAV_HOST;
+      const prevS3Endpoint = process.env.S3_ENDPOINT;
+      const prevS3Bucket = process.env.S3_BUCKET;
+      const prevS3Region = process.env.S3_REGION;
+      const prevS3AccessKey = process.env.S3_ACCESS_KEY_ID;
+      const prevS3Secret = process.env.S3_SECRET_ACCESS_KEY;
       process.env.NODE_ENV = 'production';
       process.env.ENCRYPTION_KEY = 'a'.repeat(32);
       process.env.IDENTITY_HASH_KEY = 'b'.repeat(32);
       process.env.CLAMAV_HOST = 'clamav.internal';
+      process.env.S3_ENDPOINT = 'http://localhost:9000';
+      process.env.S3_BUCKET = 'idmis-local';
+      process.env.S3_REGION = 'us-east-1';
+      process.env.S3_ACCESS_KEY_ID = 'minioadmin';
+      process.env.S3_SECRET_ACCESS_KEY = 'minioadmin';
       try {
         const { AppModule: ProdAppModule } = await import('./app.module?prod=' + Date.now());
 
@@ -407,6 +417,31 @@ describe('API Platform Plumbing (BE-1.2)', () => {
           process.env.CLAMAV_HOST = prevClamav;
         } else {
           delete process.env.CLAMAV_HOST;
+        }
+        if (prevS3Endpoint !== undefined) {
+          process.env.S3_ENDPOINT = prevS3Endpoint;
+        } else {
+          delete process.env.S3_ENDPOINT;
+        }
+        if (prevS3Bucket !== undefined) {
+          process.env.S3_BUCKET = prevS3Bucket;
+        } else {
+          delete process.env.S3_BUCKET;
+        }
+        if (prevS3Region !== undefined) {
+          process.env.S3_REGION = prevS3Region;
+        } else {
+          delete process.env.S3_REGION;
+        }
+        if (prevS3AccessKey !== undefined) {
+          process.env.S3_ACCESS_KEY_ID = prevS3AccessKey;
+        } else {
+          delete process.env.S3_ACCESS_KEY_ID;
+        }
+        if (prevS3Secret !== undefined) {
+          process.env.S3_SECRET_ACCESS_KEY = prevS3Secret;
+        } else {
+          delete process.env.S3_SECRET_ACCESS_KEY;
         }
       }
     });
