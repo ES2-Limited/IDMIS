@@ -18,6 +18,7 @@ import { AuthzService } from './authz.service';
 import type { RequestUser } from '../context';
 import type { UserAuthz } from './authz.interface';
 import type { Permission } from '@idmis/contracts';
+import { validateApiEnv } from '../config/env';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -151,7 +152,9 @@ export class JwtAuthGuard implements CanActivate {
       authz.can('slis.admin') ||
       authz.can('blis.admin');
 
-    if (isAdmin && user.totpConfirmedAt === null) {
+    const enforceAdminTotp = validateApiEnv().AUTH_TOTP_ENFORCE_ADMINS;
+
+    if (enforceAdminTotp && isAdmin && user.totpConfirmedAt === null) {
       const allowedUrls = [
         '/auth/totp/setup',
         '/auth/totp/verify',

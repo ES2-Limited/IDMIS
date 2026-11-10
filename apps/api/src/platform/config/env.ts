@@ -30,6 +30,17 @@ export const ApiEnvSchema = z
     CLAMAV_HOST: z.string().optional(),
     CLAMAV_PORT: z.coerce.number().default(3310),
 
+    // Auth TOTP Enforcement
+    AUTH_TOTP_ENFORCE_ADMINS: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          if (val.toLowerCase() === 'true' || val === '1') return true;
+          if (val.toLowerCase() === 'false' || val === '0') return false;
+        }
+        return val;
+      }, z.boolean())
+      .default(true),
+
     // M&E Compute Debounce
     ME_COMPUTE_DEBOUNCE_MS: z.coerce.number().default(60000),
 

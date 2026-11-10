@@ -7,6 +7,7 @@ import {
   Logger,
   Inject,
   forwardRef,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { appUser, SYSTEM_USER_ID } from '@idmis/db';
@@ -31,6 +32,7 @@ import { AuthzService } from '../../../platform/auth/authz.service';
 import type { UserAuthz } from '../../../platform/auth/authz.interface';
 import { isCommonPassword } from '../password-policy';
 import type { RequestUser } from '../../../platform/context';
+import { validateApiEnv } from '../../../platform/config/env';
 
 export interface AuthSuccessWithCookie {
   response: SignInResponse | RefreshTokenResponse;
@@ -38,8 +40,15 @@ export interface AuthSuccessWithCookie {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AuthService.name);
+
+  onApplicationBootstrap() {
+    const env = validateApiEnv();
+    if (!env.AUTH_TOTP_ENFORCE_ADMINS && env.NODE_ENV === 'production') {
+      this.logger.warn('Admin TOTP enforcement is DISABLED');
+    }
+  }
 
   constructor(
     @Inject(forwardRef(() => AuthRepository)) private readonly authRepository: AuthRepository,
@@ -131,10 +140,11 @@ export class AuthService {
     ];
     const hasAdminRole = roles.some((r) => adminRoles.includes(r));
     const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+    const enforceAdminTotp = validateApiEnv().AUTH_TOTP_ENFORCE_ADMINS;
 
     // 5. TOTP Checks (bypassed in development mode for seamless local testing)
     if (!isDev) {
-      if (hasAdminRole) {
+      if (hasAdminRole && enforceAdminTotp) {
         if (user.totpConfirmedAt === null) {
           const tempToken = await this.tokenService.createTempToken(user.id, 'totp_setup');
           return { response: { status: 'totp_setup_required', tempToken } };

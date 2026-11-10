@@ -96,4 +96,27 @@ describe('ApiEnvSchema', () => {
     expect(explicitProdDocs.API_DOCS_ENABLED).toBe(true);
     expect(explicitProdDocs.API_PUBLIC_BASE_PATH).toBe('/api');
   });
+
+  it('handles AUTH_TOTP_ENFORCE_ADMINS default and boolean parsing', () => {
+    const defaultEnv = ApiEnvSchema.parse({});
+    expect(defaultEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(true);
+
+    const falseStrEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: 'false' });
+    expect(falseStrEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(false);
+
+    const zeroStrEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: '0' });
+    expect(zeroStrEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(false);
+
+    const falseBoolEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: false });
+    expect(falseBoolEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(false);
+
+    const trueStrEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: 'true' });
+    expect(trueStrEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(true);
+
+    const oneStrEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: '1' });
+    expect(oneStrEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(true);
+
+    const trueBoolEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: true });
+    expect(trueBoolEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(true);
+  });
 });
