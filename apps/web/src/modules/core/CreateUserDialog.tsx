@@ -11,8 +11,7 @@ import {
   Input,
 } from '@idmis/ui';
 import { AssignmentEditor, type AssignmentFormData } from './AssignmentEditor';
-import { mockRoles } from '../../mocks/coreData';
-import { useGeography } from './hooks';
+import { useGeography, useRoles } from './hooks';
 
 interface UserDialogProps {
   open: boolean;
@@ -23,8 +22,9 @@ interface UserDialogProps {
 
 export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }: UserDialogProps) {
   const { states } = useGeography();
+  const { roles } = useRoles();
   const [assignment, setAssignment] = React.useState<AssignmentFormData>({
-    roleId: mockRoles[1]?.id ?? '018f3a5e-0000-7000-8000-000000000021',
+    roleId: '018f3a5e-0000-7000-8000-000000000021',
     module: 'slis',
     scopeType: 'state',
     scopeStateId: null,
@@ -33,6 +33,16 @@ export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }
     validFromOn: new Date().toISOString().split('T')[0],
     validToOn: null,
   });
+
+  // Keep default roleId synced with first available non-admin role if possible
+  React.useEffect(() => {
+    if (roles.length > 0 && !assignment.roleId) {
+      const defaultRole = roles[1] ?? roles[0];
+      if (defaultRole) {
+        setAssignment((prev) => ({ ...prev, roleId: defaultRole.id }));
+      }
+    }
+  }, [roles, assignment.roleId]);
 
   // Keep scopeStateId in sync with loaded states when state-scoped
   React.useEffect(() => {

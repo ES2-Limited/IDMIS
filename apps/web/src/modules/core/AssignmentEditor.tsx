@@ -10,8 +10,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import type { ModuleKey, ScopeType } from '@idmis/contracts';
-import { mockRoles } from '../../mocks/coreData';
-import { useOrganisations, useGeography } from './hooks';
+import { useOrganisations, useGeography, useRoles } from './hooks';
 
 export interface AssignmentFormData {
   roleId: string;
@@ -33,7 +32,8 @@ interface AssignmentEditorProps {
 export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditorProps) {
   const { organisations: serverOrgs } = useOrganisations();
   const { states } = useGeography();
-  const selectedRole = mockRoles.find((r) => r.id === value.roleId) || mockRoles[0];
+  const { roles } = useRoles();
+  const selectedRole = roles.find((r) => r.id === value.roleId) || roles[0];
 
   const handleRoleChange = (roleId: string) => {
     onChange({ ...value, roleId });
@@ -101,7 +101,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
           System Role
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {mockRoles.map((role) => {
+          {roles.map((role) => {
             const isSelected = value.roleId === role.id;
             return (
               <button

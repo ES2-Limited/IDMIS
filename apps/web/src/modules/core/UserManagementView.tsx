@@ -19,10 +19,9 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import type { AppUserResponse, AssignmentResponse, CreateAppUserInput } from '@idmis/contracts';
-import { mockRoles } from '../../mocks/coreData';
 import { CreateUserDialog } from './CreateUserDialog';
 import { useToast } from '@idmis/ui';
-import { useUsers } from './hooks';
+import { useUsers, useRoles } from './hooks';
 
 type UserWithAssignments = AppUserResponse & { assignments?: AssignmentResponse[] };
 
@@ -32,6 +31,8 @@ export function UserManagementView() {
   const [roleFilter, setRoleFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+
+  const { roles } = useRoles();
 
   // Modular custom hook for Users
   const {
@@ -144,7 +145,7 @@ export function UserManagementView() {
               <SelectItem value="all" className="text-xs font-medium py-2">
                 All Roles
               </SelectItem>
-              {mockRoles.map((r) => (
+              {roles.map((r) => (
                 <SelectItem key={r.id} value={r.id} className="text-xs font-medium py-2">
                   {r.name}
                 </SelectItem>
@@ -216,7 +217,7 @@ export function UserManagementView() {
                     <span className="text-slate-400 block font-medium">Assigned Role</span>
                     <span className="font-semibold text-slate-700">
                       {assignment
-                        ? mockRoles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
+                        ? roles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
                         : 'No Role'}
                     </span>
                   </div>
@@ -274,7 +275,7 @@ export function UserManagementView() {
                       <td className="py-3 px-4">
                         <span className="font-medium text-slate-700">
                           {assignment
-                            ? mockRoles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
+                            ? roles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
                             : 'Unassigned'}
                         </span>
                       </td>

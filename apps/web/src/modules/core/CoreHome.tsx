@@ -6,16 +6,42 @@ import { useScope } from '../../shell/ScopeContext';
 import { UserManagementView } from './UserManagementView';
 import { OrganisationsTreeView } from './OrganisationsTreeView';
 import { ImportCenterView } from '../../imports/ImportCenterView';
+import { useOrganisations, useWuas, useUsers, useImportBatches, useRoles } from './hooks';
 
 export function CoreHome() {
   const { currentScope } = useScope();
   const [activeTab, setActiveTab] = React.useState('users');
 
+  const { organisations } = useOrganisations();
+  const { total: totalWuas } = useWuas();
+  const { total: totalUsers, users } = useUsers();
+  const { batches } = useImportBatches();
+  const { roles } = useRoles();
+
+  const activeSchemesCount = organisations.filter((o) => o.type === 'scheme').length;
+  const userCount = totalUsers ?? users.length;
+
   const quickStats = [
-    { label: 'System RBAC Roles', value: '14 Roles', sub: 'Deny-by-default' },
-    { label: 'Active Schemes', value: '5 Schemes', sub: 'Kano, Bakolori...' },
-    { label: 'Import Batches', value: '48 Batches', sub: 'Undo capable' },
-    { label: 'Audit Trail', value: '100% Logged', sub: 'Immutable' },
+    {
+      label: 'System Users',
+      value: `${userCount} Users`,
+      sub: `${roles.length} RBAC Roles`,
+    },
+    {
+      label: 'Active Schemes',
+      value: `${activeSchemesCount} Schemes`,
+      sub: `${organisations.length} Total Units`,
+    },
+    {
+      label: 'Registered WUAs',
+      value: `${totalWuas} WUAs`,
+      sub: 'Apex, Sector & Unit',
+    },
+    {
+      label: 'Import Batches',
+      value: `${batches.length} Batches`,
+      sub: 'Audit & Undo Ready',
+    },
   ];
 
   return (
