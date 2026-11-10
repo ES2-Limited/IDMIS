@@ -30,7 +30,7 @@ export function ImportWizard({
   onCancel,
 }: ImportWizardProps) {
   const { currentScope } = useScope();
-  const { commitBatch, undoBatch } = useImportBatches();
+  const { batches, commitBatch, undoBatch } = useImportBatches();
   const [currentStep, setCurrentStep] = React.useState<WizardStep>('choose');
   const [selectedDatasetId, setSelectedDatasetId] = React.useState<string>(initialDatasetId);
   const [uploadedFileName, setUploadedFileName] = React.useState<string | null>(null);
@@ -86,7 +86,13 @@ export function ImportWizard({
   const handleCommitBatch = async () => {
     setIsProcessing(true);
     setCommitError(null);
-    const targetBatchId = committedBatchId || `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
+    // Find an active validated batch in the database matching this dataset or the seeded demo batch
+    const candidateBatch =
+      batches.find((b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua')) ??
+      batches.find((b) => b.status === 'validated') ??
+      batches[0];
+
+    const targetBatchId = candidateBatch?.id ?? '018f3b10-0000-7000-8000-000000000002';
     try {
       if (commitBatch) {
         await commitBatch(targetBatchId);

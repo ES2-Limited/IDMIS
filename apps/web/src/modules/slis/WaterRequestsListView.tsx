@@ -137,14 +137,22 @@ export function WaterRequestsListView() {
           <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
             Total Seasonal Volume
           </span>
-          <span className="text-xl font-black text-slate-900 mt-1 block">48,550 m³</span>
+          <span className="text-xl font-black text-slate-900 mt-1 block">
+            {requests
+              .reduce((sum, r) => sum + (Number(r.volumeM3.replace(/,/g, '')) || 0), 0)
+              .toLocaleString()}{' '}
+            m³
+          </span>
           <span className="text-[11px] text-teal-700 font-semibold">Across active schemes</span>
         </div>
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
             Pending Decisions
           </span>
-          <span className="text-xl font-black text-amber-600 mt-1 block">1 Request</span>
+          <span className="text-xl font-black text-amber-600 mt-1 block">
+            {requests.filter((r) => r.decision === 'pending').length} Request
+            {requests.filter((r) => r.decision === 'pending').length === 1 ? '' : 's'}
+          </span>
           <span className="text-[11px] text-amber-700 font-semibold">
             Awaiting gate officer review
           </span>
@@ -153,8 +161,17 @@ export function WaterRequestsListView() {
           <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
             Approval Rate
           </span>
-          <span className="text-xl font-black text-emerald-700 mt-1 block">75.0%</span>
-          <span className="text-[11px] text-emerald-800 font-semibold">Discharge capacity met</span>
+          <span className="text-xl font-black text-emerald-700 mt-1 block">
+            {requests.length > 0
+              ? `${Math.round(
+                  (requests.filter((r) => r.decision === 'approved').length / requests.length) *
+                    100,
+                )}%`
+              : '0%'}
+          </span>
+          <span className="text-[11px] text-emerald-800 font-semibold">
+            {requests.length > 0 ? 'Discharge capacity met' : 'No requests yet'}
+          </span>
         </div>
       </div>
 
@@ -208,47 +225,59 @@ export function WaterRequestsListView() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{item.code}</td>
-                <td className="py-3.5 px-4">
-                  <div className="font-bold text-slate-900">{item.requesterName}</div>
-                  <div className="text-[11px] text-slate-400 capitalize">
-                    {item.level} Level · {item.schemeName}
-                  </div>
-                </td>
-                <td className="py-3.5 px-4">
-                  <span className="font-mono font-black text-slate-900 bg-blue-50 text-blue-900 px-2 py-0.5 rounded-lg border border-blue-200">
-                    {item.volumeM3} m³
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-slate-400">
+                  <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <span className="font-bold text-slate-700 block text-xs">No Water Requests Found</span>
+                  <span className="text-[11px] text-slate-400">
+                    No requests match the selected filters or none have been submitted yet.
                   </span>
                 </td>
-                <td className="py-3.5 px-4 font-medium text-slate-700">{item.deliveryPeriod}</td>
-                <td className="py-3.5 px-4">
-                  {item.decision === 'approved' ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] flex items-center gap-1 w-max"
-                    >
-                      <CheckCircle2 className="h-3 w-3" /> Approved
-                    </Badge>
-                  ) : item.decision === 'rejected' ? (
-                    <Badge
-                      variant="destructive"
-                      className="text-[10px] flex items-center gap-1 w-max"
-                    >
-                      <XCircle className="h-3 w-3" /> Rejected
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] flex items-center gap-1 w-max"
-                    >
-                      <Clock className="h-3 w-3" /> Under Review
-                    </Badge>
-                  )}
-                </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{item.code}</td>
+                  <td className="py-3.5 px-4">
+                    <div className="font-bold text-slate-900">{item.requesterName}</div>
+                    <div className="text-[11px] text-slate-400 capitalize">
+                      {item.level} Level · {item.schemeName}
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="font-mono font-black text-slate-900 bg-blue-50 text-blue-900 px-2 py-0.5 rounded-lg border border-blue-200">
+                      {item.volumeM3} m³
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4 font-medium text-slate-700">{item.deliveryPeriod}</td>
+                  <td className="py-3.5 px-4">
+                    {item.decision === 'approved' ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] flex items-center gap-1 w-max"
+                      >
+                        <CheckCircle2 className="h-3 w-3" /> Approved
+                      </Badge>
+                    ) : item.decision === 'rejected' ? (
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] flex items-center gap-1 w-max"
+                      >
+                        <XCircle className="h-3 w-3" /> Rejected
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] flex items-center gap-1 w-max"
+                      >
+                        <Clock className="h-3 w-3" /> Under Review
+                      </Badge>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

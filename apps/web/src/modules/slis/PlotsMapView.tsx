@@ -233,44 +233,54 @@ export function PlotsMapView() {
 
             {/* Parcels List Scrollable Container */}
             <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-              {filtered.map((plot) => {
-                const isSelected = selectedPlot?.id === plot.id;
-                return (
-                  <div
-                    key={plot.id}
-                    onClick={() => setSelectedPlot(plot)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
-                        : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-xs text-slate-900">
-                            {plot.plotCode}
-                          </span>
-                          <StatusChip status={plot.status}>{plot.status}</StatusChip>
+              {filtered.length === 0 ? (
+                <div className="py-12 px-4 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                  <MapPin className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No plots mapped in scope</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    No cadastral parcels found for the active filter.
+                  </p>
+                </div>
+              ) : (
+                filtered.map((plot) => {
+                  const isSelected = selectedPlot?.id === plot.id;
+                  return (
+                    <div
+                      key={plot.id}
+                      onClick={() => setSelectedPlot(plot)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
+                          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-xs text-slate-900">
+                              {plot.plotCode}
+                            </span>
+                            <StatusChip status={plot.status}>{plot.status}</StatusChip>
+                          </div>
+                          <p className="text-xs font-semibold text-slate-800 mt-1">
+                            {plot.allocatedFarmer}
+                          </p>
+                          <p className="text-[11px] text-slate-400">{plot.sectorName}</p>
                         </div>
-                        <p className="text-xs font-semibold text-slate-800 mt-1">
-                          {plot.allocatedFarmer}
-                        </p>
-                        <p className="text-[11px] text-slate-400">{plot.sectorName}</p>
-                      </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                          {plot.areaHa} ha
-                        </span>
-                        <p className="text-[10px] text-slate-400 mt-1 font-medium">
-                          {plot.irrigationType}
-                        </p>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            {plot.areaHa} ha
+                          </span>
+                          <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                            {plot.irrigationType}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}

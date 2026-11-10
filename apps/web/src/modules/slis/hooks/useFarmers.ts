@@ -44,9 +44,12 @@ export function useFarmers(query?: ListFarmersQuery) {
     },
   });
 
+  const farmers = (farmersQuery.data?.items as FarmerResponse[] | undefined) ?? [];
+  const total = farmersQuery.data?.total ?? farmers.length;
+
   return {
-    farmers: (farmersQuery.data?.items as FarmerResponse[] | undefined) ?? [],
-    total: farmersQuery.data?.total,
+    farmers,
+    total,
     isLoading: farmersQuery.isLoading,
     isFetching: farmersQuery.isFetching,
     error: farmersQuery.error,
