@@ -62,6 +62,8 @@ export function ImportWizard({
   const selectedDataset =
     AVAILABLE_DATASETS.find((d) => d.id === selectedDatasetId) || AVAILABLE_DATASETS[0];
 
+  const loadedBatchIdRef = React.useRef<string | null>(null);
+
   // Helper to load preview rows from the live server for a batch
   const loadBatchPreview = React.useCallback(
     async (batchId: string) => {
@@ -85,9 +87,13 @@ export function ImportWizard({
     [getBatchPreview],
   );
 
-  // When step changes to preview or activeBatchId updates, load preview from the live API
+  // When step changes to preview or activeBatchId updates, load preview from the live API once per batch
   React.useEffect(() => {
-    // Find candidate batch if not explicitly set
+    if (currentStep !== 'preview') {
+      loadedBatchIdRef.current = null;
+      return;
+    }
+
     let targetId = activeBatchId;
     if (!targetId) {
       const candidate =
@@ -100,7 +106,8 @@ export function ImportWizard({
       }
     }
 
-    if (targetId && currentStep === 'preview') {
+    if (targetId && loadedBatchIdRef.current !== targetId) {
+      loadedBatchIdRef.current = targetId;
       void loadBatchPreview(targetId);
     }
   }, [activeBatchId, currentStep, selectedDatasetId, batches, loadBatchPreview]);
