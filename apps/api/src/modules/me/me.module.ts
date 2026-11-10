@@ -1,4 +1,4 @@
-import { Module, type OnModuleInit } from '@nestjs/common';
+import { Module, type OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { CoreModule } from '../core/core.module';
 import { ImportHandlerRegistry } from '../core/public';
 import { AuditModule } from '../../platform/audit/audit.module';
@@ -111,6 +111,7 @@ import { TechAdoptionImportHandler } from './imports/tech-adoption.handler';
 })
 export class MeModule implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,
     private readonly indicatorTargetHandler: IndicatorTargetImportHandler,
     private readonly indicatorValueHandler: IndicatorValueImportHandler,
@@ -121,11 +122,11 @@ export class MeModule implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.registry.register(this.indicatorTargetHandler);
-    this.registry.register(this.indicatorValueHandler);
-    this.registry.register(this.surveyResponseHandler);
-    this.registry.register(this.scorecardHandler);
-    this.registry.register(this.matchingGrantHandler);
-    this.registry.register(this.techAdoptionHandler);
+    if (this.indicatorTargetHandler) this.registry.register(this.indicatorTargetHandler);
+    if (this.indicatorValueHandler) this.registry.register(this.indicatorValueHandler);
+    if (this.surveyResponseHandler) this.registry.register(this.surveyResponseHandler);
+    if (this.scorecardHandler) this.registry.register(this.scorecardHandler);
+    if (this.matchingGrantHandler) this.registry.register(this.matchingGrantHandler);
+    if (this.techAdoptionHandler) this.registry.register(this.techAdoptionHandler);
   }
 }

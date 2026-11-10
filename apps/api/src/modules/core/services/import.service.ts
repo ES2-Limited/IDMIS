@@ -49,10 +49,15 @@ export class ImportService implements OnModuleDestroy {
   private readonly measurementCommitQueue: Queue;
 
   constructor(
+    @Inject(forwardRef(() => ImportRepository))
     private readonly importRepo: ImportRepository,
+    @Inject(forwardRef(() => ImportTemplateService))
     private readonly templateService: ImportTemplateService,
+    @Inject(forwardRef(() => StorageService))
     private readonly storageService: StorageService,
+    @Inject(forwardRef(() => EncryptionService))
     private readonly encryptionService: EncryptionService,
+    @Inject(forwardRef(() => RedisService))
     private readonly redisService: RedisService,
     @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly registry: ImportHandlerRegistry,

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { db } from '@idmis/db';
 import { resolveUserAuthz, UserAuthzImpl, type UserAuthz } from '@idmis/db/authz';
 import type { RequestScope, CaslRule } from '@idmis/contracts';
@@ -17,7 +17,9 @@ interface CachedAuthzPayload {
 export class AuthzService {
   private readonly logger = new Logger(AuthzService.name);
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    @Inject(forwardRef(() => RedisService)) private readonly redisService: RedisService,
+  ) {}
 
   async getRbacEpoch(): Promise<number> {
     const epochStr = await this.redisService.get('auth:rbac:epoch');

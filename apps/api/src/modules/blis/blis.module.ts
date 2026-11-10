@@ -1,4 +1,4 @@
-import { Module, type OnModuleInit } from '@nestjs/common';
+import { Module, type OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { CoreModule } from '../core/core.module';
 import { ImportHandlerRegistry } from '../core/public';
 import { AuditModule } from '../../platform/audit/audit.module';
@@ -87,6 +87,7 @@ import { MeasurementImportHandler } from './imports/measurement.handler';
 })
 export class BlisModule implements OnModuleInit {
   constructor(
+    @Inject(forwardRef(() => ImportHandlerRegistry))
     private readonly importRegistry: ImportHandlerRegistry,
     private readonly basinImportHandler: BasinImportHandler,
     private readonly stationImportHandler: StationImportHandler,
@@ -95,9 +96,9 @@ export class BlisModule implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.importRegistry.register(this.basinImportHandler);
-    this.importRegistry.register(this.stationImportHandler);
-    this.importRegistry.register(this.damImportHandler);
-    this.importRegistry.register(this.measurementImportHandler);
+    if (this.basinImportHandler) this.importRegistry.register(this.basinImportHandler);
+    if (this.stationImportHandler) this.importRegistry.register(this.stationImportHandler);
+    if (this.damImportHandler) this.importRegistry.register(this.damImportHandler);
+    if (this.measurementImportHandler) this.importRegistry.register(this.measurementImportHandler);
   }
 }

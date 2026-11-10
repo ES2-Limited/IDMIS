@@ -8,6 +8,8 @@ import {
   HttpCode,
   UnauthorizedException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import {
@@ -66,8 +68,8 @@ function assertAllowedOrigin(req: FastifyRequest): void {
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly authService: AuthService,
-    private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => AuthService)) private readonly authService: AuthService,
+    @Inject(forwardRef(() => TokenService)) private readonly tokenService: TokenService,
   ) {}
 
   @Public()

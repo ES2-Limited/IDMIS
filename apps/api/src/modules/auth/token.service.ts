@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject, forwardRef } from '@nestjs/common';
 import { SignJWT, jwtVerify } from 'jose';
 import * as crypto from 'node:crypto';
 import * as argon2 from 'argon2';
@@ -45,7 +45,7 @@ export const DUMMY_PASSWORD_HASH =
 export class TokenService {
   private readonly secretKey: Uint8Array;
 
-  constructor(private readonly redisService: RedisService) {
+  constructor(@Inject(forwardRef(() => RedisService)) private readonly redisService: RedisService) {
     const secret = process.env.JWT_SECRET || 'development-jwt-secret-min-16-chars-long';
     this.secretKey = new TextEncoder().encode(secret);
   }

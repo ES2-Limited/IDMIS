@@ -1,11 +1,13 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Inject, forwardRef } from '@nestjs/common';
 import { permissions } from '@idmis/contracts';
 import { GeographyService } from '../services/geography.service';
 import { Can } from '../../../platform/auth';
 
 @Controller('geography')
 export class GeographyController {
-  constructor(private readonly geoService: GeographyService) {}
+  constructor(
+    @Inject(forwardRef(() => GeographyService)) private readonly geoService: GeographyService,
+  ) {}
 
   @Get('states')
   @Can(permissions.CORE_GEOGRAPHY_READ)
