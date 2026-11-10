@@ -9,10 +9,21 @@ import {
   Plus,
   RefreshCw,
   Landmark,
+  Eye,
 } from 'lucide-react';
-import { Button, StatusChip } from '@idmis/ui';
+import {
+  Button,
+  StatusChip,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@idmis/ui';
+import type { OrgType, OrganisationResponse } from '@idmis/contracts';
 import { useOrganisations, useWuas } from './hooks';
 import { CreateOrganisationDialog } from './CreateOrganisationDialog';
+import { CreateWuaDialog } from './CreateWuaDialog';
 
 export function OrganisationsTreeView() {
   const {
@@ -28,10 +39,25 @@ export function OrganisationsTreeView() {
     isLoading: isLoadingWuas,
     isFetching: isFetchingWuas,
     refetch: refetchWuas,
+    createWua,
+    isCreating: isCreatingWua,
   } = useWuas();
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [addOrgDefaults, setAddOrgDefaults] = React.useState<{
+    parentId?: string | null;
+    type?: OrgType;
+  }>({});
+
+  // WUA Attach state
+  const [wuaAttachTarget, setWuaAttachTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // Manage / Details Modal state
+  const [selectedOrgDetails, setSelectedOrgDetails] = React.useState<OrganisationResponse | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -52,6 +78,30 @@ export function OrganisationsTreeView() {
   const handleRefresh = () => {
     refetchOrgs();
     refetchWuas();
+  };
+
+  const handleOpenAddScheme = (rbdaId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAddOrgDefaults({ parentId: rbdaId, type: 'scheme' });
+    setIsAddOpen(true);
+    setExpanded((prev) => ({ ...prev, [rbdaId]: true }));
+  };
+
+  const handleOpenAddSector = (schemeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAddOrgDefaults({ parentId: schemeId, type: 'sector' });
+    setIsAddOpen(true);
+    setExpanded((prev) => ({ ...prev, [schemeId]: true }));
+  };
+
+  const handleOpenAttachWua = (orgId: string, orgName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setWuaAttachTarget({ id: orgId, name: orgName });
+  };
+
+  const handleOpenDetails = (org: OrganisationResponse, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedOrgDetails(org);
   };
 
   return (
@@ -84,7 +134,10 @@ export function OrganisationsTreeView() {
             Refresh
           </Button>
           <Button
-            onClick={() => setIsAddOpen(true)}
+            onClick={() => {
+              setAddOrgDefaults({});
+              setIsAddOpen(true);
+            }}
             className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
@@ -103,8 +156,73 @@ export function OrganisationsTreeView() {
           code: o.code,
           type: o.type,
         }))}
+        defaultParentId={addOrgDefaults.parentId}
+        defaultType={addOrgDefaults.type}
         isLoading={isCreating}
       />
+
+      {wuaAttachTarget && (
+        <CreateWuaDialog
+          open={Boolean(wuaAttachTarget)}
+          onOpenChange={(open) => !open && setWuaAttachTarget(null)}
+          onSubmitWua={createWua}
+          organisationId={wuaAttachTarget.id}
+          organisationName={wuaAttachTarget.name}
+          isLoading={isCreatingWua}
+        />
+      )}
+
+      {selectedOrgDetails && (
+        <Dialog open={Boolean(selectedOrgDetails)} onOpenChange={(open) => !open && setSelectedOrgDetails(null)}>
+          <DialogContent className="max-w-md p-6">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200">
+                  {selectedOrgDetails.type}
+                </span>
+                <span className="font-mono text-[11px] text-slate-500">[{selectedOrgDetails.code}]</span>
+              </div>
+              <DialogTitle className="text-lg font-black text-slate-900 tracking-tight">
+                {selectedOrgDetails.name}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Institutional metadata, geographical boundaries, and command attributes.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Short Name</span>
+                  <span className="font-bold text-slate-800">{selectedOrgDetails.shortName ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Headquarters / Address</span>
+                  <span className="font-bold text-slate-800 text-right truncate max-w-[200px]">{selectedOrgDetails.address ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Phone</span>
+                  <span className="font-bold text-slate-800">{selectedOrgDetails.phone ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Email</span>
+                  <span className="font-bold text-slate-800">{selectedOrgDetails.email ?? '—'}</span>
+                </div>
+                {selectedOrgDetails.irrigableAreaHa !== undefined && selectedOrgDetails.irrigableAreaHa !== null && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 font-medium">Irrigable Area</span>
+                    <span className="font-bold text-teal-700">{Number(selectedOrgDetails.irrigableAreaHa).toLocaleString()} Hectares</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Created On</span>
+                  <span className="font-medium text-slate-600">{new Date(selectedOrgDetails.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-6 shadow-xs space-y-4">
         <div className="text-[11px] font-black uppercase tracking-wider text-slate-400">
@@ -160,6 +278,24 @@ export function OrganisationsTreeView() {
                     <span className="text-[11px] font-bold text-slate-500">
                       {schemes.length} Schemes
                     </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleOpenAddScheme(rbda.id, e)}
+                      className="h-7 px-2.5 text-[11px] font-bold gap-1 text-teal-700 border-teal-200 hover:bg-teal-50 cursor-pointer"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Add Scheme
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleOpenDetails(rbda, e)}
+                      className="h-7 px-2 text-[11px] font-bold text-slate-600 hover:text-teal-700 cursor-pointer"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      Details
+                    </Button>
                     <StatusChip status="approved">Active</StatusChip>
                   </div>
                 </div>
@@ -210,14 +346,35 @@ export function OrganisationsTreeView() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between sm:justify-end gap-3 pl-8 sm:pl-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div className="flex items-center justify-between sm:justify-end gap-2 pl-8 sm:pl-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 flex-wrap">
                               <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">
                                 {sectors.length} Sectors • {getWuasForOrg(scheme.id).length} WUAs
                               </span>
                               <Button
-                                variant="ghost"
-                                className="h-6 sm:h-7 px-2 text-[11px] font-bold cursor-pointer hover:text-teal-700"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => handleOpenAddSector(scheme.id, e)}
+                                className="h-6 sm:h-7 px-2 text-[10px] sm:text-[11px] font-bold gap-1 text-amber-700 border-amber-200 hover:bg-amber-50 cursor-pointer"
                               >
+                                <Plus className="h-3 w-3" />
+                                Add Sector
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => handleOpenAttachWua(scheme.id, scheme.name, e)}
+                                className="h-6 sm:h-7 px-2 text-[10px] sm:text-[11px] font-bold gap-1 text-teal-700 border-teal-200 hover:bg-teal-50 cursor-pointer"
+                              >
+                                <Users2 className="h-3 w-3" />
+                                Attach WUA
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleOpenDetails(scheme, e)}
+                                className="h-6 sm:h-7 px-2 text-[10px] sm:text-[11px] font-bold cursor-pointer hover:text-teal-700"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
                                 Manage
                               </Button>
                             </div>
@@ -254,9 +411,20 @@ export function OrganisationsTreeView() {
                               {/* Water User Associations */}
                               {getWuasForOrg(scheme.id).length > 0 && (
                                 <div className="space-y-1.5 pt-1">
-                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                    <Users2 className="h-3 w-3 text-teal-600" />
-                                    Water User Associations ({getWuasForOrg(scheme.id).length})
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                      <Users2 className="h-3 w-3 text-teal-600" />
+                                      Water User Associations ({getWuasForOrg(scheme.id).length})
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => handleOpenAttachWua(scheme.id, scheme.name, e)}
+                                      className="h-6 px-1.5 text-[10px] font-bold text-teal-700 hover:text-teal-800 cursor-pointer"
+                                    >
+                                      <Plus className="h-2.5 w-2.5 mr-0.5" />
+                                      Attach WUA
+                                    </Button>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {getWuasForOrg(scheme.id).map((wua) => (

@@ -22,6 +22,8 @@ interface CreateOrganisationDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmitOrg: (data: CreateOrganisationInput) => Promise<unknown>;
   parentOrganisations: Array<{ id: string; name: string; code: string; type: string }>;
+  defaultParentId?: string | null;
+  defaultType?: OrgType;
   isLoading?: boolean;
 }
 
@@ -30,20 +32,29 @@ export function CreateOrganisationDialog({
   onOpenChange,
   onSubmitOrg,
   parentOrganisations,
+  defaultParentId,
+  defaultType,
   isLoading,
 }: CreateOrganisationDialogProps) {
   const { states } = useGeography();
-  const [type, setType] = React.useState<OrgType>('rbda');
+  const [type, setType] = React.useState<OrgType>(defaultType ?? 'rbda');
   const [name, setName] = React.useState('');
   const [code, setCode] = React.useState('');
   const [shortName, setShortName] = React.useState('');
-  const [parentId, setParentId] = React.useState<string | null>(null);
+  const [parentId, setParentId] = React.useState<string | null>(defaultParentId ?? null);
   const [selectedStateId, setSelectedStateId] = React.useState<string>('');
   const [address, setAddress] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [irrigableAreaHa, setIrrigableAreaHa] = React.useState('');
   const [formError, setFormError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      if (defaultType) setType(defaultType);
+      if (defaultParentId !== undefined) setParentId(defaultParentId);
+    }
+  }, [open, defaultType, defaultParentId]);
 
   React.useEffect(() => {
     if (states.length > 0 && !selectedStateId) {
