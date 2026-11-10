@@ -45,7 +45,9 @@ export class AuthService implements OnApplicationBootstrap {
 
   onApplicationBootstrap() {
     const env = validateApiEnv();
-    if (!env.AUTH_TOTP_ENFORCE_ADMINS && env.NODE_ENV === 'production') {
+    if (!env.AUTH_TOTP_ENABLED) {
+      this.logger.warn('TOTP / 2FA is globally DISABLED across all environments');
+    } else if (!env.AUTH_TOTP_ENFORCE_ADMINS && env.NODE_ENV === 'production') {
       this.logger.warn('Admin TOTP enforcement is DISABLED');
     }
   }
@@ -140,10 +142,12 @@ export class AuthService implements OnApplicationBootstrap {
     ];
     const hasAdminRole = roles.some((r) => adminRoles.includes(r));
     const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
-    const enforceAdminTotp = validateApiEnv().AUTH_TOTP_ENFORCE_ADMINS;
+    const env = validateApiEnv();
+    const enforceAdminTotp = env.AUTH_TOTP_ENFORCE_ADMINS;
+    const isTotpEnabled = env.AUTH_TOTP_ENABLED;
 
-    // 5. TOTP Checks (bypassed in development mode for seamless local testing)
-    if (!isDev) {
+    // 5. TOTP Checks (bypassed in development mode or when AUTH_TOTP_ENABLED is false)
+    if (!isDev && isTotpEnabled) {
       if (hasAdminRole && enforceAdminTotp) {
         if (user.totpConfirmedAt === null) {
           const tempToken = await this.tokenService.createTempToken(user.id, 'totp_setup');

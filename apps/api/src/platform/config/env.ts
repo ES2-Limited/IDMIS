@@ -41,6 +41,17 @@ export const ApiEnvSchema = z
       }, z.boolean())
       .default(true),
 
+    // Master switch for TOTP / 2FA (set to false to disable OTP in all environments including production)
+    AUTH_TOTP_ENABLED: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          if (val.toLowerCase() === 'true' || val === '1') return true;
+          if (val.toLowerCase() === 'false' || val === '0') return false;
+        }
+        return val;
+      }, z.boolean())
+      .default(false),
+
     // M&E Compute Debounce
     ME_COMPUTE_DEBOUNCE_MS: z.coerce.number().default(60000),
 
