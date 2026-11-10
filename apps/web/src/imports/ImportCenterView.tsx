@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { RotateCcw, FileSpreadsheet, Plus } from 'lucide-react';
-import { Button, StatusChip } from '@idmis/ui';
+import { RotateCcw, FileSpreadsheet, Plus, UploadCloud } from 'lucide-react';
+import { Button, StatusChip, EmptyState } from '@idmis/ui';
 import { useImportBatches } from '../modules/core/hooks';
 import { ImportWizard } from './ImportWizard';
 
 export function ImportCenterView() {
-  const { batches, undoBatch, refetch } = useImportBatches();
+  const { batches, undoBatch, refetch, isLoading } = useImportBatches();
   const [isWizardOpen, setIsWizardOpen] = React.useState(false);
   const [undoneBatches, setUndoneBatches] = React.useState<Record<string, boolean>>({});
 
@@ -13,6 +13,7 @@ export function ImportCenterView() {
     try {
       await undoBatch(batchId);
       setUndoneBatches((prev) => ({ ...prev, [batchId]: true }));
+      refetch?.();
     } catch {
       // Fallback local toggle
       setUndoneBatches((prev) => ({ ...prev, [batchId]: true }));
@@ -67,8 +68,26 @@ export function ImportCenterView() {
             Recent Import Batches
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            {batches.map((batch) => {
+          {batches.length === 0 ? (
+            <div className="flex justify-center py-10">
+              <EmptyState
+                icon={<UploadCloud className="h-7 w-7 text-teal-700" />}
+                title="No Import Batches Yet"
+                description="Upload an Excel workbook to batch ingest farmers, plots, WUAs, or quarterly M&E indicators into IDMIS with automated rollback snapshots."
+                action={
+                  <Button
+                    onClick={() => setIsWizardOpen(true)}
+                    className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Batch Import
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {batches.map((batch) => {
               const isBatchUndone = batch.status === 'undone' || !!undoneBatches[batch.id];
 
               return (
@@ -140,6 +159,7 @@ export function ImportCenterView() {
               );
             })}
           </div>
+          )}
         </div>
       )}
     </div>

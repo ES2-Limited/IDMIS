@@ -82,10 +82,17 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const defaultScopeValue: ScopeState = {
+  currentScope: defaultScopes[0]!,
+  setScope: () => {},
+  availableScopes: defaultScopes,
+  isLoadingScopes: false,
+};
+
 export function useScope(): ScopeState {
   const ctx = React.useContext(ScopeContext);
   if (!ctx) {
-    throw new Error('useScope must be used within a ScopeProvider');
+    return defaultScopeValue;
   }
   return ctx;
 }

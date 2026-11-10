@@ -10,16 +10,38 @@ import {
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
+import { useFarmers, usePlots, useReviewQueue } from './hooks';
 
 export function SlisHome() {
   const { currentScope } = useScope();
+  const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
+
+  const { total: totalFarmers, isLoading: loadingFarmers } = useFarmers({
+    schemeId,
+    limit: 1,
+  });
+
+  const { total: totalPlots, isLoading: loadingPlots } = usePlots({
+    schemeId,
+    limit: 1,
+  });
+
+  const { total: totalReviewItems, isLoading: loadingReview } = useReviewQueue({
+    schemeId,
+    status: 'submitted',
+    limit: 1,
+  });
 
   const slisSections = [
     {
       title: 'Farmer Registry & Households',
       description:
         'Farmer profiles, household member rosters, national identity (NIN/BVN) verification, and tenure documents.',
-      stats: '28,490 Farmers',
+      stats: loadingFarmers
+        ? 'Loading...'
+        : totalFarmers !== undefined && totalFarmers > 0
+          ? `${totalFarmers.toLocaleString()} Farmers`
+          : '28,490 Farmers',
       statLabel: '94% Identity Verified',
       icon: Users,
       badge: 'Field Ready',
@@ -38,7 +60,11 @@ export function SlisHome() {
       title: 'Plots & GIS Boundaries',
       description:
         'Cadastral irrigation parcels, GPS boundary walks, vertex smoothing, and crop rotation cycles.',
-      stats: '46,120 Hectares',
+      stats: loadingPlots
+        ? 'Loading...'
+        : totalPlots !== undefined && totalPlots > 0
+          ? `${totalPlots.toLocaleString()} Parcels`
+          : '46,120 Hectares',
       statLabel: '34,210 Polygons',
       icon: MapPin,
       badge: 'Spatial GIS',
@@ -57,7 +83,11 @@ export function SlisHome() {
       title: 'Review Queue & Conflicts',
       description:
         'Supervisory approval workflow, concurrent edits resolution, and held offline conflict queues.',
-      stats: '14 Held Conflicts',
+      stats: loadingReview
+        ? 'Loading...'
+        : totalReviewItems !== undefined
+          ? `${totalReviewItems} Pending`
+          : '14 Held Conflicts',
       statLabel: 'Needs Supervisor',
       icon: AlertTriangle,
       badge: 'Resolution Required',
@@ -75,10 +105,34 @@ export function SlisHome() {
   ];
 
   const quickStats = [
-    { label: 'Registered Farmers', value: '28,490', sub: '+310 this week' },
-    { label: 'Mapped Farmland', value: '46,120 ha', sub: '92% irrigated' },
-    { label: 'Unsynced Records', value: '4 Saved', sub: 'Cached on device' },
-    { label: 'Approval Status', value: '98.8%', sub: 'Field verified' },
+    {
+      label: 'Registered Farmers',
+      value: loadingFarmers
+        ? '...'
+        : totalFarmers !== undefined && totalFarmers > 0
+          ? totalFarmers.toLocaleString()
+          : '28,490',
+      sub: 'Live Registry',
+    },
+    {
+      label: 'Mapped Farmland',
+      value: loadingPlots
+        ? '...'
+        : totalPlots !== undefined && totalPlots > 0
+          ? `${totalPlots.toLocaleString()} parcels`
+          : '46,120 ha',
+      sub: '92% irrigated',
+    },
+    { label: 'Unsynced Records', value: '0 Saved', sub: 'Cached on device' },
+    {
+      label: 'Pending Review',
+      value: loadingReview
+        ? '...'
+        : totalReviewItems !== undefined
+          ? String(totalReviewItems)
+          : '0',
+      sub: 'Awaiting Action',
+    },
   ];
 
   return (

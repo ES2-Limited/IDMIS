@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Users, Building, UploadCloud, ShieldCheck, KeyRound } from 'lucide-react';
 import { StatusChip, Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@idmis/ui';
+import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
 import { UserManagementView } from './UserManagementView';
 import { OrganisationsTreeView } from './OrganisationsTreeView';
@@ -42,13 +43,15 @@ export function CoreHome() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer w-full sm:w-auto"
-            >
-              <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-300" />
-              Audit Logs
-            </Button>
+            <Link to="/core/audit">
+              <Button
+                variant="outline"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer w-full sm:w-auto"
+              >
+                <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-300" />
+                Audit Logs
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

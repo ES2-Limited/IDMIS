@@ -12,6 +12,7 @@ import {
 } from '@idmis/ui';
 import { AssignmentEditor, type AssignmentFormData } from './AssignmentEditor';
 import { mockRoles } from '../../mocks/coreData';
+import { useGeography } from './hooks';
 
 interface UserDialogProps {
   open: boolean;
@@ -21,16 +22,27 @@ interface UserDialogProps {
 }
 
 export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }: UserDialogProps) {
+  const { states } = useGeography();
   const [assignment, setAssignment] = React.useState<AssignmentFormData>({
     roleId: mockRoles[1]?.id ?? '018f3a5e-0000-7000-8000-000000000021',
     module: 'slis',
     scopeType: 'state',
-    scopeStateId: '018f3a70-0001-7000-8000-000000000001',
+    scopeStateId: null,
     scopeOrgId: null,
     canCaptureOffline: true,
     validFromOn: new Date().toISOString().split('T')[0],
     validToOn: null,
   });
+
+  // Keep scopeStateId in sync with loaded states when state-scoped
+  React.useEffect(() => {
+    if (states.length > 0 && assignment.scopeType === 'state' && !assignment.scopeStateId) {
+      setAssignment((prev) => ({
+        ...prev,
+        scopeStateId: states[0]?.id ?? null,
+      }));
+    }
+  }, [states, assignment.scopeType, assignment.scopeStateId]);
 
   const [fullName, setFullName] = React.useState('');
   const [email, setEmail] = React.useState('');

@@ -85,7 +85,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
       if (query?.schemeId) params.set('schemeId', query.schemeId);
 
       return client.get<{ items: ImportBatchResponse[]; total: number }>(
-        `/imports/batches?${params.toString()}`,
+        `/imports?${params.toString()}`,
       );
     },
     enabled: isAuthenticated,
@@ -95,7 +95,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const initiateImportMutation = useMutation({
     mutationFn: async (payload: InitiateImportInput) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>('/imports/batches', payload);
+      return client.post<ImportBatchResponse>('/imports', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });
@@ -105,7 +105,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const commitBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>(`/imports/batches/${batchId}/commit`);
+      return client.post<ImportBatchResponse>(`/imports/${batchId}/commit`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });
@@ -115,7 +115,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const undoBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>(`/imports/batches/${batchId}/undo`);
+      return client.post<ImportBatchResponse>(`/imports/${batchId}/undo`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });

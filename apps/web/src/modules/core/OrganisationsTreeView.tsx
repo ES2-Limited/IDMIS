@@ -10,10 +10,12 @@ import {
 } from 'lucide-react';
 import { Button, StatusChip } from '@idmis/ui';
 import { useOrganisations } from './hooks';
+import { CreateOrganisationDialog } from './CreateOrganisationDialog';
 
 export function OrganisationsTreeView() {
-  const { organisations: serverOrgs, isLoading, isFetching, refetch } = useOrganisations();
+  const { organisations: serverOrgs, isLoading, isFetching, refetch, createOrganisation, isCreating } = useOrganisations();
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+  const [isAddOpen, setIsAddOpen] = React.useState(false);
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -55,12 +57,23 @@ export function OrganisationsTreeView() {
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto">
+          <Button
+            onClick={() => setIsAddOpen(true)}
+            className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
             Add Organisation
           </Button>
         </div>
       </div>
+
+      <CreateOrganisationDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onSubmitOrg={createOrganisation}
+        parentOrganisations={organisations.map((o) => ({ id: o.id, name: o.name, code: o.code, type: o.type }))}
+        isLoading={isCreating}
+      />
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-6 shadow-xs space-y-4">
         <div className="text-[11px] font-black uppercase tracking-wider text-slate-400">

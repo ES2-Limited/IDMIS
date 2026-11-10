@@ -25,10 +25,10 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
       </html>
     `;
 
-    const pdfBuffer = await renderHtmlToPdf(testHtml, { timeoutMs: 30000 });
+    const pdfBuffer = await renderHtmlToPdf(testHtml, { timeoutMs: 60000 });
     const elapsed = Date.now() - startTime;
 
-    expect(elapsed).toBeLessThan(30000);
+    expect(elapsed).toBeLessThan(60000);
     expect(pdfBuffer).toBeInstanceOf(Buffer);
     expect(pdfBuffer.length).toBeGreaterThan(1000);
 

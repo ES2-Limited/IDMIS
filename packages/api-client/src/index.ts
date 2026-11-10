@@ -339,6 +339,14 @@ export class ApiClient {
     });
   }
 
+  public async getAuditLogs(
+    query?: Record<string, unknown>,
+  ): Promise<{ items: unknown[]; total: number }> {
+    return this.request<{ items: unknown[]; total: number }>(
+      `/admin/audit-logs${buildQueryString(query)}`,
+    );
+  }
+
   public async getWuas(query?: ListWuasQuery): Promise<{ items: WuaResponse[]; total?: number }> {
     return this.request<{ items: WuaResponse[]; total?: number }>(
       `/wuas${buildQueryString(query)}`,
@@ -478,12 +486,17 @@ export class ApiClient {
     );
   }
 
-  public async getIndicatorMatrix(): Promise<IndicatorMatrixResponse> {
-    return this.request<IndicatorMatrixResponse>('/me/values/matrix');
+  public async getIndicatorMatrix(query?: {
+    year?: number;
+    quarter?: number;
+    scopeType?: 'national' | 'state' | 'scheme' | 'sector';
+    scopeId?: string;
+  }): Promise<IndicatorMatrixResponse> {
+    return this.request<IndicatorMatrixResponse>(`/me/matrix${buildQueryString(query)}`);
   }
 
   public async submitQuarterlyValue(body: CreateIndicatorValueInput): Promise<IndicatorValue> {
-    return this.request<IndicatorValue>('/me/values/quarterly', {
+    return this.request<IndicatorValue>('/me/values', {
       method: 'POST',
       body: JSON.stringify(body),
     });
