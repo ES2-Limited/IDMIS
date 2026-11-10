@@ -17,7 +17,7 @@ import {
 } from '@idmis/ui';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
-import { useDams } from './hooks';
+import { useDams, useReservoirs } from './hooks';
 
 export interface DamRecord {
   id: string;
@@ -48,9 +48,9 @@ export interface ReservoirRecord {
   river: string;
   areaKm2: number;
   volumeMcm: number;
-  meanDepthM: number;
-  maxDepthM: number;
-  sedimentRatio: number;
+  meanDepthM?: number;
+  maxDepthM?: number;
+  sedimentRatio?: number;
   version: number;
 }
 
@@ -221,7 +221,6 @@ export function DamsListView() {
   const [search, setSearch] = React.useState('');
   const [hazardFilter, setHazardFilter] = React.useState<string>('all');
   const [conditionFilter, setConditionFilter] = React.useState<string>('all');
-  const [reservoirs] = React.useState<ReservoirRecord[]>(mockReservoirs);
   const [selectedDam, setSelectedDam] = React.useState<DamRecord | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
@@ -229,6 +228,28 @@ export function DamsListView() {
   const { dams: serverDams, createDam } = useDams({
     limit: 50,
   });
+
+  const { reservoirs: serverReservoirs } = useReservoirs();
+
+  const activeReservoirs: ReservoirRecord[] = React.useMemo(() => {
+    if (serverReservoirs && serverReservoirs.length > 0) {
+      return (serverReservoirs as unknown as Array<Record<string, unknown>>).map((r) => ({
+        id: String(r.id),
+        basinName: String(
+          r.basinId ? `Basin ${String(r.basinId).slice(-4)}` : "Hadejia-Jama'are River Basin",
+        ),
+        name: String(r.name),
+        river: String(r.river || 'Hadejia River'),
+        areaKm2: r.areaKm2 ? Number(r.areaKm2) : 100,
+        volumeMcm: r.volumeMcm ? Number(r.volumeMcm) : 500,
+        meanDepthM: r.meanDepthM ? Number(r.meanDepthM) : undefined,
+        maxDepthM: r.maxDepthM ? Number(r.maxDepthM) : undefined,
+        sedimentRatio: r.sedimentRatio ? Number(r.sedimentRatio) : undefined,
+        version: typeof r.version === 'number' ? r.version : 1,
+      }));
+    }
+    return [];
+  }, [serverReservoirs]);
 
   const activeDams: DamRecord[] = React.useMemo(() => {
     if (serverDams && serverDams.length > 0) {
@@ -290,14 +311,14 @@ export function DamsListView() {
   }, [activeDams, search, hazardFilter, conditionFilter]);
 
   const filteredReservoirs = React.useMemo(() => {
-    return reservoirs.filter((item) => {
+    return activeReservoirs.filter((item) => {
       return (
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.river.toLowerCase().includes(search.toLowerCase()) ||
         item.basinName.toLowerCase().includes(search.toLowerCase())
       );
     });
-  }, [reservoirs, search]);
+  }, [activeReservoirs, search]);
 
   const handleCreateDam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,7 +451,7 @@ export function DamsListView() {
           }`}
         >
           <Layers className="w-4 h-4" />
-          Impoundment Reservoirs ({reservoirs.length})
+          Impoundment Reservoirs ({activeReservoirs.length})
         </button>
       </div>
 
