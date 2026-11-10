@@ -1,4 +1,4 @@
-import type { ImportBatchResponse, ImportRowResponse } from '@idmis/contracts';
+import type { ImportBatchResponse } from '@idmis/contracts';
 
 export interface ImportDatasetOption {
   id: string;

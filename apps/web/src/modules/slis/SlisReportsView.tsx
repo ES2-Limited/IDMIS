@@ -44,13 +44,8 @@ export function SlisReportsView() {
 
   const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
 
-  const {
-    farmersByScope,
-    areaByService,
-    feeRecovery,
-    wuaSummaries,
-    isLoading: isLoadingReports,
-  } = useSlisReports(schemeId);
+  const { farmersByScope, areaByService, feeRecovery, wuaSummaries } =
+    useSlisReports(schemeId);
 
   const { organisations } = useOrganisations();
   const schemesList = React.useMemo(() => {
@@ -161,8 +156,8 @@ export function SlisReportsView() {
     totalFarmers > 0 ? ((femaleFarmers / totalFarmers) * 100).toFixed(1) : '0';
 
   const handleExportCSV = () => {
-    let headers: string[] = [];
-    let rows: (string | number)[][] = [];
+    let headers: string[];
+    let rows: (string | number)[][];
 
     if (selectedReport === 'farmers_by_sector') {
       headers = [

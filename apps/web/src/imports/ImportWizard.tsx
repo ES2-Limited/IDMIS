@@ -9,6 +9,7 @@ import {
   FileCheck,
   ShieldAlert,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@idmis/ui';
 import { AVAILABLE_DATASETS } from '../mocks/importData';
@@ -683,6 +684,17 @@ export function ImportWizard({
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
+            {!isUndone && (
+              <Button
+                variant="outline"
+                onClick={handleUndoBatch}
+                disabled={isProcessing}
+                className="border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Undo Batch (Rollback)
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setCurrentStep('choose');
