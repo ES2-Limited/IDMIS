@@ -178,7 +178,7 @@ export function QuarterlyDataEntryView() {
   const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix();
   const [selectedQuarter, setSelectedQuarter] = React.useState('2026-Q4');
   const [selectedScope, setSelectedScope] = React.useState('all');
-  const [rows, setRows] = React.useState<EntryIndicatorRow[]>(mockEntryRows);
+  const [rows, setRows] = React.useState<EntryIndicatorRow[]>([]);
 
   React.useEffect(() => {
     if (serverMatrix?.items && serverMatrix.items.length > 0) {

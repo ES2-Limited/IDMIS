@@ -116,41 +116,6 @@ export function FieldRecordsView() {
         };
       });
 
-      // Include starter mock items if device store has few records
-      if (items.length === 0) {
-        items.push(
-          {
-            id: 'rec-mock-1',
-            entityType: 'farmer',
-            title: 'Musa Ibrahim Danbatta',
-            subtitle: 'NIN: ••••••••1234 · Sector B4 (HVIP)',
-            status: 'queued',
-            createdAt: '10:15 AM',
-            editRoute: '/field/capture/farmer',
-          },
-          {
-            id: 'rec-mock-2',
-            entityType: 'farm',
-            title: 'Plot B4-082 (1.45 ha)',
-            subtitle: 'KRIS Western Branch · Geodesic Walk',
-            status: 'queued',
-            createdAt: '09:30 AM',
-            editRoute: '/field/capture/plot',
-          },
-          {
-            id: 'rec-mock-3',
-            entityType: 'farm',
-            title: 'Plot C1-019 (0.80 ha)',
-            subtitle: 'Boundary overlap detected with adjacent scheme',
-            status: 'conflict',
-            createdAt: 'Yesterday',
-            comment:
-              'Overlaps with existing verified parcel #C1-018 by 12%. Please walk boundary again.',
-            editRoute: '/field/capture/plot',
-          },
-        );
-      }
-
       setRecords(items);
     } catch {
       // Fallback
