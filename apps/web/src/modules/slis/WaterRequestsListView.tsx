@@ -10,6 +10,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { useWaterRequests } from './hooks';
 
 export interface WaterRequestItem {
   id: string;
@@ -75,7 +76,33 @@ export function WaterRequestsListView() {
   const [search, setSearch] = React.useState('');
   const [decisionFilter, setDecisionFilter] = React.useState('all');
 
-  const filtered = mockWaterRequests.filter((item) => {
+  // Modular custom hook for Water Requests
+  const { requests: serverRequests } = useWaterRequests(
+    currentScope.type === 'scheme' ? currentScope.id : undefined,
+  );
+
+  const requests: WaterRequestItem[] = React.useMemo(() => {
+    if (serverRequests && serverRequests.length > 0) {
+      return serverRequests.map((r) => ({
+        id: r.id,
+        code: `WR-${r.id.slice(0, 5).toUpperCase()}`,
+        level: r.level,
+        requesterName: r.farmerId
+          ? `Farmer ${r.farmerId.slice(-4)}`
+          : r.wuaId
+            ? `WUA ${r.wuaId.slice(-4)}`
+            : 'Irrigation Group',
+        schemeName: currentScope.name || 'Scheme Network',
+        volumeM3: r.volumeM3 ? Number(r.volumeM3).toLocaleString() : '1,000',
+        deliveryPeriod: `${r.periodFromOn || 'TBD'} - ${r.periodToOn || 'TBD'}`,
+        decision: r.decision as WaterRequestItem['decision'],
+        submittedOn: new Date().toLocaleDateString(),
+      }));
+    }
+    return [];
+  }, [serverRequests, currentScope.name]);
+
+  const filtered = requests.filter((item) => {
     if (decisionFilter !== 'all' && item.decision !== decisionFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();

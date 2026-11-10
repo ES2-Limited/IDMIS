@@ -29,6 +29,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { useReviewQueue } from './hooks';
 
 export interface PendingRecord {
   id: string;
@@ -186,7 +187,6 @@ export const mockPendingRecords: PendingRecord[] = [
 
 export function ReviewConflictsListView() {
   const { currentScope } = useScope();
-  const [records, setRecords] = React.useState<PendingRecord[]>(mockPendingRecords);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [activeTab, setActiveTab] = React.useState<'all' | 'pending' | 'conflicts'>('all');
   const [typeFilter, setTypeFilter] = React.useState<string>('all');
@@ -199,6 +199,36 @@ export function ReviewConflictsListView() {
   const [returnModalRecord, setReturnModalRecord] = React.useState<PendingRecord | null>(null);
   const [returnComment, setReturnComment] = React.useState('');
   const [conflictPicks, setConflictPicks] = React.useState<Record<string, 'device' | 'server'>>({});
+
+  // Modular custom hook for Review Queue
+  const {
+    items: serverQueue,
+    approveRecord,
+    returnRecord,
+    bulkApprove,
+  } = useReviewQueue({
+    limit: 50,
+    status: 'submitted',
+    schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
+
+  const records: PendingRecord[] = React.useMemo(() => {
+    if (serverQueue && serverQueue.length > 0) {
+      return serverQueue.map((item) => ({
+        id: item.id,
+        entityType: (item.entity as PendingRecord['entityType']) || 'farmer',
+        recordCode: `${item.entity.toUpperCase().slice(0, 3)}-${item.id.slice(0, 5)}`,
+        title: item.summary,
+        collectorName: item.submittedByName || 'Field Officer',
+        schemeName: currentScope.name || 'KRIS Scheme',
+        sectorName: 'Sector 01',
+        submittedAt: item.submittedAt ? new Date(item.submittedAt).toLocaleTimeString() : 'Recent',
+        status: 'pending_review' as const,
+        summaryData: { Status: item.status, Entity: item.entity },
+      }));
+    }
+    return [];
+  }, [serverQueue, currentScope.name]);
 
   const filteredRecords = React.useMemo(() => {
     return records.filter((rec) => {
@@ -230,25 +260,55 @@ export function ReviewConflictsListView() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  const handleBulkApprove = () => {
-    setRecords((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
-    setSelectedIds([]);
+  const handleBulkApprove = async () => {
+    try {
+      const itemsToApprove = filteredRecords
+        .filter((r) => selectedIds.includes(r.id))
+        .map((r) => ({
+          entity: r.entityType as
+            | 'farmer'
+            | 'plot'
+            | 'fee_collection'
+            | 'water_request'
+            | 'crop_production'
+            | 'household'
+            | 'stream_flow_reading',
+          id: r.id,
+        }));
+      if (itemsToApprove.length > 0) {
+        await bulkApprove({ items: itemsToApprove });
+      }
+      setSelectedIds([]);
+    } catch {
+      setSelectedIds([]);
+    }
   };
 
   // Single Approve
-  const handleApproveSingle = (id: string) => {
-    setRecords((prev) => prev.filter((r) => r.id !== id));
+  const handleApproveSingle = async (id: string) => {
+    const rec = records.find((r) => r.id === id);
+    if (rec) {
+      try {
+        await approveRecord({ entity: rec.entityType, id: rec.id });
+      } catch {
+        // fallback
+      }
+    }
     if (inspectRecord?.id === id) setInspectRecord(null);
   };
 
   // Return with Comment
-  const handleConfirmReturn = () => {
+  const handleConfirmReturn = async () => {
     if (!returnModalRecord || !returnComment.trim()) return;
-    setRecords((prev) =>
-      prev.map((r) =>
-        r.id === returnModalRecord.id ? { ...r, status: 'needs_fixing' as const } : r,
-      ),
-    );
+    try {
+      await returnRecord({
+        entity: returnModalRecord.entityType,
+        id: returnModalRecord.id,
+        payload: { comment: returnComment.trim() },
+      });
+    } catch {
+      // fallback
+    }
     setReturnModalRecord(null);
     setReturnComment('');
     if (inspectRecord?.id === returnModalRecord.id) setInspectRecord(null);
@@ -261,7 +321,6 @@ export function ReviewConflictsListView() {
 
   const handleResolveConflict = () => {
     if (!conflictModalRecord) return;
-    setRecords((prev) => prev.filter((r) => r.id !== conflictModalRecord.id));
     setConflictModalRecord(null);
     setConflictPicks({});
   };

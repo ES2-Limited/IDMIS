@@ -9,11 +9,11 @@ export interface MockConfig {
 const STORAGE_KEY = 'idmis_mock_config';
 
 const defaultMocks: MockConfig = {
-  auth: true,
-  core: true,
-  slis: true,
-  me: true,
-  blis: true,
+  auth: false,
+  core: false,
+  slis: false,
+  me: false,
+  blis: false,
 };
 
 const memoryConfig: MockConfig = { ...defaultMocks };

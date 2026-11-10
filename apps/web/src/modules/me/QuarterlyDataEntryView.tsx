@@ -28,6 +28,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { useIndicatorMatrix } from './hooks';
 
 export interface EntryIndicatorRow {
   id: string;
@@ -174,9 +175,30 @@ export const mockEntryRows: EntryIndicatorRow[] = [
 
 export function QuarterlyDataEntryView() {
   const { currentScope } = useScope();
+  const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix();
   const [selectedQuarter, setSelectedQuarter] = React.useState('2026-Q4');
   const [selectedScope, setSelectedScope] = React.useState('all');
   const [rows, setRows] = React.useState<EntryIndicatorRow[]>(mockEntryRows);
+
+  React.useEffect(() => {
+    if (serverMatrix?.items && serverMatrix.items.length > 0) {
+      setRows(
+        serverMatrix.items.map((item) => ({
+          id: item.indicatorId,
+          code: item.indicatorCode,
+          name: item.indicatorName,
+          level: 'pdo',
+          unit: 'Units',
+          method: 'computed',
+          annualTarget: item.target ? String(item.target) : '100',
+          lastQuarterValue: '0',
+          thisQuarterValue: item.value ? String(item.value) : '0',
+          status: 'submitted',
+          notes: item.message || undefined,
+        })),
+      );
+    }
+  }, [serverMatrix]);
 
   // Modals & Drawers
   const [selectedRowForDetail, setSelectedRowForDetail] = React.useState<EntryIndicatorRow | null>(
@@ -194,8 +216,22 @@ export function QuarterlyDataEntryView() {
     setEditNotes(row.notes || '');
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingRow) return;
+    try {
+      if (submitQuarterlyValue && editingRow.id) {
+        await submitQuarterlyValue({
+          indicatorId: editingRow.id,
+          scopeType: 'national',
+          periodYear: 2026,
+          periodQuarter: 4,
+          value: editValue || '0',
+          notes: editNotes,
+        });
+      }
+    } catch {
+      // Fallback local update
+    }
     setRows((prev) =>
       prev.map((r) =>
         r.id === editingRow.id

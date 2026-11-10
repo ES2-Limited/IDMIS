@@ -32,6 +32,7 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
+import { usePlots } from './hooks';
 
 export interface PlotItem {
   id: string;
@@ -106,7 +107,7 @@ export const mockPlots: PlotItem[] = [
 export function PlotsMapView() {
   const { currentScope } = useScope();
   const { info, success } = useToast();
-  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(mockPlots[0]);
+  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(mockPlots[0] ?? null);
   const [search, setSearch] = React.useState('');
   const [serviceFilter, setServiceFilter] = React.useState('all');
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -117,7 +118,33 @@ export function PlotsMapView() {
   const [showCanals, setShowCanals] = React.useState(true);
   const [showCadastralLabels, setShowCadastralLabels] = React.useState(true);
 
-  const filtered = mockPlots.filter((p) => {
+  // Modular custom hook for Plots
+  const { plots: serverPlots } = usePlots({
+    limit: 50,
+    schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
+
+  const activePlots: PlotItem[] = React.useMemo(() => {
+    if (!serverPlots) return [];
+    return serverPlots.map((p) => ({
+      id: p.id,
+      plotCode: p.plotCode,
+      sectorName: `Sector ${p.sectorId?.slice(-4) || 'Alpha'}`,
+      allocatedFarmer: p.farmId ? `Farm ${p.farmId.slice(-4)}` : 'Unassigned',
+      areaHa: String(p.areaHa || '1.0000'),
+      irrigationType: 'Gravity Canal',
+      serviceType: 'gravity',
+      status:
+        p.status === 'submitted'
+          ? 'awaiting_review'
+          : p.status === 'returned'
+            ? 'conflict'
+            : 'approved',
+      coordinatesCount: 4,
+    }));
+  }, [serverPlots]);
+
+  const filtered = activePlots.filter((p) => {
     if (serviceFilter !== 'all' && p.serviceType !== serviceFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();

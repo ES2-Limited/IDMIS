@@ -1,40 +1,65 @@
 import * as React from 'react';
-import { Building2, ChevronRight, ChevronDown, Layers, MapPin, Plus } from 'lucide-react';
+import {
+  Building2,
+  ChevronRight,
+  ChevronDown,
+  Layers,
+  MapPin,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 import { Button, StatusChip } from '@idmis/ui';
-import { mockOrganisations } from '../../mocks/coreData';
+import { useOrganisations } from './hooks';
 
 export function OrganisationsTreeView() {
-  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({
-    '018f3a60-0001-7000-8000-000000000001': true, // HJRBDA expanded
-    '018f3a60-0003-7000-8000-000000000003': true, // KRIS expanded
-  });
+  const { organisations: serverOrgs, isLoading, isFetching, refetch } = useOrganisations();
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Pure live data from server
+  const organisations = serverOrgs ?? [];
+
   // Build tree hierarchy: root RBDAs -> Schemes -> Sectors
-  const rootOrgs = mockOrganisations.filter((o) => !o.parentId);
-  const getChildren = (parentId: string) =>
-    mockOrganisations.filter((o) => o.parentId === parentId);
+  const rootOrgs = organisations.filter((o) => !o.parentId);
+  const getChildren = (parentId: string) => organisations.filter((o) => o.parentId === parentId);
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
-            Institutional Hierarchy & Water User Associations
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+              Institutional Hierarchy & Water User Associations
+            </h2>
+            {isLoading && (
+              <RefreshCw className="h-4 w-4 animate-spin text-teal-600" aria-label="Loading..." />
+            )}
+          </div>
           <p className="text-xs text-slate-500">
             River Basin Development Authorities (RBDAs), state ministry desks, schemes, sectors, and
             WUAs.
           </p>
         </div>
-        <Button className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Add Organisation
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="h-10 rounded-xl text-xs font-semibold gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-10 rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Add Organisation
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-6 shadow-xs space-y-4">

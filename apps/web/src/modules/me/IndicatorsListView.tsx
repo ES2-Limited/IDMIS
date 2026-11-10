@@ -29,6 +29,7 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
+import { useIndicators } from './hooks';
 
 export interface IndicatorItem {
   id: string;
@@ -516,7 +517,6 @@ export const mockIndicators: IndicatorItem[] = [
 
 export function IndicatorsListView() {
   const { currentScope } = useScope();
-  const [indicators, setIndicators] = React.useState<IndicatorItem[]>(mockIndicators);
   const [levelFilter, setLevelFilter] = React.useState<'all' | 'pdo' | 'intermediate'>('all');
   const [methodFilter, setMethodFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -528,8 +528,37 @@ export function IndicatorsListView() {
   const [isImportWizardOpen, setIsImportWizardOpen] = React.useState(false);
   const [tempTargets, setTempTargets] = React.useState<Record<string, string>>({});
 
+  // Modular custom hook for Indicators
+  const { indicators: serverIndicators } = useIndicators({
+    limit: 50,
+  });
+
+  const activeIndicators: IndicatorItem[] = React.useMemo(() => {
+    if (serverIndicators && serverIndicators.length > 0) {
+      return serverIndicators.map((ind) => ({
+        id: ind.id,
+        code: ind.code,
+        name: ind.name,
+        level: ind.level,
+        unit: ind.unit,
+        frequency: ind.frequency,
+        method: ind.method,
+        computeKey: ind.computeKey,
+        baseline: ind.baseline ? String(ind.baseline) : null,
+        baselineYear: ind.baselineYear,
+        endTarget: ind.endTarget ? String(ind.endTarget) : null,
+        endTargetNote: ind.endTargetNote,
+        disaggregations: ind.disaggregations || [],
+        currentValue: ind.endTarget ? String(ind.endTarget) : '—',
+        status: 'on_track',
+        targetsByYear: {},
+      }));
+    }
+    return [];
+  }, [serverIndicators]);
+
   const filteredIndicators = React.useMemo(() => {
-    return indicators.filter((item) => {
+    return activeIndicators.filter((item) => {
       if (levelFilter !== 'all' && item.level !== levelFilter) return false;
       if (methodFilter !== 'all' && item.method !== methodFilter) return false;
       if (searchQuery.trim()) {
@@ -540,15 +569,15 @@ export function IndicatorsListView() {
       }
       return true;
     });
-  }, [indicators, levelFilter, methodFilter, searchQuery]);
+  }, [activeIndicators, levelFilter, methodFilter, searchQuery]);
 
   const pdoCount = React.useMemo(
-    () => indicators.filter((i) => i.level === 'pdo').length,
-    [indicators],
+    () => activeIndicators.filter((i) => i.level === 'pdo').length,
+    [activeIndicators],
   );
   const intermediateCount = React.useMemo(
-    () => indicators.filter((i) => i.level === 'intermediate').length,
-    [indicators],
+    () => activeIndicators.filter((i) => i.level === 'intermediate').length,
+    [activeIndicators],
   );
 
   const handleOpenEditTargets = (indicator: IndicatorItem) => {
@@ -558,11 +587,6 @@ export function IndicatorsListView() {
 
   const handleSaveTargets = () => {
     if (!editingTargetsIndicator) return;
-    setIndicators((prev) =>
-      prev.map((i) =>
-        i.id === editingTargetsIndicator.id ? { ...i, targetsByYear: { ...tempTargets } } : i,
-      ),
-    );
     if (selectedIndicator?.id === editingTargetsIndicator.id) {
       setSelectedIndicator({ ...selectedIndicator, targetsByYear: { ...tempTargets } });
     }
@@ -610,7 +634,7 @@ export function IndicatorsListView() {
             Total Indicators
           </span>
           <span className="text-xl font-black text-slate-900 mt-1 block">
-            {indicators.length} Active
+            {activeIndicators.length} Active
           </span>
           <span className="text-[11px] text-teal-700 font-semibold mt-0.5 block">
             100% Seeded & Tracked
@@ -646,7 +670,7 @@ export function IndicatorsListView() {
             Automated Compute
           </span>
           <span className="text-xl font-black text-blue-900 mt-1 block">
-            {indicators.filter((i) => i.method === 'computed').length} Formulas
+            {activeIndicators.filter((i) => i.method === 'computed').length} Formulas
           </span>
           <span className="text-[11px] text-blue-700 font-semibold mt-0.5 block flex items-center gap-1">
             <Cpu className="h-3 w-3" /> Rollup from SLIS DB
@@ -666,7 +690,7 @@ export function IndicatorsListView() {
                 : 'text-slate-700 hover:text-slate-950 font-semibold hover:bg-slate-200/50'
             }`}
           >
-            All Indicators ({indicators.length})
+            All Indicators ({activeIndicators.length})
           </button>
           <button
             onClick={() => setLevelFilter('pdo')}

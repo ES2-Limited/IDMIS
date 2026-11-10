@@ -15,17 +15,17 @@ describe('App Shell & Routing Foundations', () => {
 
   it('manages mock configuration switches per module', () => {
     const initial = getMockConfig();
-    expect(initial.auth).toBe(true);
-    expect(initial.slis).toBe(true);
-    expect(initial.me).toBe(true);
-    expect(initial.blis).toBe(true);
+    expect(initial.auth).toBe(false);
+    expect(initial.slis).toBe(false);
+    expect(initial.me).toBe(false);
+    expect(initial.blis).toBe(false);
 
-    setMockFlag('slis', false);
+    setMockFlag('slis', true);
     const updated = getMockConfig();
-    expect(updated.slis).toBe(false);
+    expect(updated.slis).toBe(true);
 
     // Reset
-    setMockFlag('slis', true);
-    expect(getMockConfig().slis).toBe(true);
+    setMockFlag('slis', false);
+    expect(getMockConfig().slis).toBe(false);
   });
 });

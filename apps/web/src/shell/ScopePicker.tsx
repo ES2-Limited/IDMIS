@@ -24,7 +24,7 @@ export function ScopePicker() {
             <SelectValue placeholder="Select Scope" />
           </div>
         </SelectTrigger>
-        <SelectContent className="rounded-xl shadow-xl border-slate-200">
+        <SelectContent className="rounded-xl shadow-xl border-slate-200 max-h-64 overflow-y-auto">
           {availableScopes.map((scope) => (
             <SelectItem key={scope.id} value={scope.id} className="text-xs font-medium py-2">
               {scope.name}
