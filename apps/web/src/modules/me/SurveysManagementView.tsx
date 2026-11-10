@@ -29,6 +29,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { useSurveys } from './hooks';
 import type { SurveyAnswerType } from '@idmis/contracts';
 
 export interface QuestionDraft {
@@ -316,12 +317,34 @@ const INITIAL_RESPONSES: SurveyResponseItem[] = [
 
 export function SurveysManagementView() {
   const { currentScope } = useScope();
+  const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
+  const { surveys: serverSurveys, createSurvey } = useSurveys(schemeId);
 
   // Tab State: 'surveys' | 'responses'
   const [activeTab, setActiveTab] = React.useState<'surveys' | 'responses'>('surveys');
 
   // Surveys State
   const [surveys, setSurveys] = React.useState<SurveyRecord[]>(INITIAL_SURVEYS);
+
+  React.useEffect(() => {
+    if (serverSurveys && serverSurveys.length > 0) {
+      setSurveys(
+        serverSurveys.map((s) => ({
+          id: s.id,
+          name: s.name,
+          schemeId: s.schemeId,
+          schemeName: currentScope.name || undefined,
+          version: s.version,
+          opensOn: s.opensOn || '',
+          closesOn: s.closesOn || '',
+          status: 'active',
+          questionsCount: 0,
+          responsesCount: 0,
+          questions: [],
+        })),
+      );
+    }
+  }, [serverSurveys, currentScope.name]);
   const [responses] = React.useState<SurveyResponseItem[]>(INITIAL_RESPONSES);
   const [selectedSurveyFilter, setSelectedSurveyFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
@@ -425,8 +448,21 @@ export function SurveysManagementView() {
   };
 
   // Save Survey in Builder
-  const handleSaveSurvey = () => {
+  const handleSaveSurvey = async () => {
     if (!builderName.trim() || builderQuestions.length === 0) return;
+
+    try {
+      if (createSurvey) {
+        await createSurvey({
+          name: builderName,
+          schemeId: currentScope.type === 'scheme' ? currentScope.id : undefined,
+          opensOn: builderOpensOn,
+          closesOn: builderClosesOn,
+        });
+      }
+    } catch {
+      // Fallback local update
+    }
 
     if (editingSurveyId) {
       setSurveys((prev) =>

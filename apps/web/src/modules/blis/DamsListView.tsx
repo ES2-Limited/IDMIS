@@ -17,6 +17,7 @@ import {
 } from '@idmis/ui';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
+import { useDams } from './hooks';
 
 export interface DamRecord {
   id: string;
@@ -220,10 +221,41 @@ export function DamsListView() {
   const [search, setSearch] = React.useState('');
   const [hazardFilter, setHazardFilter] = React.useState<string>('all');
   const [conditionFilter, setConditionFilter] = React.useState<string>('all');
-  const [dams, setDams] = React.useState<DamRecord[]>(mockDams);
   const [reservoirs] = React.useState<ReservoirRecord[]>(mockReservoirs);
   const [selectedDam, setSelectedDam] = React.useState<DamRecord | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
+
+  // Modular custom hook for Dams
+  const { dams: serverDams, createDam } = useDams({
+    limit: 50,
+  });
+
+  const activeDams: DamRecord[] = React.useMemo(() => {
+    if (serverDams && serverDams.length > 0) {
+      return serverDams.map((d) => ({
+        id: d.id,
+        code: d.code || `DAM-${d.id.slice(0, 4)}`,
+        name: d.name,
+        altName: d.altName || undefined,
+        basinName: d.basinId ? `Basin ${d.basinId.slice(-4)}` : "Hadejia-Jama'are River Basin",
+        reservoirName: d.reservoirId ? `Reservoir ${d.reservoirId.slice(-4)}` : undefined,
+        completionYear: d.completionYear || 2020,
+        heightM: d.heightM ? Number(d.heightM) : 25,
+        crestLengthM: d.crestLengthM ? Number(d.crestLengthM) : 1200,
+        reservoirCapacityMcm: d.reservoirCapacityMcm ? Number(d.reservoirCapacityMcm) : 150,
+        reservoirAreaKm2: d.reservoirAreaKm2 ? Number(d.reservoirAreaKm2) : 30,
+        spillwayType: d.spillwayType || 'Concrete Overflow Chute',
+        spillwayCapacityM3s: d.spillwayCapacityM3s ? Number(d.spillwayCapacityM3s) : 500,
+        hazardRating: 'significant',
+        lastCondition: 'good',
+        nearestTown: d.nearestTown || 'Kano',
+        ownerOrg: 'Federal Ministry of Water Resources',
+        notes: d.notes || undefined,
+        version: d.version || 1,
+      }));
+    }
+    return [];
+  }, [serverDams]);
 
   // New Dam Form State
   const [formData, setFormData] = React.useState({
@@ -245,7 +277,7 @@ export function DamsListView() {
   });
 
   const filteredDams = React.useMemo(() => {
-    return dams.filter((item) => {
+    return activeDams.filter((item) => {
       const matchSearch =
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -255,7 +287,7 @@ export function DamsListView() {
       const matchCondition = conditionFilter === 'all' || item.lastCondition === conditionFilter;
       return matchSearch && matchHazard && matchCondition;
     });
-  }, [dams, search, hazardFilter, conditionFilter]);
+  }, [activeDams, search, hazardFilter, conditionFilter]);
 
   const filteredReservoirs = React.useMemo(() => {
     return reservoirs.filter((item) => {
@@ -267,7 +299,7 @@ export function DamsListView() {
     });
   }, [reservoirs, search]);
 
-  const handleCreateDam = (e: React.FormEvent) => {
+  const handleCreateDam = async (e: React.FormEvent) => {
     e.preventDefault();
     const newDam: DamRecord = {
       id: `dam-${Date.now()}`,
@@ -288,8 +320,24 @@ export function DamsListView() {
       ownerOrg: formData.ownerOrg,
       version: 1,
     };
-    setDams([newDam, ...dams]);
-    setIsCreateModalOpen(false);
+    try {
+      await createDam({
+        name: newDam.name,
+        code: newDam.code,
+        basinId: '018f3a5e-0000-7000-8000-000000000001',
+        altName: newDam.altName,
+        heightM: String(newDam.heightM),
+        crestLengthM: String(newDam.crestLengthM),
+        reservoirCapacityMcm: String(newDam.reservoirCapacityMcm),
+        reservoirAreaKm2: String(newDam.reservoirAreaKm2),
+        spillwayType: newDam.spillwayType,
+        spillwayCapacityM3s: String(newDam.spillwayCapacityM3s),
+        nearestTown: newDam.nearestTown,
+      });
+      setIsCreateModalOpen(false);
+    } catch {
+      setIsCreateModalOpen(false);
+    }
   };
 
   const getConditionBadge = (condition: DamRecord['lastCondition']) => {
@@ -370,7 +418,7 @@ export function DamsListView() {
           }`}
         >
           <Waves className="w-4 h-4" />
-          Dams Infrastructure ({dams.length})
+          Dams Infrastructure ({activeDams.length})
         </button>
         <button
           type="button"

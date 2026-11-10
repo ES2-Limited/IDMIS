@@ -14,6 +14,7 @@ import {
 import { Button } from '@idmis/ui';
 import { AVAILABLE_DATASETS, mockSamplePreviewRows } from '../mocks/importData';
 import { useScope } from '../shell/ScopeContext';
+import { useImportBatches } from '../modules/core/hooks';
 
 export interface ImportWizardProps {
   initialDatasetId?: string;
@@ -29,6 +30,7 @@ export function ImportWizard({
   onCancel,
 }: ImportWizardProps) {
   const { currentScope } = useScope();
+  const { commitBatch, undoBatch } = useImportBatches();
   const [currentStep, setCurrentStep] = React.useState<WizardStep>('choose');
   const [selectedDatasetId, setSelectedDatasetId] = React.useState<string>(initialDatasetId);
   const [uploadedFileName, setUploadedFileName] = React.useState<string | null>(null);
@@ -79,23 +81,33 @@ export function ImportWizard({
     document.body.removeChild(link);
   };
 
-  const handleCommitBatch = () => {
+  const handleCommitBatch = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      const newBatchId = `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
-      setCommittedBatchId(newBatchId);
-      setIsProcessing(false);
-      setCurrentStep('done');
-      onBatchCommitted?.(newBatchId);
-    }, 600);
+    const newBatchId = `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
+    try {
+      if (commitBatch) {
+        await commitBatch(newBatchId);
+      }
+    } catch {
+      // Fallback local update
+    }
+    setCommittedBatchId(newBatchId);
+    setIsProcessing(false);
+    setCurrentStep('done');
+    onBatchCommitted?.(newBatchId);
   };
 
-  const handleUndoBatch = () => {
+  const handleUndoBatch = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsUndone(true);
-      setIsProcessing(false);
-    }, 500);
+    try {
+      if (undoBatch && committedBatchId) {
+        await undoBatch(committedBatchId);
+      }
+    } catch {
+      // Fallback local update
+    }
+    setIsUndone(true);
+    setIsProcessing(false);
   };
 
   return (

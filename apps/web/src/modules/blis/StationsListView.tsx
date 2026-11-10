@@ -26,6 +26,7 @@ import {
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
+import { useStations } from './hooks';
 
 export type StationType = 'discharge' | 'rainfall' | 'water_level' | 'meteorological';
 export type TelemetryQuality = 'checked' | 'raw' | 'suspect';
@@ -154,10 +155,48 @@ export function StationsListView() {
   const [search, setSearch] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
-  const [stations, setStations] = React.useState<StationRecord[]>(mockStations);
   const [selectedStation, setSelectedStation] = React.useState<StationRecord | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
+
+  // Modular custom hook for Stations
+  const { stations: serverStations, createStation } = useStations({
+    limit: 50,
+  });
+
+  const activeStations: StationRecord[] = React.useMemo(() => {
+    if (serverStations && serverStations.length > 0) {
+      return serverStations.map((s) => ({
+        id: s.id,
+        code: s.code,
+        name: s.name,
+        basinName: s.basinId ? `Basin ${s.basinId.slice(-4)}` : "Hadejia-Jama'are River Basin",
+        stationType: 'discharge',
+        river: s.river || 'Main River',
+        latitude:
+          s.geom &&
+          typeof s.geom === 'object' &&
+          'coordinates' in s.geom &&
+          Array.isArray((s.geom as { coordinates: number[] }).coordinates)
+            ? (s.geom as { coordinates: number[] }).coordinates[1]!
+            : 11.85,
+        longitude:
+          s.geom &&
+          typeof s.geom === 'object' &&
+          'coordinates' in s.geom &&
+          Array.isArray((s.geom as { coordinates: number[] }).coordinates)
+            ? (s.geom as { coordinates: number[] }).coordinates[0]!
+            : 8.52,
+        installedOn: s.installedOn || '2020-01-01',
+        telemetryQuality: 'checked',
+        status: s.isActive ? 'active' : 'offline',
+        operatorOrg: 'HJRBDA',
+        description: s.description || undefined,
+        version: s.version || 1,
+      }));
+    }
+    return [];
+  }, [serverStations]);
 
   // New Station Form State
   const [formData, setFormData] = React.useState({
@@ -173,7 +212,7 @@ export function StationsListView() {
   });
 
   const filteredStations = React.useMemo(() => {
-    return stations.filter((item) => {
+    return activeStations.filter((item) => {
       const matchSearch =
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -183,9 +222,9 @@ export function StationsListView() {
       const matchStatus = statusFilter === 'all' || item.status === statusFilter;
       return matchSearch && matchType && matchStatus;
     });
-  }, [stations, search, typeFilter, statusFilter]);
+  }, [activeStations, search, typeFilter, statusFilter]);
 
-  const handleCreateStation = (e: React.FormEvent) => {
+  const handleCreateStation = async (e: React.FormEvent) => {
     e.preventDefault();
     const newStation: StationRecord = {
       id: `station-${Date.now()}`,
@@ -203,8 +242,22 @@ export function StationsListView() {
       description: formData.description,
       version: 1,
     };
-    setStations([newStation, ...stations]);
-    setIsCreateModalOpen(false);
+    try {
+      await createStation({
+        name: newStation.name,
+        code: newStation.code,
+        river: newStation.river,
+        basinId: '018f3a5e-0000-7000-8000-000000000001',
+        stationTypeId: '018f3a5e-0002-7000-8000-000000000001',
+        geom: {
+          type: 'Point',
+          coordinates: [newStation.longitude, newStation.latitude],
+        },
+      });
+      setIsCreateModalOpen(false);
+    } catch {
+      setIsCreateModalOpen(false);
+    }
   };
 
   const getTypeBadge = (type: StationType) => {

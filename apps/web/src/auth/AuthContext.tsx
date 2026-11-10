@@ -96,6 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function initSession() {
+      // If we already have a user in state, do not re-run startup check
+      if (user) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
@@ -187,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.status === 'authenticated') {
         setToken(res.accessToken);
         setUser(res.user);
+        setIsLoading(false);
         const abilities = await apiClient.getAbilities().catch(() => null);
         if (abilities) setPermissions(abilities.permissions);
       }

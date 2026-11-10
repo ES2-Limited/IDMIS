@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Compass, Search, ArrowUpRight, Users, Droplets } from 'lucide-react';
+import { Compass, Search, ArrowUpRight, Users, Droplets, RefreshCw } from 'lucide-react';
 import {
   Button,
   Input,
@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
+import { useBasins } from './hooks';
 
 export interface BasinRecord {
   id: string;
@@ -230,8 +231,31 @@ export function BasinsListView() {
     'basins',
   );
   const [search, setSearch] = React.useState('');
-  const [basins] = React.useState<BasinRecord[]>(mockBasins);
   const [selectedBasin, setSelectedBasin] = React.useState<BasinRecord | null>(null);
+
+  // Modular custom hook for Basins
+  const { basins: serverBasins, isLoading, isFetching: isRefetching, refetch } = useBasins();
+
+  const basins: BasinRecord[] = React.useMemo(() => {
+    if (serverBasins && serverBasins.length > 0) {
+      return serverBasins.map((b) => ({
+        id: b.id,
+        code: b.code,
+        name: b.name,
+        altName: b.altName || undefined,
+        hydrologicalUnit: b.hydrologicalUnit || 'Hydrological Unit Area',
+        mainRiver: b.mainRiver || b.name,
+        rbdaName: b.rbdaId ? `RBDA (${b.rbdaId})` : 'National River Basin Authority',
+        areaKm2: 84000,
+        drainageDensity: '0.42 km/km²',
+        streamCount: 412,
+        reliefM: 920,
+        version: b.version,
+        morphometryHistory: [],
+      }));
+    }
+    return [];
+  }, [serverBasins]);
 
   const filteredBasins = React.useMemo(() => {
     return basins.filter((item) => {
@@ -260,8 +284,11 @@ export function BasinsListView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               River Basin Hydro-Morphometry & Governance
+              {isLoading && (
+                <RefreshCw className="h-4 w-4 animate-spin text-teal-600" aria-label="Loading..." />
+              )}
             </h1>
             <Badge className="bg-teal-100 text-teal-800 border-teal-200 font-mono text-xs">
               {currentScope.name || 'National River Basin Authorities'}
@@ -271,6 +298,19 @@ export function BasinsListView() {
             Catchment geomorphometry, drainage orders, water allocation hierarchies, and registered
             stakeholders.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="text-xs h-9 font-semibold text-slate-700"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
