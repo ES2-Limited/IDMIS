@@ -12,7 +12,9 @@ export function CoreHome() {
   const { currentScope } = useScope();
   const [activeTab, setActiveTab] = React.useState('users');
 
-  const { organisations } = useOrganisations();
+  const { organisations } = useOrganisations(
+    currentScope.type === 'state' ? { stateId: currentScope.id } : undefined,
+  );
   const { total: totalWuas, wuas } = useWuas();
   const { total: totalUsers, users } = useUsers();
   const { batches } = useImportBatches();

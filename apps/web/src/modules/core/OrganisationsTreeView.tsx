@@ -24,8 +24,12 @@ import type { OrgType, OrganisationResponse } from '@idmis/contracts';
 import { useOrganisations, useWuas } from './hooks';
 import { CreateOrganisationDialog } from './CreateOrganisationDialog';
 import { CreateWuaDialog } from './CreateWuaDialog';
+import { useScope } from '../../shell/ScopeContext';
 
 export function OrganisationsTreeView() {
+  const { currentScope } = useScope();
+
+  // Query organisations filtered by selected state/scope
   const {
     organisations: serverOrgs,
     isLoading: isLoadingOrgs,
@@ -33,7 +37,9 @@ export function OrganisationsTreeView() {
     refetch: refetchOrgs,
     createOrganisation,
     isCreating,
-  } = useOrganisations();
+  } = useOrganisations(
+    currentScope.type === 'state' ? { stateId: currentScope.id } : undefined,
+  );
   const {
     wuas: serverWuas,
     isLoading: isLoadingWuas,
