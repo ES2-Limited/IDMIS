@@ -24,53 +24,6 @@ export interface WaterRequestItem {
   submittedOn: string;
 }
 
-export const mockWaterRequests: WaterRequestItem[] = [
-  {
-    id: '018f3a70-0021-7000-8000-000000000001',
-    code: 'WR-2026-0041',
-    level: 'individual',
-    requesterName: 'Musa Ibrahim Danbatta',
-    schemeName: 'Kano River Irrigation Scheme (KRIS)',
-    volumeM3: '1,200',
-    deliveryPeriod: '10 Nov - 25 Nov 2026',
-    decision: 'approved',
-    submittedOn: '04 Nov 2026',
-  },
-  {
-    id: '018f3a70-0022-7000-8000-000000000002',
-    code: 'WR-2026-0042',
-    level: 'unit',
-    requesterName: 'Dan Hassan Water Users Association',
-    schemeName: 'Kano River Irrigation Scheme (KRIS)',
-    volumeM3: '14,500',
-    deliveryPeriod: '12 Nov - 30 Nov 2026',
-    decision: 'pending',
-    submittedOn: '05 Nov 2026',
-  },
-  {
-    id: '018f3a70-0023-7000-8000-000000000003',
-    code: 'WR-2026-0043',
-    level: 'sector',
-    requesterName: 'Sector C1 Lateral Command',
-    schemeName: 'Hadejia Valley Irrigation Project (HVIP)',
-    volumeM3: '32,000',
-    deliveryPeriod: '15 Nov - 05 Dec 2026',
-    decision: 'approved',
-    submittedOn: '03 Nov 2026',
-  },
-  {
-    id: '018f3a70-0024-7000-8000-000000000004',
-    code: 'WR-2026-0044',
-    level: 'individual',
-    requesterName: 'Haruna Yusuf Sani',
-    schemeName: 'Hadejia Valley Irrigation Project (HVIP)',
-    volumeM3: '850',
-    deliveryPeriod: '08 Nov - 14 Nov 2026',
-    decision: 'rejected',
-    submittedOn: '02 Nov 2026',
-  },
-];
-
 export function WaterRequestsListView() {
   const { currentScope } = useScope();
   const [search, setSearch] = React.useState('');

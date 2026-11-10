@@ -46,64 +46,6 @@ export interface PlotItem {
   coordinatesCount: number;
 }
 
-export const mockPlots: PlotItem[] = [
-  {
-    id: '018f3a70-0011-7000-8000-000000000001',
-    plotCode: 'PLT-B4-082',
-    sectorName: 'Sector B4 (Kura Canal Reach)',
-    allocatedFarmer: 'Musa Ibrahim Danbatta',
-    areaHa: '1.4500',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'approved',
-    coordinatesCount: 8,
-  },
-  {
-    id: '018f3a70-0012-7000-8000-000000000002',
-    plotCode: 'PLT-B4-083',
-    sectorName: 'Sector B4 (Kura Canal Reach)',
-    allocatedFarmer: 'Musa Ibrahim Danbatta',
-    areaHa: '0.9000',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'approved',
-    coordinatesCount: 6,
-  },
-  {
-    id: '018f3a70-0013-7000-8000-000000000003',
-    plotCode: 'PLT-A2-014',
-    sectorName: 'Sector A2 (Gari Sub-system)',
-    allocatedFarmer: 'Amina Bello Galadima',
-    areaHa: '2.1000',
-    irrigationType: 'Low-lift Lateral',
-    serviceType: 'pump',
-    status: 'approved',
-    coordinatesCount: 12,
-  },
-  {
-    id: '018f3a70-0014-7000-8000-000000000004',
-    plotCode: 'PLT-C1-019',
-    sectorName: 'Sector C1 (Hadejia Floodplain)',
-    allocatedFarmer: 'Haruna Yusuf Sani',
-    areaHa: '0.8000',
-    irrigationType: 'Tubewell Pump',
-    serviceType: 'conjunctive',
-    status: 'conflict',
-    coordinatesCount: 7,
-  },
-  {
-    id: '018f3a70-0015-7000-8000-000000000005',
-    plotCode: 'PLT-D3-104',
-    sectorName: 'Sector D3 (Auyo)',
-    allocatedFarmer: 'Fatima Mohammed',
-    areaHa: '1.2000',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'awaiting_review',
-    coordinatesCount: 9,
-  },
-];
-
 export function PlotsMapView() {
   const { currentScope } = useScope();
   const { info, success } = useToast();

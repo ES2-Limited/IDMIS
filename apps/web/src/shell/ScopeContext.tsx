@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useGeography } from '../modules/core/hooks';
+import { useGeography, useOrganisations } from '../modules/core/hooks';
 
 export type ScopeType = 'national' | 'state' | 'rbda' | 'scheme' | 'sector';
 
@@ -18,11 +18,11 @@ export interface ScopeState {
 
 export const defaultScopes: ScopeSelection[] = [
   { type: 'national', id: 'national-all', name: 'National (All Nigeria)' },
-  { type: 'state', id: 'state-kano', name: 'Kano State' },
-  { type: 'state', id: 'state-kaduna', name: 'Kaduna State' },
-  { type: 'scheme', id: 'scheme-kris', name: 'Kano River Irrigation Scheme (KRIS)' },
-  { type: 'scheme', id: 'scheme-bada', name: 'Bakolori Irrigation Scheme (BIS)' },
-  { type: 'scheme', id: 'scheme-hadejia', name: 'Hadejia Valley Irrigation Project (HVIP)' },
+  {
+    type: 'scheme',
+    id: '018f3a5e-0020-7000-8000-000000000001',
+    name: 'Kano River Irrigation Scheme (KRIS)',
+  },
 ];
 
 const ScopeContext = React.createContext<ScopeState | undefined>(undefined);
@@ -37,29 +37,43 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
         // fallback to default
       }
     }
-    return defaultScopes[0];
+    return defaultScopes[0]!;
   });
 
-  // Query live states from server via clean modular hook
-  const { states: statesData, isLoadingStates: isLoadingScopes } = useGeography();
+  // Query live states and organisations from server via clean modular hooks
+  const { states: statesData, isLoadingStates } = useGeography();
+  const { organisations: orgsData, isLoading: isLoadingOrgs } = useOrganisations();
 
-  // Merge live server states into available scopes
+  const isLoadingScopes = isLoadingStates || isLoadingOrgs;
+
+  // Merge live server states and schemes into available scopes
   const availableScopes = React.useMemo(() => {
-    if (!statesData || statesData.length === 0) {
-      return defaultScopes;
-    }
-    const serverStateScopes: ScopeSelection[] = statesData.map((s) => ({
-      type: 'state' as const,
-      id: s.id,
-      name: `${s.name} State`,
-    }));
+    const list: ScopeSelection[] = [defaultScopes[0]!];
 
-    return [
-      defaultScopes[0]!, // National
-      ...serverStateScopes,
-      ...defaultScopes.filter((s) => s.type === 'scheme'),
-    ];
-  }, [statesData]);
+    if (statesData && statesData.length > 0) {
+      statesData.forEach((s) => {
+        list.push({
+          type: 'state',
+          id: s.id,
+          name: `${s.name} State`,
+        });
+      });
+    }
+
+    if (orgsData && orgsData.length > 0) {
+      orgsData
+        .filter((o) => o.type === 'scheme')
+        .forEach((scheme) => {
+          list.push({
+            type: 'scheme',
+            id: scheme.id,
+            name: scheme.name,
+          });
+        });
+    }
+
+    return list;
+  }, [statesData, orgsData]);
 
   const setScope = React.useCallback((scope: ScopeSelection) => {
     setCurrentScope(scope);
