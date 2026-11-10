@@ -47,7 +47,7 @@ export function useWuas(query?: ListWuasQuery) {
 
   return {
     wuas: wuasQuery.data?.items ?? [],
-    total: wuasQuery.data?.total ?? 0,
+    total: wuasQuery.data?.total ?? (wuasQuery.data?.items?.length ?? 0),
     isLoading: wuasQuery.isLoading,
     isFetching: wuasQuery.isFetching,
     error: wuasQuery.error,

@@ -13,13 +13,14 @@ export function CoreHome() {
   const [activeTab, setActiveTab] = React.useState('users');
 
   const { organisations } = useOrganisations();
-  const { total: totalWuas } = useWuas();
+  const { total: totalWuas, wuas } = useWuas();
   const { total: totalUsers, users } = useUsers();
   const { batches } = useImportBatches();
   const { roles } = useRoles();
 
   const activeSchemesCount = organisations.filter((o) => o.type === 'scheme').length;
   const userCount = totalUsers ?? users.length;
+  const wuaCount = totalWuas || wuas.length;
 
   const quickStats = [
     {
@@ -34,7 +35,7 @@ export function CoreHome() {
     },
     {
       label: 'Registered WUAs',
-      value: `${totalWuas} WUAs`,
+      value: `${wuaCount} WUAs`,
       sub: 'Apex, Sector & Unit',
     },
     {
