@@ -182,7 +182,9 @@ export function WaterRequestsListView() {
               <tr>
                 <td colSpan={5} className="py-12 text-center text-slate-400">
                   <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                  <span className="font-bold text-slate-700 block text-xs">No Water Requests Found</span>
+                  <span className="font-bold text-slate-700 block text-xs">
+                    No Water Requests Found
+                  </span>
                   <span className="text-[11px] text-slate-400">
                     No requests match the selected filters or none have been submitted yet.
                   </span>

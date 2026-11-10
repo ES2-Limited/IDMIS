@@ -117,7 +117,8 @@ export function CreateOrganisationDialog({
             Add New Organisation Unit
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
-            Create an institutional command node: RBDA headquarters, irrigation scheme perimeter, or sector.
+            Create an institutional command node: RBDA headquarters, irrigation scheme perimeter, or
+            sector.
           </DialogDescription>
         </DialogHeader>
 
@@ -130,7 +131,9 @@ export function CreateOrganisationDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Organisation Type</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Organisation Type
+              </label>
               <Select
                 value={type}
                 onValueChange={(val) => {
@@ -142,15 +145,23 @@ export function CreateOrganisationDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl shadow-xl">
-                  <SelectItem value="rbda" className="text-xs">River Basin Authority (RBDA)</SelectItem>
-                  <SelectItem value="scheme" className="text-xs">Irrigation Scheme</SelectItem>
-                  <SelectItem value="sector" className="text-xs">Scheme Sector / Zone</SelectItem>
+                  <SelectItem value="rbda" className="text-xs">
+                    River Basin Authority (RBDA)
+                  </SelectItem>
+                  <SelectItem value="scheme" className="text-xs">
+                    Irrigation Scheme
+                  </SelectItem>
+                  <SelectItem value="sector" className="text-xs">
+                    Scheme Sector / Zone
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Assigned State Jurisdiction</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Assigned State Jurisdiction
+              </label>
               <Select value={selectedStateId} onValueChange={setSelectedStateId}>
                 <SelectTrigger className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium">
                   <SelectValue placeholder="Choose State" />
@@ -173,7 +184,9 @@ export function CreateOrganisationDialog({
               </label>
               <Select value={parentId || ''} onValueChange={(val) => setParentId(val || null)}>
                 <SelectTrigger className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium">
-                  <SelectValue placeholder={`Select parent ${type === 'scheme' ? 'RBDA' : 'Scheme'}`} />
+                  <SelectValue
+                    placeholder={`Select parent ${type === 'scheme' ? 'RBDA' : 'Scheme'}`}
+                  />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl shadow-xl">
                   {availableParents.map((p) => (
@@ -188,7 +201,9 @@ export function CreateOrganisationDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Organisation Name *</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Organisation Name *
+              </label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -211,7 +226,9 @@ export function CreateOrganisationDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Short Name / Acronym</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Short Name / Acronym
+              </label>
               <Input
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value)}
@@ -220,7 +237,9 @@ export function CreateOrganisationDialog({
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Irrigable Area (Hectares)</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Irrigable Area (Hectares)
+              </label>
               <Input
                 type="number"
                 step="0.01"
@@ -234,7 +253,9 @@ export function CreateOrganisationDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-3">
-              <label className="text-xs font-bold text-slate-700 mb-1 block">Physical Address</label>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">
+                Physical Address
+              </label>
               <Input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -285,4 +306,3 @@ export function CreateOrganisationDialog({
     </Dialog>
   );
 }
-

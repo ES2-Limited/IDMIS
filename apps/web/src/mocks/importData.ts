@@ -68,7 +68,14 @@ export const AVAILABLE_DATASETS: ImportDatasetOption[] = [
     name: 'Hydro-Meteorological Stations',
     module: 'blis',
     description: 'Hydrological and meteorological observation stations across river basins.',
-    sampleColumns: ['stationCode', 'stationName', 'stationType', 'rbdaCode', 'latitude', 'longitude'],
+    sampleColumns: [
+      'stationCode',
+      'stationName',
+      'stationType',
+      'rbdaCode',
+      'latitude',
+      'longitude',
+    ],
     requiredColumns: ['stationCode', 'stationName', 'stationType'],
     naturalKey: 'Station Code',
     templateFileName: 'template-blis.station.xlsx',
@@ -144,4 +151,3 @@ export const mockRecentBatches: ImportBatchResponse[] = [
     version: 3,
   },
 ];
-

@@ -44,8 +44,7 @@ export function SlisReportsView() {
 
   const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
 
-  const { farmersByScope, areaByService, feeRecovery, wuaSummaries } =
-    useSlisReports(schemeId);
+  const { farmersByScope, areaByService, feeRecovery, wuaSummaries } = useSlisReports(schemeId);
 
   const { organisations } = useOrganisations();
   const schemesList = React.useMemo(() => {
@@ -247,8 +246,8 @@ export function SlisReportsView() {
             Scheme Land & Water Summaries
           </h2>
           <p className="text-xs text-slate-500">
-            Sector-level demographic breakdowns, Water Users Association (WUA) operational summaries,
-            and fee collection reconciliation from verified server records.
+            Sector-level demographic breakdowns, Water Users Association (WUA) operational
+            summaries, and fee collection reconciliation from verified server records.
           </p>
         </div>
 
@@ -313,7 +312,11 @@ export function SlisReportsView() {
                   All Schemes
                 </SelectItem>
                 {schemesList.map((scheme) => (
-                  <SelectItem key={scheme.id} value={scheme.id} className="text-xs font-medium py-2">
+                  <SelectItem
+                    key={scheme.id}
+                    value={scheme.id}
+                    className="text-xs font-medium py-2"
+                  >
                     {scheme.name}
                   </SelectItem>
                 ))}
@@ -357,7 +360,8 @@ export function SlisReportsView() {
             {wuaSummaries?.totalWuas ?? 0}
           </span>
           <span className="text-[11px] text-blue-700 font-semibold flex items-center gap-1 mt-0.5">
-            <Waves className="h-3 w-3" /> {wuaSummaries?.items?.filter((w) => w.isOperational).length ?? 0} Operational
+            <Waves className="h-3 w-3" />{' '}
+            {wuaSummaries?.items?.filter((w) => w.isOperational).length ?? 0} Operational
           </span>
         </div>
 
@@ -510,9 +514,7 @@ export function SlisReportsView() {
                   filteredWuaRows.map((w) => (
                     <tr key={w.wuaId} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-slate-900">{w.wuaName}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600">
-                        {w.regNo || '—'}
-                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600">{w.regNo || '—'}</td>
                       <td className="py-3.5 px-4 capitalize font-medium text-slate-600">
                         <Badge variant="outline" className="text-[10px] uppercase">
                           {w.level}
@@ -568,7 +570,10 @@ export function SlisReportsView() {
                   </tr>
                 ) : (
                   filteredFeeRows.map((f, idx) => (
-                    <tr key={`${f.schemeId}_${idx}`} className="hover:bg-slate-50/70 transition-colors">
+                    <tr
+                      key={`${f.schemeId}_${idx}`}
+                      className="hover:bg-slate-50/70 transition-colors"
+                    >
                       <td className="py-3.5 px-4 font-bold text-slate-900">
                         {f.wuaName || 'Apex Federation'}
                       </td>

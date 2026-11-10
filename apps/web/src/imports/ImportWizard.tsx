@@ -99,7 +99,8 @@ export function ImportWizard({
     if (!targetId) {
       const candidate =
         batches.find(
-          (b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+          (b) =>
+            b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
         ) ?? batches.find((b) => b.status === 'validated');
       if (candidate) {
         targetId = candidate.id;
@@ -148,7 +149,10 @@ export function ImportWizard({
     const templatePath = `/api/imports/template/${encodeURIComponent(selectedDatasetId)}`;
     const link = document.createElement('a');
     link.href = templatePath;
-    link.setAttribute('download', selectedDataset.templateFileName || `template-${selectedDatasetId}.xlsx`);
+    link.setAttribute(
+      'download',
+      selectedDataset.templateFileName || `template-${selectedDatasetId}.xlsx`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -162,7 +166,8 @@ export function ImportWizard({
     if (!targetBatch) {
       targetBatch =
         batches.find(
-          (b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+          (b) =>
+            b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
         ) ?? batches.find((b) => b.status === 'validated');
     }
 
@@ -364,7 +369,8 @@ export function ImportWizard({
               Download Template for {selectedDataset.name}
             </h3>
             <p className="text-xs text-slate-500">
-              Download the official schema template (.xlsx) with embedded column validations and lookup reference lists.
+              Download the official schema template (.xlsx) with embedded column validations and
+              lookup reference lists.
             </p>
           </div>
 
@@ -378,7 +384,8 @@ export function ImportWizard({
                 Official {selectedDataset.name} Template (.xlsx)
               </h4>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Contains pre-configured column headers, mandatory field indicators, and schema definitions.
+                Contains pre-configured column headers, mandatory field indicators, and schema
+                definitions.
               </p>
             </div>
             <Button
@@ -518,7 +525,8 @@ export function ImportWizard({
                 Dry-Run Validation Summary
               </h3>
               <p className="text-xs text-slate-500">
-                Server validation flags for dataset <span className="font-bold text-teal-700">{selectedDataset.name}</span>.
+                Server validation flags for dataset{' '}
+                <span className="font-bold text-teal-700">{selectedDataset.name}</span>.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -562,7 +570,10 @@ export function ImportWizard({
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {previewRows.length === 0 ? (
                     <tr>
-                      <td colSpan={displayColumns.length + 2} className="py-8 text-center text-slate-400">
+                      <td
+                        colSpan={displayColumns.length + 2}
+                        className="py-8 text-center text-slate-400"
+                      >
                         No rows found or batch is empty.
                       </td>
                     </tr>
@@ -601,7 +612,9 @@ export function ImportWizard({
                               >
                                 {val !== undefined && val !== null ? String(val) : '—'}
                                 {cellErr && (
-                                  <div className="text-[10px] text-rose-600 font-normal">{cellErr.message}</div>
+                                  <div className="text-[10px] text-rose-600 font-normal">
+                                    {cellErr.message}
+                                  </div>
                                 )}
                               </td>
                             );

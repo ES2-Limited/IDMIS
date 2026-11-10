@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getApiClient } from '@idmis/api-client';
-import type { CreateOrganisationInput, ListOrganisationsQuery, OrganisationResponse } from '@idmis/contracts';
+import type {
+  CreateOrganisationInput,
+  ListOrganisationsQuery,
+  OrganisationResponse,
+} from '@idmis/contracts';
 import { useAuth } from '../../../auth';
 
 export const CORE_ORGS_QUERY_KEY = ['core', 'organisations'] as const;

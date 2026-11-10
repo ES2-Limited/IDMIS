@@ -112,9 +112,15 @@ export function CreateWuaDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-xl shadow-xl">
-                <SelectItem value="apex" className="text-xs">Apex WUA (Scheme-Wide Federation)</SelectItem>
-                <SelectItem value="sector" className="text-xs">Sector WUA (Distributary Reach)</SelectItem>
-                <SelectItem value="unit" className="text-xs">Unit WUA (Watercourse / Field Level)</SelectItem>
+                <SelectItem value="apex" className="text-xs">
+                  Apex WUA (Scheme-Wide Federation)
+                </SelectItem>
+                <SelectItem value="sector" className="text-xs">
+                  Sector WUA (Distributary Reach)
+                </SelectItem>
+                <SelectItem value="unit" className="text-xs">
+                  Unit WUA (Watercourse / Field Level)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -162,7 +168,9 @@ export function CreateWuaDialog({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 block">Contact / Physical Address</label>
+            <label className="text-xs font-bold text-slate-700 block">
+              Contact / Physical Address
+            </label>
             <Input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -205,4 +213,3 @@ export function CreateWuaDialog({
     </Dialog>
   );
 }
-

@@ -131,7 +131,12 @@ export function SlisHome() {
         : reportAreaHa > 0
           ? `${reportAreaHa.toLocaleString()} ha`
           : `${totalPlots} parcels`,
-      sub: reportAreaHa > 0 ? 'Command Area' : totalPlots > 0 ? 'Digitized parcels' : 'No parcels mapped',
+      sub:
+        reportAreaHa > 0
+          ? 'Command Area'
+          : totalPlots > 0
+            ? 'Digitized parcels'
+            : 'No parcels mapped',
     },
     { label: 'Unsynced Records', value: '0 Saved', sub: 'Cached on device' },
     {

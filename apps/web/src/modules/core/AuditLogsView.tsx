@@ -1,10 +1,5 @@
 import * as React from 'react';
-import {
-  ShieldAlert,
-  Search,
-  RefreshCw,
-  User,
-} from 'lucide-react';
+import { ShieldAlert, Search, RefreshCw, User } from 'lucide-react';
 import { Button, Input } from '@idmis/ui';
 import { useAuditLogs } from './hooks/useAuditLogs';
 import type { AuditLogResponse } from '@idmis/contracts';
