@@ -10,6 +10,8 @@ export default defineConfig({
     'src/cli/seed.ts',
     'src/cli/seed-load.ts',
     'src/cli/seed-reference.ts',
+    'src/cli/create-admin.ts',
+    'src/create-admin.ts',
     'src/authz/index.ts',
     'src/security/index.ts',
   ],
