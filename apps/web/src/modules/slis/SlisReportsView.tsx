@@ -421,102 +421,119 @@ export function SlisReportsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredReports.map((row) => {
-                const avgParcelSize =
-                  row.activePlotsCount > 0
-                    ? (row.totalAreaHa / row.activePlotsCount).toFixed(2)
-                    : '0.00';
-                const waterDuty =
-                  row.totalAreaHa > 0 ? (row.waterAllocatedM3 / row.totalAreaHa).toFixed(0) : '0';
-                const arrears = row.billedAmount - row.collectedAmount;
+              {filteredReports.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={selectedReport === 'farmers_by_sector' ? 7 : 7}
+                    className="py-12 text-center text-slate-400"
+                  >
+                    <FileSpreadsheet className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                    <span className="font-bold text-slate-700 block text-xs">
+                      No Report Data Available
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      No approved records found in the materialized summary view for this scope.
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                filteredReports.map((row) => {
+                  const avgParcelSize =
+                    row.activePlotsCount > 0
+                      ? (row.totalAreaHa / row.activePlotsCount).toFixed(2)
+                      : '0.00';
+                  const waterDuty =
+                    row.totalAreaHa > 0 ? (row.waterAllocatedM3 / row.totalAreaHa).toFixed(0) : '0';
+                  const arrears = row.billedAmount - row.collectedAmount;
 
-                return (
-                  <tr key={row.sectorId} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                        {row.sectorId}
-                      </span>
-                      <div className="font-bold text-slate-800 mt-1">{row.sectorName}</div>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-500">{row.schemeName}</td>
+                  return (
+                    <tr key={row.sectorId} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                          {row.sectorId}
+                        </span>
+                        <div className="font-bold text-slate-800 mt-1">{row.sectorName}</div>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-slate-500">{row.schemeName}</td>
 
-                    {/* Mode 1: Farmers by Sector */}
-                    {selectedReport === 'farmers_by_sector' && (
-                      <>
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
-                          {row.farmersCount.toLocaleString()}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                            {((row.femaleFarmersCount / row.farmersCount) * 100).toFixed(1)}% (
-                            {row.femaleFarmersCount})
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-medium text-slate-700">
-                          {row.householdsCount}
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
-                          {row.totalAreaHa.toFixed(1)} ha
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800">
-                          {avgParcelSize} ha
-                        </td>
-                      </>
-                    )}
+                      {/* Mode 1: Farmers by Sector */}
+                      {selectedReport === 'farmers_by_sector' && (
+                        <>
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            {row.farmersCount.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
+                              {((row.femaleFarmersCount / row.farmersCount) * 100).toFixed(1)}% (
+                              {row.femaleFarmersCount})
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-medium text-slate-700">
+                            {row.householdsCount}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            {row.totalAreaHa.toFixed(1)} ha
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800">
+                            {avgParcelSize} ha
+                          </td>
+                        </>
+                      )}
 
-                    {/* Mode 2: WUA Summaries */}
-                    {selectedReport === 'wua_summaries' && (
-                      <>
-                        <td className="py-3.5 px-4 font-bold text-slate-800">{row.wuaName}</td>
-                        <td className="py-3.5 px-4 font-medium text-slate-700">
-                          {row.activePlotsCount} parcels
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
-                          {row.totalAreaHa.toFixed(1)} ha
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-mono font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                            {row.waterAllocatedM3.toLocaleString()} m³
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800">
-                          {waterDuty} m³/ha
-                        </td>
-                      </>
-                    )}
+                      {/* Mode 2: WUA Summaries */}
+                      {selectedReport === 'wua_summaries' && (
+                        <>
+                          <td className="py-3.5 px-4 font-bold text-slate-800">{row.wuaName}</td>
+                          <td className="py-3.5 px-4 font-medium text-slate-700">
+                            {row.activePlotsCount} parcels
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            {row.totalAreaHa.toFixed(1)} ha
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                              {row.waterAllocatedM3.toLocaleString()} m³
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800">
+                            {waterDuty} m³/ha
+                          </td>
+                        </>
+                      )}
 
-                    {/* Mode 3: Fee Collection vs Billing */}
-                    {selectedReport === 'fee_billing' && (
-                      <>
-                        <td className="py-3.5 px-4 font-bold text-slate-800">{row.wuaName}</td>
-                        <td className="py-3.5 px-4 font-medium text-slate-700">
-                          ₦{row.billedAmount.toLocaleString()}
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-emerald-800">
-                          ₦{row.collectedAmount.toLocaleString()}
-                        </td>
-                        <td className="py-3.5 px-4 font-medium text-rose-700">
-                          ₦{arrears.toLocaleString()}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Badge
-                            variant="outline"
-                            className={`font-mono text-[10px] font-bold ${
-                              row.collectionRate >= 90
-                                ? 'border-emerald-300 text-emerald-800 bg-emerald-50'
-                                : row.collectionRate >= 80
-                                  ? 'border-amber-300 text-amber-800 bg-amber-50'
-                                  : 'border-rose-300 text-rose-800 bg-rose-50'
-                            }`}
-                          >
-                            {row.collectionRate.toFixed(1)}%
-                          </Badge>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
+                      {/* Mode 3: Fee Collection vs Billing */}
+                      {selectedReport === 'fee_billing' && (
+                        <>
+                          <td className="py-3.5 px-4 font-bold text-slate-800">{row.wuaName}</td>
+                          <td className="py-3.5 px-4 font-medium text-slate-700">
+                            ₦{row.billedAmount.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-emerald-800">
+                            ₦{row.collectedAmount.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4 font-medium text-rose-700">
+                            ₦{arrears.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <Badge
+                              variant="outline"
+                              className={`font-mono text-[10px] font-bold ${
+                                row.collectionRate >= 90
+                                  ? 'border-emerald-300 text-emerald-800 bg-emerald-50'
+                                  : row.collectionRate >= 80
+                                    ? 'border-amber-300 text-amber-800 bg-amber-50'
+                                    : 'border-rose-300 text-rose-800 bg-rose-50'
+                              }`}
+                            >
+                              {row.collectionRate.toFixed(1)}%
+                            </Badge>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

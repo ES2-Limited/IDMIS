@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   UploadCloud,
   CheckCircle2,
@@ -14,7 +15,9 @@ import {
 import { Button } from '@idmis/ui';
 import { AVAILABLE_DATASETS, mockSamplePreviewRows } from '../mocks/importData';
 import { useScope } from '../shell/ScopeContext';
-import { useImportBatches } from '../modules/core/hooks';
+import { useImportBatches, CORE_WUAS_KEY, CORE_IMPORTS_KEY } from '../modules/core/hooks';
+import { SLIS_FARMERS_QUERY_KEY } from '../modules/slis/hooks/useFarmers';
+import { SLIS_PLOTS_QUERY_KEY } from '../modules/slis/hooks/usePlots';
 
 export interface ImportWizardProps {
   initialDatasetId?: string;
@@ -29,8 +32,9 @@ export function ImportWizard({
   onBatchCommitted,
   onCancel,
 }: ImportWizardProps) {
+  const queryClient = useQueryClient();
   const { currentScope } = useScope();
-  const { batches, commitBatch, undoBatch } = useImportBatches();
+  const { batches, commitBatch, undoBatch, refetch: refetchBatches } = useImportBatches();
   const [currentStep, setCurrentStep] = React.useState<WizardStep>('choose');
   const [selectedDatasetId, setSelectedDatasetId] = React.useState<string>(initialDatasetId);
   const [uploadedFileName, setUploadedFileName] = React.useState<string | null>(null);
@@ -88,17 +92,29 @@ export function ImportWizard({
     setCommitError(null);
     // Find an active validated batch in the database matching this dataset or the seeded demo batch
     const candidateBatch =
-      batches.find((b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua')) ??
+      batches.find(
+        (b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+      ) ??
       batches.find((b) => b.status === 'validated') ??
       batches[0];
 
-    const targetBatchId = candidateBatch?.id ?? '018f3b10-0000-7000-8000-000000000002';
+    const targetBatchId = candidateBatch?.id ?? '018f3b10-0000-7000-8000-000000000003';
     try {
       if (commitBatch) {
         await commitBatch(targetBatchId);
       }
       setCommittedBatchId(targetBatchId);
       setCurrentStep('done');
+
+      // Invalidate relevant caches so imported data immediately appears in UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CORE_WUAS_KEY }),
+        queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_FARMERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_PLOTS_QUERY_KEY }),
+      ]);
+      refetchBatches?.();
+
       onBatchCommitted?.(targetBatchId);
     } catch (err: unknown) {
       const errorMsg =
@@ -120,6 +136,15 @@ export function ImportWizard({
         await undoBatch(committedBatchId);
       }
       setIsUndone(true);
+
+      // Invalidate relevant caches after rollback
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CORE_WUAS_KEY }),
+        queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_FARMERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_PLOTS_QUERY_KEY }),
+      ]);
+      refetchBatches?.();
     } catch (err: unknown) {
       const errorMsg =
         err && typeof err === 'object' && 'message' in err

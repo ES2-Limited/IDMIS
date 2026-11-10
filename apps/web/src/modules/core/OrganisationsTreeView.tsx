@@ -5,15 +5,31 @@ import {
   ChevronDown,
   Layers,
   MapPin,
+  Users2,
   Plus,
   RefreshCw,
+  Landmark,
 } from 'lucide-react';
 import { Button, StatusChip } from '@idmis/ui';
-import { useOrganisations } from './hooks';
+import { useOrganisations, useWuas } from './hooks';
 import { CreateOrganisationDialog } from './CreateOrganisationDialog';
 
 export function OrganisationsTreeView() {
-  const { organisations: serverOrgs, isLoading, isFetching, refetch, createOrganisation, isCreating } = useOrganisations();
+  const {
+    organisations: serverOrgs,
+    isLoading: isLoadingOrgs,
+    isFetching: isFetchingOrgs,
+    refetch: refetchOrgs,
+    createOrganisation,
+    isCreating,
+  } = useOrganisations();
+  const {
+    wuas: serverWuas,
+    isLoading: isLoadingWuas,
+    isFetching: isFetchingWuas,
+    refetch: refetchWuas,
+  } = useWuas();
+
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const [isAddOpen, setIsAddOpen] = React.useState(false);
 
@@ -21,12 +37,22 @@ export function OrganisationsTreeView() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const isFetching = isFetchingOrgs || isFetchingWuas;
+  const isLoading = isLoadingOrgs || isLoadingWuas;
+
   // Pure live data from server
   const organisations = serverOrgs ?? [];
+  const wuas = serverWuas ?? [];
 
   // Build tree hierarchy: root RBDAs -> Schemes -> Sectors
   const rootOrgs = organisations.filter((o) => !o.parentId);
   const getChildren = (parentId: string) => organisations.filter((o) => o.parentId === parentId);
+  const getWuasForOrg = (orgId: string) => wuas.filter((w) => w.organisationId === orgId);
+
+  const handleRefresh = () => {
+    refetchOrgs();
+    refetchWuas();
+  };
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
@@ -50,7 +76,7 @@ export function OrganisationsTreeView() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             disabled={isFetching}
             className="h-10 rounded-xl text-xs font-semibold gap-1.5"
           >
@@ -71,7 +97,12 @@ export function OrganisationsTreeView() {
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSubmitOrg={createOrganisation}
-        parentOrganisations={organisations.map((o) => ({ id: o.id, name: o.name, code: o.code, type: o.type }))}
+        parentOrganisations={organisations.map((o) => ({
+          id: o.id,
+          name: o.name,
+          code: o.code,
+          type: o.type,
+        }))}
         isLoading={isCreating}
       />
 
@@ -145,12 +176,13 @@ export function OrganisationsTreeView() {
                           key={scheme.id}
                           className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs"
                         >
+                          {/* Schemes and Associated WUAs */}
                           <div
                             onClick={() => toggleExpand(scheme.id)}
                             className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 cursor-pointer hover:bg-slate-50/80"
                           >
                             <div className="flex items-center gap-2 min-w-0">
-                              {sectors.length > 0 ? (
+                              {sectors.length > 0 || getWuasForOrg(scheme.id).length > 0 ? (
                                 <button
                                   type="button"
                                   aria-label="Toggle scheme expansion"
@@ -178,9 +210,9 @@ export function OrganisationsTreeView() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between sm:justify-end gap-2 pl-8 sm:pl-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div className="flex items-center justify-between sm:justify-end gap-3 pl-8 sm:pl-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                               <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">
-                                {sectors.length} Sectors
+                                {sectors.length} Sectors • {getWuasForOrg(scheme.id).length} WUAs
                               </span>
                               <Button
                                 variant="ghost"
@@ -191,25 +223,71 @@ export function OrganisationsTreeView() {
                             </div>
                           </div>
 
-                          {/* Sector Level */}
-                          {isSchemeExpanded && sectors.length > 0 && (
-                            <div className="pl-6 sm:pl-10 pr-3 sm:pr-4 py-2 border-t border-slate-100 bg-slate-50/60 space-y-1.5">
-                              {sectors.map((sector) => (
-                                <div
-                                  key={sector.id}
-                                  className="p-2 sm:p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2"
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <MapPin className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-                                    <span className="text-xs font-bold text-slate-800 truncate">
-                                      {sector.name}
-                                    </span>
+                          {/* Nested Items: Sectors & WUAs */}
+                          {isSchemeExpanded && (
+                            <div className="pl-6 sm:pl-10 pr-3 sm:pr-4 py-3 border-t border-slate-100 bg-slate-50/60 space-y-3">
+                              {/* Sectors */}
+                              {sectors.length > 0 && (
+                                <div className="space-y-1.5">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    Sectors ({sectors.length})
                                   </div>
-                                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-mono shrink-0">
-                                    {sector.code}
-                                  </span>
+                                  {sectors.map((sector) => (
+                                    <div
+                                      key={sector.id}
+                                      className="p-2 sm:p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between gap-2"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <MapPin className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                                        <span className="text-xs font-bold text-slate-800 truncate">
+                                          {sector.name}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] sm:text-[11px] text-slate-500 font-mono shrink-0">
+                                        {sector.code}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
+
+                              {/* Water User Associations */}
+                              {getWuasForOrg(scheme.id).length > 0 && (
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                    <Users2 className="h-3 w-3 text-teal-600" />
+                                    Water User Associations ({getWuasForOrg(scheme.id).length})
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {getWuasForOrg(scheme.id).map((wua) => (
+                                      <div
+                                        key={wua.id}
+                                        className="p-2.5 rounded-xl border border-slate-200 bg-white space-y-1 shadow-2xs"
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-xs font-extrabold text-slate-900 truncate">
+                                            {wua.name}
+                                          </span>
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200">
+                                            {wua.level}
+                                          </span>
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 font-mono">
+                                          {wua.regNo ?? 'Unregistered'}
+                                        </div>
+                                        {wua.bankAccountLast4 && (
+                                          <div className="flex items-center gap-1 text-[10px] text-slate-600 font-medium pt-0.5">
+                                            <Landmark className="h-3 w-3 text-slate-400" />
+                                            <span>
+                                              {wua.bankName ?? 'Bank'}: •••• {wua.bankAccountLast4}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
