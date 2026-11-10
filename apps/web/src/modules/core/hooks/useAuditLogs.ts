@@ -5,7 +5,7 @@ import { useAuth } from '../../../auth';
 
 export const CORE_AUDIT_LOGS_KEY = ['core', 'audit-logs'] as const;
 
-export function useAuditLogs(query?: ListAuditLogsQuery) {
+export function useAuditLogs(query?: Partial<ListAuditLogsQuery>) {
   const { isAuthenticated } = useAuth();
 
   const auditQuery = useQuery({
@@ -27,4 +27,3 @@ export function useAuditLogs(query?: ListAuditLogsQuery) {
     refetch: auditQuery.refetch,
   };
 }
-

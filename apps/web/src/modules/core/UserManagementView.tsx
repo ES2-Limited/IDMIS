@@ -18,13 +18,15 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
-import type { AppUserResponse, AssignmentResponse, CreateAppUserInput, CreateAssignmentInput } from '@idmis/contracts';
+import type { CreateAppUserInput, CreateAssignmentInput } from '@idmis/contracts';
 import { CreateUserDialog } from './CreateUserDialog';
 import { EditScopeDialog } from './EditScopeDialog';
 import { useToast } from '@idmis/ui';
 import { useUsers, useRoles, type UserWithAssignments } from './hooks';
+import { useScope } from '../../shell/ScopeContext';
 
 export function UserManagementView() {
+  const { currentScope } = useScope();
   const toast = useToast();
   const [search, setSearch] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState<string>('all');
@@ -75,7 +77,23 @@ export function UserManagementView() {
   // Pure live data from server
   const activeUsers: UserWithAssignments[] = serverUsers ?? [];
 
-  const filteredUsers = activeUsers.filter((user) => {
+  const scopedUsers = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      return activeUsers.filter((u) =>
+        u.assignments?.some(
+          (a) => a.scopeType === 'national' || a.scopeStateId === currentScope.id,
+        ),
+      );
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return activeUsers.filter((u) =>
+        u.assignments?.some((a) => a.scopeType === 'national' || a.scopeOrgId === currentScope.id),
+      );
+    }
+    return activeUsers;
+  }, [activeUsers, currentScope]);
+
+  const filteredUsers = scopedUsers.filter((user) => {
     const matchesSearch =
       user.fullName.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase()) ||

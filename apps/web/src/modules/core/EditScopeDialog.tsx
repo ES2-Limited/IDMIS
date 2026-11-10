@@ -32,7 +32,9 @@ export function EditScopeDialog({
   const [assignment, setAssignment] = React.useState<AssignmentFormData>({
     roleId: currentAssignment?.roleId ?? '018f3a5e-0000-7000-8000-000000000021',
     module: (currentAssignment?.module as 'core' | 'slis' | 'me' | 'blis') ?? 'slis',
-    scopeType: (currentAssignment?.scopeType as 'national' | 'state' | 'rbda' | 'scheme' | 'sector') ?? 'national',
+    scopeType:
+      (currentAssignment?.scopeType as 'national' | 'state' | 'rbda' | 'scheme' | 'sector') ??
+      'national',
     scopeStateId: currentAssignment?.scopeStateId ?? null,
     scopeOrgId: currentAssignment?.scopeOrgId ?? null,
     canCaptureOffline: currentAssignment?.canCaptureOffline ?? false,
@@ -48,7 +50,8 @@ export function EditScopeDialog({
       setAssignment({
         roleId: active?.roleId ?? '018f3a5e-0000-7000-8000-000000000021',
         module: (active?.module as 'core' | 'slis' | 'me' | 'blis') ?? 'slis',
-        scopeType: (active?.scopeType as 'national' | 'state' | 'rbda' | 'scheme' | 'sector') ?? 'national',
+        scopeType:
+          (active?.scopeType as 'national' | 'state' | 'rbda' | 'scheme' | 'sector') ?? 'national',
         scopeStateId: active?.scopeStateId ?? null,
         scopeOrgId: active?.scopeOrgId ?? null,
         canCaptureOffline: active?.canCaptureOffline ?? false,

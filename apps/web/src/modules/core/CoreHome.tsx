@@ -17,12 +17,50 @@ export function CoreHome() {
   );
   const { total: totalWuas, wuas } = useWuas();
   const { total: totalUsers, users } = useUsers();
-  const { batches } = useImportBatches();
+  const { batches } = useImportBatches(
+    currentScope.type === 'state'
+      ? { stateId: currentScope.id }
+      : currentScope.type === 'scheme'
+        ? { schemeId: currentScope.id }
+        : currentScope.type === 'rbda'
+          ? { rbdaId: currentScope.id }
+          : undefined,
+  );
   const { roles } = useRoles();
 
   const activeSchemesCount = organisations.filter((o) => o.type === 'scheme').length;
-  const userCount = totalUsers ?? users.length;
-  const wuaCount = totalWuas || wuas.length;
+
+  // Filter WUAs and Users by scope
+  const scopedWuas = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      const stateOrgIds = new Set(organisations.map((o) => o.id));
+      return wuas.filter((w) => stateOrgIds.has(w.organisationId));
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return wuas.filter((w) => w.organisationId === currentScope.id);
+    }
+    return wuas;
+  }, [wuas, currentScope, organisations]);
+
+  const scopedUsers = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      return users.filter((u) =>
+        u.assignments?.some(
+          (a) => a.scopeType === 'national' || a.scopeStateId === currentScope.id,
+        ),
+      );
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return users.filter((u) =>
+        u.assignments?.some((a) => a.scopeType === 'national' || a.scopeOrgId === currentScope.id),
+      );
+    }
+    return users;
+  }, [users, currentScope]);
+
+  const userCount =
+    currentScope.type === 'national' ? (totalUsers ?? users.length) : scopedUsers.length;
+  const wuaCount = currentScope.type === 'national' ? totalWuas || wuas.length : scopedWuas.length;
 
   const quickStats = [
     {

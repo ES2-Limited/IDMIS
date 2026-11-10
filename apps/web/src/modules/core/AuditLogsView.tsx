@@ -2,20 +2,19 @@ import * as React from 'react';
 import {
   ShieldAlert,
   Search,
-  Filter,
   RefreshCw,
-  Clock,
   User,
-  Activity,
-  FileCode,
-  Globe,
 } from 'lucide-react';
-import { Button, Input, StatusChip, Badge } from '@idmis/ui';
+import { Button, Input } from '@idmis/ui';
 import { useAuditLogs } from './hooks/useAuditLogs';
 import type { AuditLogResponse } from '@idmis/contracts';
+import { useScope } from '../../shell/ScopeContext';
 
 export function AuditLogsView() {
-  const { logs, total, isLoading, isFetching, refetch } = useAuditLogs();
+  const { currentScope } = useScope();
+  const { logs, total, isLoading, isFetching, refetch } = useAuditLogs(
+    currentScope.type === 'state' ? { stateId: currentScope.id } : undefined,
+  );
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedLog, setSelectedLog] = React.useState<AuditLogResponse | null>(null);
 
@@ -66,7 +65,8 @@ export function AuditLogsView() {
             {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-teal-600" />}
           </div>
           <p className="text-xs text-slate-500">
-            Immutable system-wide ledger recording every authentication, role assignment, and mutation (Golden Rule #5).
+            Immutable system-wide ledger recording every authentication, role assignment, and
+            mutation (Golden Rule #5).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -86,19 +86,27 @@ export function AuditLogsView() {
       {/* Metrics Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Entries</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Total Entries
+          </div>
           <div className="text-xl font-black text-slate-900 mt-1">{total || logs.length}</div>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Storage Status</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Storage Status
+          </div>
           <div className="text-xl font-black text-emerald-700 mt-1">Immutable</div>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Actor Scope</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Actor Scope
+          </div>
           <div className="text-xl font-black text-teal-800 mt-1">Scoped Repos</div>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Atomicity</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Atomicity
+          </div>
           <div className="text-xl font-black text-blue-700 mt-1">100% Txn Bound</div>
         </div>
       </div>
@@ -116,7 +124,8 @@ export function AuditLogsView() {
             />
           </div>
           <div className="text-xs text-slate-500 font-medium">
-            Showing <span className="font-bold text-slate-800">{filteredLogs.length}</span> audit records
+            Showing <span className="font-bold text-slate-800">{filteredLogs.length}</span> audit
+            records
           </div>
         </div>
 
@@ -216,11 +225,15 @@ export function AuditLogsView() {
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Log UUID</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    Log UUID
+                  </span>
                   <span className="font-mono text-[11px] text-slate-700">{selectedLog.id}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Occurred At</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    Occurred At
+                  </span>
                   <span className="font-mono text-[11px] text-slate-700">
                     {new Date(selectedLog.occurredAt).toISOString()}
                   </span>
@@ -228,7 +241,9 @@ export function AuditLogsView() {
               </div>
 
               <div>
-                <span className="text-slate-500 font-bold block mb-1.5">Payload Changes (Before / After)</span>
+                <span className="text-slate-500 font-bold block mb-1.5">
+                  Payload Changes (Before / After)
+                </span>
                 <pre className="p-3 rounded-xl bg-slate-900 text-teal-300 font-mono text-[11px] overflow-x-auto max-h-60">
                   {JSON.stringify(selectedLog.changes, null, 2)}
                 </pre>
@@ -251,4 +266,3 @@ export function AuditLogsView() {
     </div>
   );
 }
-
