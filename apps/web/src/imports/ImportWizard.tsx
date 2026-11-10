@@ -90,15 +90,22 @@ export function ImportWizard({
   const handleCommitBatch = async () => {
     setIsProcessing(true);
     setCommitError(null);
-    // Find an active validated batch in the database matching this dataset or the seeded demo batch
+
+    // Look for any validated batch in the database matching this dataset or available for commit
     const candidateBatch =
       batches.find(
         (b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
-      ) ??
-      batches.find((b) => b.status === 'validated') ??
-      batches[0];
+      ) ?? batches.find((b) => b.status === 'validated');
 
-    const targetBatchId = candidateBatch?.id ?? '018f3b10-0000-7000-8000-000000000003';
+    if (!candidateBatch) {
+      setCommitError(
+        'Validation errors detected or no validated import batch is ready to commit. Please review and resolve error rows before committing.',
+      );
+      setIsProcessing(false);
+      return;
+    }
+
+    const targetBatchId = candidateBatch.id;
     try {
       if (commitBatch) {
         await commitBatch(targetBatchId);
