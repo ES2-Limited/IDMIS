@@ -81,6 +81,11 @@ describe('ApiEnvSchema', () => {
       ENCRYPTION_KEY: 'a'.repeat(32),
       IDENTITY_HASH_KEY: 'b'.repeat(32),
       CLAMAV_HOST: 'clamav.internal',
+      S3_ENDPOINT: 'https://r2.cloudflarestorage.com',
+      S3_BUCKET: 'idmis-files',
+      S3_REGION: 'auto',
+      S3_ACCESS_KEY_ID: 'prod-key',
+      S3_SECRET_ACCESS_KEY: 'prod-secret',
     });
     expect(prodEnv.API_DOCS_ENABLED).toBe(false);
 
@@ -90,6 +95,11 @@ describe('ApiEnvSchema', () => {
       ENCRYPTION_KEY: 'a'.repeat(32),
       IDENTITY_HASH_KEY: 'b'.repeat(32),
       CLAMAV_HOST: 'clamav.internal',
+      S3_ENDPOINT: 'https://r2.cloudflarestorage.com',
+      S3_BUCKET: 'idmis-files',
+      S3_REGION: 'auto',
+      S3_ACCESS_KEY_ID: 'prod-key',
+      S3_SECRET_ACCESS_KEY: 'prod-secret',
       API_DOCS_ENABLED: 'true',
       API_PUBLIC_BASE_PATH: '/api',
     });
@@ -118,5 +128,85 @@ describe('ApiEnvSchema', () => {
 
     const trueBoolEnv = ApiEnvSchema.parse({ AUTH_TOTP_ENFORCE_ADMINS: true });
     expect(trueBoolEnv.AUTH_TOTP_ENFORCE_ADMINS).toBe(true);
+  });
+
+  describe('S3 production configuration', () => {
+    const validProdEnv = {
+      NODE_ENV: 'production',
+      JWT_SECRET: 'production-secret-min-16-chars-long',
+      ENCRYPTION_KEY: 'a'.repeat(32),
+      IDENTITY_HASH_KEY: 'b'.repeat(32),
+      CLAMAV_HOST: 'clamav.internal',
+      S3_ENDPOINT: 'https://r2.cloudflarestorage.com',
+      S3_BUCKET: 'idmis-files-prod',
+      S3_REGION: 'auto',
+      S3_ACCESS_KEY_ID: 'prod-access-key-id',
+      S3_SECRET_ACCESS_KEY: 'prod-secret-access-key',
+    };
+
+    it('rejects missing S3_ENDPOINT when NODE_ENV=production', () => {
+      const env = { ...validProdEnv };
+      delete (env as Record<string, unknown>).S3_ENDPOINT;
+      expect(() => ApiEnvSchema.parse(env)).toThrow(
+        'S3_ENDPOINT is required when NODE_ENV=production',
+      );
+    });
+
+    it('rejects missing S3_BUCKET when NODE_ENV=production', () => {
+      const env = { ...validProdEnv };
+      delete (env as Record<string, unknown>).S3_BUCKET;
+      expect(() => ApiEnvSchema.parse(env)).toThrow(
+        'S3_BUCKET is required when NODE_ENV=production',
+      );
+    });
+
+    it('rejects missing S3_REGION when NODE_ENV=production', () => {
+      const env = { ...validProdEnv };
+      delete (env as Record<string, unknown>).S3_REGION;
+      expect(() => ApiEnvSchema.parse(env)).toThrow(
+        'S3_REGION is required when NODE_ENV=production',
+      );
+    });
+
+    it('rejects missing S3_ACCESS_KEY_ID when NODE_ENV=production', () => {
+      const env = { ...validProdEnv };
+      delete (env as Record<string, unknown>).S3_ACCESS_KEY_ID;
+      expect(() => ApiEnvSchema.parse(env)).toThrow(
+        'S3_ACCESS_KEY_ID is required when NODE_ENV=production',
+      );
+    });
+
+    it('rejects missing S3_SECRET_ACCESS_KEY when NODE_ENV=production', () => {
+      const env = { ...validProdEnv };
+      delete (env as Record<string, unknown>).S3_SECRET_ACCESS_KEY;
+      expect(() => ApiEnvSchema.parse(env)).toThrow(
+        'S3_SECRET_ACCESS_KEY is required when NODE_ENV=production',
+      );
+    });
+
+    it('accepts environment in production when all 5 S3 variables are present', () => {
+      const parsed = ApiEnvSchema.parse(validProdEnv);
+      expect(parsed.S3_ENDPOINT).toBe('https://r2.cloudflarestorage.com');
+      expect(parsed.S3_BUCKET).toBe('idmis-files-prod');
+      expect(parsed.S3_REGION).toBe('auto');
+      expect(parsed.S3_ACCESS_KEY_ID).toBe('prod-access-key-id');
+      expect(parsed.S3_SECRET_ACCESS_KEY).toBe('prod-secret-access-key');
+    });
+
+    it('accepts environment in dev/test when none of the 5 S3 variables is present', () => {
+      const devParsed = ApiEnvSchema.parse({ NODE_ENV: 'development' });
+      expect(devParsed.S3_ENDPOINT).toBeUndefined();
+      expect(devParsed.S3_BUCKET).toBe('idmis-files');
+      expect(devParsed.S3_REGION).toBe('auto');
+      expect(devParsed.S3_ACCESS_KEY_ID).toBeUndefined();
+      expect(devParsed.S3_SECRET_ACCESS_KEY).toBeUndefined();
+
+      const testParsed = ApiEnvSchema.parse({ NODE_ENV: 'test' });
+      expect(testParsed.S3_ENDPOINT).toBeUndefined();
+      expect(testParsed.S3_BUCKET).toBe('idmis-files');
+      expect(testParsed.S3_REGION).toBe('auto');
+      expect(testParsed.S3_ACCESS_KEY_ID).toBeUndefined();
+      expect(testParsed.S3_SECRET_ACCESS_KEY).toBeUndefined();
+    });
   });
 });

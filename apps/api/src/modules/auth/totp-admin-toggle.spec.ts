@@ -398,6 +398,11 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
       const prevEncKey = process.env.ENCRYPTION_KEY;
       const prevHashKey = process.env.IDENTITY_HASH_KEY;
       const prevClamav = process.env.CLAMAV_HOST;
+      const prevS3Endpoint = process.env.S3_ENDPOINT;
+      const prevS3Bucket = process.env.S3_BUCKET;
+      const prevS3Region = process.env.S3_REGION;
+      const prevS3Key = process.env.S3_ACCESS_KEY_ID;
+      const prevS3Secret = process.env.S3_SECRET_ACCESS_KEY;
 
       try {
         process.env.AUTH_TOTP_ENFORCE_ADMINS = 'false';
@@ -405,6 +410,11 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
         process.env.ENCRYPTION_KEY = 'a'.repeat(32);
         process.env.IDENTITY_HASH_KEY = 'b'.repeat(32);
         process.env.CLAMAV_HOST = '127.0.0.1';
+        process.env.S3_ENDPOINT = 'https://r2.cloudflarestorage.com';
+        process.env.S3_BUCKET = 'idmis-files';
+        process.env.S3_REGION = 'auto';
+        process.env.S3_ACCESS_KEY_ID = 'prod-key';
+        process.env.S3_SECRET_ACCESS_KEY = 'prod-secret';
 
         const warnSpy = vi.spyOn(authService['logger'], 'warn');
         authService.onApplicationBootstrap();
@@ -425,6 +435,21 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
 
         if (prevClamav !== undefined) process.env.CLAMAV_HOST = prevClamav;
         else delete process.env.CLAMAV_HOST;
+
+        if (prevS3Endpoint !== undefined) process.env.S3_ENDPOINT = prevS3Endpoint;
+        else delete process.env.S3_ENDPOINT;
+
+        if (prevS3Bucket !== undefined) process.env.S3_BUCKET = prevS3Bucket;
+        else delete process.env.S3_BUCKET;
+
+        if (prevS3Region !== undefined) process.env.S3_REGION = prevS3Region;
+        else delete process.env.S3_REGION;
+
+        if (prevS3Key !== undefined) process.env.S3_ACCESS_KEY_ID = prevS3Key;
+        else delete process.env.S3_ACCESS_KEY_ID;
+
+        if (prevS3Secret !== undefined) process.env.S3_SECRET_ACCESS_KEY = prevS3Secret;
+        else delete process.env.S3_SECRET_ACCESS_KEY;
       }
     });
 
@@ -434,6 +459,11 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
       const prevEncKey = process.env.ENCRYPTION_KEY;
       const prevHashKey = process.env.IDENTITY_HASH_KEY;
       const prevClamav = process.env.CLAMAV_HOST;
+      const prevS3Endpoint = process.env.S3_ENDPOINT;
+      const prevS3Bucket = process.env.S3_BUCKET;
+      const prevS3Region = process.env.S3_REGION;
+      const prevS3Key = process.env.S3_ACCESS_KEY_ID;
+      const prevS3Secret = process.env.S3_SECRET_ACCESS_KEY;
 
       try {
         process.env.AUTH_TOTP_ENFORCE_ADMINS = 'true';
@@ -441,6 +471,11 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
         process.env.ENCRYPTION_KEY = 'a'.repeat(32);
         process.env.IDENTITY_HASH_KEY = 'b'.repeat(32);
         process.env.CLAMAV_HOST = '127.0.0.1';
+        process.env.S3_ENDPOINT = 'https://r2.cloudflarestorage.com';
+        process.env.S3_BUCKET = 'idmis-files';
+        process.env.S3_REGION = 'auto';
+        process.env.S3_ACCESS_KEY_ID = 'prod-key';
+        process.env.S3_SECRET_ACCESS_KEY = 'prod-secret';
 
         const warnSpy = vi.spyOn(authService['logger'], 'warn');
         authService.onApplicationBootstrap();
@@ -461,6 +496,21 @@ describe('Admin TOTP Toggle (AUTH_TOTP_ENFORCE_ADMINS)', () => {
 
         if (prevClamav !== undefined) process.env.CLAMAV_HOST = prevClamav;
         else delete process.env.CLAMAV_HOST;
+
+        if (prevS3Endpoint !== undefined) process.env.S3_ENDPOINT = prevS3Endpoint;
+        else delete process.env.S3_ENDPOINT;
+
+        if (prevS3Bucket !== undefined) process.env.S3_BUCKET = prevS3Bucket;
+        else delete process.env.S3_BUCKET;
+
+        if (prevS3Region !== undefined) process.env.S3_REGION = prevS3Region;
+        else delete process.env.S3_REGION;
+
+        if (prevS3Key !== undefined) process.env.S3_ACCESS_KEY_ID = prevS3Key;
+        else delete process.env.S3_ACCESS_KEY_ID;
+
+        if (prevS3Secret !== undefined) process.env.S3_SECRET_ACCESS_KEY = prevS3Secret;
+        else delete process.env.S3_SECRET_ACCESS_KEY;
       }
     });
 
