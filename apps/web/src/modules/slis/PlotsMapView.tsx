@@ -400,7 +400,7 @@ export function PlotsMapView() {
             </DialogTitle>
           </DialogHeader>
           <ImportWizard
-            initialDatasetId="plot"
+            initialDatasetId="slis.plot"
             onCancel={() => setIsImportOpen(false)}
             onBatchCommitted={() => setIsImportOpen(false)}
           />

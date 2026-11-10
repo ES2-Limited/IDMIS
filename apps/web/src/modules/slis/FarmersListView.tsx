@@ -447,7 +447,7 @@ export function FarmersListView() {
             </DialogTitle>
           </DialogHeader>
           <ImportWizard
-            initialDatasetId="farmer"
+            initialDatasetId="slis.farmer"
             onCancel={() => setIsImportOpen(false)}
             onBatchCommitted={() => setIsImportOpen(false)}
           />

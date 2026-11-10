@@ -30,7 +30,7 @@ export const AVAILABLE_DATASETS: ImportDatasetOption[] = [
     ],
     requiredColumns: ['name', 'level', 'schemeCode'],
     naturalKey: 'Registration Number / Name',
-    templateFileName: 'idmis_wua_template.csv',
+    templateFileName: 'template-wua.xlsx',
   },
   {
     id: 'slis.farmer',
@@ -50,7 +50,7 @@ export const AVAILABLE_DATASETS: ImportDatasetOption[] = [
     ],
     requiredColumns: ['farmerCode', 'firstName', 'lastName', 'gender'],
     naturalKey: 'Farmer Code',
-    templateFileName: 'idmis_farmers_template.csv',
+    templateFileName: 'template-slis.farmer.xlsx',
   },
   {
     id: 'slis.plot',
@@ -61,7 +61,27 @@ export const AVAILABLE_DATASETS: ImportDatasetOption[] = [
     sampleColumns: ['plotCode', 'sectorCode', 'areaHa', 'wktGeometry', 'farmerCode', 'serviceType'],
     requiredColumns: ['plotCode', 'sectorCode'],
     naturalKey: 'Plot Code',
-    templateFileName: 'idmis_plots_template.csv',
+    templateFileName: 'template-slis.plot.xlsx',
+  },
+  {
+    id: 'blis.station',
+    name: 'Hydro-Meteorological Stations',
+    module: 'blis',
+    description: 'Hydrological and meteorological observation stations across river basins.',
+    sampleColumns: ['stationCode', 'stationName', 'stationType', 'rbdaCode', 'latitude', 'longitude'],
+    requiredColumns: ['stationCode', 'stationName', 'stationType'],
+    naturalKey: 'Station Code',
+    templateFileName: 'template-blis.station.xlsx',
+  },
+  {
+    id: 'me.indicator_target',
+    name: 'Results Framework Targets',
+    module: 'me',
+    description: 'Annual milestone targets mapped to project framework indicators.',
+    sampleColumns: ['indicatorCode', 'year', 'targetValue', 'schemeCode'],
+    requiredColumns: ['indicatorCode', 'year', 'targetValue'],
+    naturalKey: 'Indicator Code + Year',
+    templateFileName: 'template-me.indicator_target.xlsx',
   },
 ];
 
@@ -125,60 +145,3 @@ export const mockRecentBatches: ImportBatchResponse[] = [
   },
 ];
 
-export const mockSamplePreviewRows: ImportRowResponse[] = [
-  {
-    id: '018f3b30-0001-7000-8000-000000000001',
-    batchId: '018f3b10-0001-7000-8000-000000000001',
-    rowNumber: 1,
-    rawData: {
-      name: 'Kadawa North Water Users Association',
-      regNo: 'WUA/KRIS/2024/014',
-      level: 'sector',
-      schemeCode: 'KRIS',
-      bankName: 'First Bank of Nigeria',
-      bankAccountNumber: '3049281920',
-    },
-    status: 'valid',
-    errors: [],
-    naturalKey: 'WUA/KRIS/2024/014',
-  },
-  {
-    id: '018f3b30-0002-7000-8000-000000000002',
-    batchId: '018f3b10-0001-7000-8000-000000000001',
-    rowNumber: 2,
-    rawData: {
-      name: 'Kura Apex Irrigation Farmers Association',
-      regNo: 'WUA/KRIS/2023/008',
-      level: 'apex',
-      schemeCode: 'KRIS',
-      bankName: 'Jaiz Bank',
-      bankAccountNumber: '0019283741',
-    },
-    status: 'valid',
-    errors: [],
-    naturalKey: 'WUA/KRIS/2023/008',
-  },
-  {
-    id: '018f3b30-0003-7000-8000-000000000003',
-    batchId: '018f3b10-0001-7000-8000-000000000001',
-    rowNumber: 3,
-    rawData: {
-      name: '',
-      regNo: 'WUA/KRIS/INVALID',
-      level: 'unknown_level',
-      schemeCode: 'NON_EXISTENT_SCHEME',
-      bankName: '',
-      bankAccountNumber: '',
-    },
-    status: 'error',
-    errors: [
-      { column: 'name', message: 'WUA name is mandatory and cannot be blank' },
-      { column: 'level', message: 'Level must be one of: apex, sector, unit' },
-      {
-        column: 'schemeCode',
-        message: 'Scheme code NON_EXISTENT_SCHEME was not found in active scope',
-      },
-    ],
-    naturalKey: 'WUA/KRIS/INVALID',
-  },
-];

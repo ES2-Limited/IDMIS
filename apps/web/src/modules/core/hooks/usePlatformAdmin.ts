@@ -122,6 +122,42 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
     },
   });
 
+  const getBatchPreview = async (
+    batchId: string,
+    params?: { page?: number; limit?: number; status?: string },
+  ) => {
+    const client = getApiClient();
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.status) qs.set('status', params.status);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+
+    return client.get<{
+      batch: ImportBatchResponse;
+      rows: Array<{
+        id: string;
+        batchId: string;
+        rowNumber: number;
+        rawData: Record<string, unknown>;
+        status: 'valid' | 'error' | 'committed';
+        errors: Array<{ column: string; message: string; severity?: string }>;
+        naturalKey?: string | null;
+        targetEntityId?: string | null;
+      }>;
+      page: number;
+      limit: number;
+      totalRows: number;
+      totalErrorRows: number;
+      totalValidRows: number;
+    }>(`/imports/${batchId}/preview${query}`);
+  };
+
+  const getBatch = async (batchId: string) => {
+    const client = getApiClient();
+    return client.get<ImportBatchResponse>(`/imports/${batchId}`);
+  };
+
   return {
     batches: batchesQuery.data?.items ?? [],
     total: batchesQuery.data?.total ?? 0,
@@ -135,5 +171,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
     isCommitting: commitBatchMutation.isPending,
     undoBatch: undoBatchMutation.mutateAsync,
     isUndoing: undoBatchMutation.isPending,
+    getBatchPreview,
+    getBatch,
   };
 }
