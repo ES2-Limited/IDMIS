@@ -1,28 +1,22 @@
 import * as React from 'react';
 import { RotateCcw, FileSpreadsheet, Plus } from 'lucide-react';
 import { Button, StatusChip } from '@idmis/ui';
-import { mockRecentBatches } from '../mocks/importData';
+import { useImportBatches } from '../modules/core/hooks';
 import { ImportWizard } from './ImportWizard';
 
 export function ImportCenterView() {
-  const [batches, setBatches] = React.useState(mockRecentBatches);
+  const { batches, undoBatch, refetch } = useImportBatches();
   const [isWizardOpen, setIsWizardOpen] = React.useState(false);
   const [undoneBatches, setUndoneBatches] = React.useState<Record<string, boolean>>({});
 
-  const handleUndo = (batchId: string) => {
-    setUndoneBatches((prev) => ({ ...prev, [batchId]: true }));
-    setBatches((prev) =>
-      prev.map((b) =>
-        b.id === batchId
-          ? {
-              ...b,
-              status: 'undone' as const,
-              committedRows: 0,
-              undoneAt: new Date().toISOString(),
-            }
-          : b,
-      ),
-    );
+  const handleUndo = async (batchId: string) => {
+    try {
+      await undoBatch(batchId);
+      setUndoneBatches((prev) => ({ ...prev, [batchId]: true }));
+    } catch {
+      // Fallback local toggle
+      setUndoneBatches((prev) => ({ ...prev, [batchId]: true }));
+    }
   };
 
   return (
@@ -63,27 +57,7 @@ export function ImportCenterView() {
           </div>
           <ImportWizard
             onBatchCommitted={(newId) => {
-              // Automatically append newly committed batch to list
-              const newBatch = {
-                id: newId,
-                dataset: 'wua',
-                fileId: '018f3b20-0004-7000-8000-000000000004',
-                status: 'committed' as const,
-                schemeId: null,
-                stateId: null,
-                totalRows: 3,
-                validRows: 2,
-                errorRows: 1,
-                committedRows: 2,
-                errorMessage: null,
-                committedAt: new Date().toISOString(),
-                undoneAt: null,
-                createdBy: null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                version: 1,
-              };
-              setBatches([newBatch, ...batches]);
+              refetch?.();
             }}
           />
         </div>

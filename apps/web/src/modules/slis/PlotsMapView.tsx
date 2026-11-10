@@ -107,7 +107,7 @@ export const mockPlots: PlotItem[] = [
 export function PlotsMapView() {
   const { currentScope } = useScope();
   const { info, success } = useToast();
-  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(mockPlots[0] ?? null);
+  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(null);
   const [search, setSearch] = React.useState('');
   const [serviceFilter, setServiceFilter] = React.useState('all');
   const [isImportOpen, setIsImportOpen] = React.useState(false);

@@ -28,7 +28,7 @@ export function useReviewQueue(query?: ListReviewQueueQuery) {
       if (query?.limit) params.set('limit', String(query.limit));
 
       const res = await client.get<{ items: ReviewQueueItem[]; total: number }>(
-        `/slis/review?${params.toString()}`,
+        `/slis/review/queue?${params.toString()}`,
       );
       return res;
     },

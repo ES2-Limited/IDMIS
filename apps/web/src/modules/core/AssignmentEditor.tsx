@@ -10,7 +10,8 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import type { ModuleKey, ScopeType } from '@idmis/contracts';
-import { mockOrganisations, mockRoles } from '../../mocks/coreData';
+import { mockRoles } from '../../mocks/coreData';
+import { useOrganisations } from './hooks';
 
 export interface AssignmentFormData {
   roleId: string;
@@ -30,6 +31,7 @@ interface AssignmentEditorProps {
 }
 
 export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditorProps) {
+  const { organisations: serverOrgs } = useOrganisations();
   const selectedRole = mockRoles.find((r) => r.id === value.roleId) || mockRoles[0];
 
   const handleRoleChange = (roleId: string) => {
@@ -46,7 +48,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
       scopeType,
       scopeStateId: scopeType === 'state' ? '018f3a70-0001-7000-8000-000000000001' : null,
       scopeOrgId: ['rbda', 'scheme', 'sector'].includes(scopeType)
-        ? (mockOrganisations[0]?.id ?? null)
+        ? (serverOrgs[0]?.id ?? null)
         : null,
     });
   };
@@ -195,7 +197,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
             Specific Organisation / Unit
           </label>
           <Select
-            value={value.scopeOrgId || mockOrganisations[0]?.id || ''}
+            value={value.scopeOrgId || serverOrgs[0]?.id || ''}
             onValueChange={(val) => onChange({ ...value, scopeOrgId: val })}
             disabled={disabled}
           >
@@ -203,7 +205,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
               <SelectValue placeholder="Choose organisation unit" />
             </SelectTrigger>
             <SelectContent className="rounded-xl shadow-xl border-slate-200">
-              {mockOrganisations
+              {serverOrgs
                 .filter((o) => (value.scopeType === 'rbda' ? o.type === 'rbda' : true))
                 .map((org) => (
                   <SelectItem key={org.id} value={org.id} className="text-xs font-medium py-2">
