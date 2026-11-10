@@ -52,6 +52,7 @@ COPY --chown=node:node --from=builder /app/packages/db/node_modules ./packages/d
 COPY --chown=node:node --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --chown=node:node --from=builder /app/packages/db/dist ./packages/db/dist
 COPY --chown=node:node packages/db/migrations ./packages/db/migrations
+COPY --chown=node:node packages/db/src/seed/reference ./packages/db/src/seed/reference
 
 USER node
 
