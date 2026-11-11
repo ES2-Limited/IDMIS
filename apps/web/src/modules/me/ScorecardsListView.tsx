@@ -27,6 +27,7 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useScorecards } from './hooks';
+import { useOrganisations } from '../core/hooks/useOrganisations';
 
 export interface ScorecardRecord {
   id: string;
@@ -48,17 +49,34 @@ export function ScorecardsListView() {
   const { currentScope } = useScope();
   const { success, info } = useToast();
 
+  const { organisations } = useOrganisations({ type: 'scheme' });
+  const schemes = React.useMemo(() => {
+    return organisations.filter((o) => o.type === 'scheme');
+  }, [organisations]);
+
   const [selectedYear, setSelectedYear] = React.useState<string>('2026');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // New Scorecard Dialog State
   const [isCreateOpen, setIsCreateOpen] = React.useState<boolean>(false);
+  const [selectedSchemeId, setSelectedSchemeId] = React.useState<string>('');
   const [newSchemeName, setNewSchemeName] = React.useState<string>('Kano River Irrigation Scheme');
   const [newYear, setNewYear] = React.useState<string>('2026');
   const [newGovScore, setNewGovScore] = React.useState<number>(85);
   const [newIsfRate, setNewIsfRate] = React.useState<number>(80);
   const [newInfraStatus, setNewInfraStatus] = React.useState<string>('Satisfactory');
   const [newFileUploaded, setNewFileUploaded] = React.useState<string | null>(null);
+
+  // Sync default scheme selection when dialog opens or schemes load
+  React.useEffect(() => {
+    if (currentScope.type === 'scheme') {
+      setSelectedSchemeId(currentScope.id);
+      setNewSchemeName(currentScope.name);
+    } else if (schemes.length > 0 && !selectedSchemeId) {
+      setSelectedSchemeId(schemes[0]!.id);
+      setNewSchemeName(schemes[0]!.name);
+    }
+  }, [currentScope, schemes, selectedSchemeId]);
 
   // Modular custom hook for Scorecards
   const { scorecards: serverScorecards, createScorecard } = useScorecards(
@@ -68,23 +86,26 @@ export function ScorecardsListView() {
 
   const scorecards: ScorecardRecord[] = React.useMemo(() => {
     if (serverScorecards && serverScorecards.length > 0) {
-      return serverScorecards.map((sc) => ({
-        id: sc.id,
-        schemeId: sc.schemeId,
-        schemeName: currentScope.name || 'KRIS Scheme',
-        periodYear: sc.periodYear,
-        overallScore: 85,
-        ratingTier: 'A',
-        publishedOn: sc.publishedOn,
-        status: sc.publishedOn ? 'published' : 'draft',
-        wuaGovernanceScore: 88,
-        isfCollectionRate: 82.5,
-        infrastructureStatus: 'Satisfactory (Good Lining)',
-        fileName: 'Official_Scheme_Scorecard.pdf',
-      }));
+      return serverScorecards.map((sc) => {
+        const foundScheme = schemes.find((s) => s.id === sc.schemeId);
+        return {
+          id: sc.id,
+          schemeId: sc.schemeId,
+          schemeName: foundScheme?.name || currentScope.name || 'KRIS Scheme',
+          periodYear: sc.periodYear,
+          overallScore: 85,
+          ratingTier: 'A',
+          publishedOn: sc.publishedOn,
+          status: sc.publishedOn ? 'published' : 'draft',
+          wuaGovernanceScore: 88,
+          isfCollectionRate: 82.5,
+          infrastructureStatus: 'Satisfactory (Good Lining)',
+          fileName: 'Official_Scheme_Scorecard.pdf',
+        };
+      });
     }
     return [];
-  }, [serverScorecards, currentScope.name]);
+  }, [serverScorecards, currentScope.name, schemes]);
 
   const filteredScorecards = React.useMemo(() => {
     return scorecards.filter((sc) => {
@@ -101,9 +122,14 @@ export function ScorecardsListView() {
   }, [scorecards, selectedYear, searchQuery]);
 
   const handleCreateScorecard = async () => {
+    const targetSchemeId =
+      selectedSchemeId ||
+      (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id) ||
+      '018f3a5e-0020-7000-8000-000000000001';
+
     try {
       await createScorecard({
-        schemeId: currentScope.id || '018f3a5e-0000-7000-8000-000000000001',
+        schemeId: targetSchemeId,
         periodYear: Number(newYear),
         publishedOn: new Date().toISOString().split('T')[0],
       });
@@ -111,7 +137,7 @@ export function ScorecardsListView() {
       setNewFileUploaded(null);
       success(
         'Scorecard Published',
-        `${newSchemeName} (${newYear}) evaluation scorecard published to register.`,
+        `${newSchemeName || 'Scheme'} (${newYear}) evaluation scorecard published to register.`,
       );
     } catch {
       setIsCreateOpen(false);
@@ -350,11 +376,33 @@ export function ScorecardsListView() {
             <div className="space-y-3 pt-2 text-xs">
               <div className="space-y-1">
                 <label className="font-bold text-slate-700">Scheme Location *</label>
-                <Input
-                  value={newSchemeName}
-                  onChange={(e) => setNewSchemeName(e.target.value)}
-                  className="text-xs"
-                />
+                {currentScope.type !== 'scheme' && schemes.length > 0 ? (
+                  <Select
+                    value={selectedSchemeId}
+                    onValueChange={(val: string) => {
+                      setSelectedSchemeId(val);
+                      const s = schemes.find((item) => item.id === val);
+                      if (s) setNewSchemeName(s.name);
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs py-2">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={newSchemeName}
+                    onChange={(e) => setNewSchemeName(e.target.value)}
+                    className="text-xs"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

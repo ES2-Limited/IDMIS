@@ -17,6 +17,8 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useMatchingGrants } from './hooks';
+import { useOrganisations } from '../core/hooks/useOrganisations';
+import { useWuas } from '../core/hooks/usePlatformAdmin';
 
 export interface MatchingGrantRecord {
   id: string;
@@ -35,16 +37,36 @@ export interface MatchingGrantRecord {
 
 export function MatchingGrantsListView() {
   const { currentScope } = useScope();
+  const { organisations } = useOrganisations({ type: 'scheme' });
+  const schemes = React.useMemo(() => {
+    return organisations.filter((o) => o.type === 'scheme');
+  }, [organisations]);
 
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // Dialog State
   const [isCreateOpen, setIsCreateOpen] = React.useState<boolean>(false);
+  const [selectedSchemeId, setSelectedSchemeId] = React.useState<string>('');
+  const [selectedWuaId, setSelectedWuaId] = React.useState<string>('');
   const [newWuaName, setNewWuaName] = React.useState<string>('');
   const [newWuaReg, setNewWuaReg] = React.useState<string>('');
   const [newPurpose, setNewPurpose] = React.useState<string>('');
   const [newAmount, setNewAmount] = React.useState<string>('12000000');
+
+  // Scheme & WUA queries
+  const targetSchemeForWua =
+    selectedSchemeId || (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id);
+  const { wuas } = useWuas(targetSchemeForWua ? { organisationId: targetSchemeForWua } : undefined);
+
+  // Sync default scheme selection when dialog opens or schemes load
+  React.useEffect(() => {
+    if (currentScope.type === 'scheme') {
+      setSelectedSchemeId(currentScope.id);
+    } else if (schemes.length > 0 && !selectedSchemeId) {
+      setSelectedSchemeId(schemes[0]!.id);
+    }
+  }, [currentScope, schemes, selectedSchemeId]);
 
   // Modular custom hook for Matching Grants
   const { grants: serverGrants, createGrant } = useMatchingGrants(
@@ -53,23 +75,26 @@ export function MatchingGrantsListView() {
 
   const grants: MatchingGrantRecord[] = React.useMemo(() => {
     if (serverGrants && serverGrants.length > 0) {
-      return serverGrants.map((g) => ({
-        id: g.id,
-        schemeId: g.schemeId,
-        schemeName: currentScope.name || 'KRIS Scheme',
-        wuaName: g.wuaId ? `WUA ${g.wuaId.slice(-4)}` : 'Apex WUA Federation',
-        wuaRegNo: g.wuaId ? `WUA-REG-${g.wuaId.slice(0, 4).toUpperCase()}` : 'WUA-REG-001',
-        purpose: g.purpose || 'Canal maintenance and secondary gate rehabilitation',
-        approvedAmountNgn: g.amountNgn ? Number(g.amountNgn) : 10000000,
-        disbursedAmountNgn: g.disbursedOn ? (g.amountNgn ? Number(g.amountNgn) : 10000000) : 0,
-        matchingContributionNgn: Math.round((g.amountNgn ? Number(g.amountNgn) : 10000000) * 0.2),
-        approvedOn: g.approvedOn || '2026-01-01',
-        disbursedOn: g.disbursedOn,
-        status: g.disbursedOn ? 'disbursed' : 'approved',
-      }));
+      return serverGrants.map((g) => {
+        const foundScheme = schemes.find((s) => s.id === g.schemeId);
+        return {
+          id: g.id,
+          schemeId: g.schemeId,
+          schemeName: foundScheme?.name || currentScope.name || 'KRIS Scheme',
+          wuaName: g.wuaId ? `WUA ${g.wuaId.slice(-4)}` : 'Apex WUA Federation',
+          wuaRegNo: g.wuaId ? `WUA-REG-${g.wuaId.slice(0, 4).toUpperCase()}` : 'WUA-REG-001',
+          purpose: g.purpose || 'Canal maintenance and secondary gate rehabilitation',
+          approvedAmountNgn: g.amountNgn ? Number(g.amountNgn) : 10000000,
+          disbursedAmountNgn: g.disbursedOn ? (g.amountNgn ? Number(g.amountNgn) : 10000000) : 0,
+          matchingContributionNgn: Math.round((g.amountNgn ? Number(g.amountNgn) : 10000000) * 0.2),
+          approvedOn: g.approvedOn || '2026-01-01',
+          disbursedOn: g.disbursedOn,
+          status: g.disbursedOn ? 'disbursed' : 'approved',
+        };
+      });
     }
     return [];
-  }, [serverGrants, currentScope.name]);
+  }, [serverGrants, currentScope.name, schemes]);
 
   const filteredGrants = React.useMemo(() => {
     return grants.filter((g) => {
@@ -91,12 +116,18 @@ export function MatchingGrantsListView() {
   const totalDisbursed = grants.reduce((acc, g) => acc + g.disbursedAmountNgn, 0);
 
   const handleCreateGrant = async () => {
-    if (!newWuaName.trim() || !newPurpose.trim()) return;
+    if (!newPurpose.trim()) return;
+
+    const targetSchemeId =
+      selectedSchemeId ||
+      (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id) ||
+      '018f3a5e-0020-7000-8000-000000000001';
 
     const amt = Number(newAmount) || 10000000;
     try {
       await createGrant({
-        schemeId: currentScope.id || '018f3a5e-0000-7000-8000-000000000001',
+        schemeId: targetSchemeId,
+        wuaId: selectedWuaId || undefined,
         purpose: newPurpose,
         amountNgn: String(amt),
       });
@@ -104,6 +135,7 @@ export function MatchingGrantsListView() {
       setNewWuaName('');
       setNewWuaReg('');
       setNewPurpose('');
+      setSelectedWuaId('');
     } catch {
       setIsCreateOpen(false);
     }
@@ -337,14 +369,65 @@ export function MatchingGrantsListView() {
             </DialogHeader>
 
             <div className="space-y-3 pt-2 text-xs">
+              {currentScope.type !== 'scheme' && (
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Irrigation Scheme *</label>
+                  <Select
+                    value={selectedSchemeId}
+                    onValueChange={(val: string) => {
+                      setSelectedSchemeId(val);
+                      setSelectedWuaId('');
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs py-2">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">WUA Organization Name *</label>
-                <Input
-                  placeholder="e.g. Kadawa Irrigation Water Users..."
-                  value={newWuaName}
-                  onChange={(e) => setNewWuaName(e.target.value)}
-                  className="text-xs"
-                />
+                <label className="font-bold text-slate-700">
+                  Beneficiary Water User Association (WUA)
+                </label>
+                {wuas.length > 0 ? (
+                  <Select
+                    value={selectedWuaId}
+                    onValueChange={(val: string) => {
+                      setSelectedWuaId(val);
+                      const w = wuas.find((item) => item.id === val);
+                      if (w) {
+                        setNewWuaName(w.name);
+                        setNewWuaReg(w.regNo || '');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Accredited WUA" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {wuas.map((w) => (
+                        <SelectItem key={w.id} value={w.id} className="text-xs py-2">
+                          {w.name} {w.regNo ? `(${w.regNo})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder="e.g. Kadawa Irrigation Water Users..."
+                    value={newWuaName}
+                    onChange={(e) => setNewWuaName(e.target.value)}
+                    className="text-xs"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -399,7 +482,7 @@ export function MatchingGrantsListView() {
               <Button
                 size="sm"
                 onClick={handleCreateGrant}
-                disabled={!newWuaName.trim() || !newPurpose.trim()}
+                disabled={(!newWuaName.trim() && !selectedWuaId) || !newPurpose.trim()}
                 className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold"
               >
                 Award Grant

@@ -318,6 +318,19 @@ export const BASE_LOOKUPS = [
       { code: 'other', label: 'Other', sortOrder: 5 },
     ],
   },
+  {
+    key: 'technology',
+    name: 'Agricultural Technologies',
+    module: 'me' as const,
+    values: [
+      { code: 'SEED_FARO44', label: 'Certified Faro 44 Rice Seed', sortOrder: 1 },
+      { code: 'SOLAR_PUMP_5HP', label: 'Solar-Powered 5HP Irrigation Pump', sortOrder: 2 },
+      { code: 'DRIP_KIT_1HA', label: 'Horticultural Drip Irrigation Kit', sortOrder: 3 },
+      { code: 'FERT_DEEP_PLACE', label: 'Urea Deep Placement (UDP) Briquettes', sortOrder: 4 },
+      { code: 'AWD_WATER_MGT', label: 'Alternate Wetting and Drying (AWD)', sortOrder: 5 },
+      { code: 'drip_irrigation', label: 'Drip Irrigation', sortOrder: 6 },
+    ],
+  },
 ] as const;
 
 export async function seed() {
