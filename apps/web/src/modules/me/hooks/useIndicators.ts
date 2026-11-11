@@ -25,8 +25,12 @@ export function useIndicators(query?: BaseListQuery) {
   });
 
   return {
-    indicators: (indicatorsQuery.data?.items as Indicator[] | undefined) ?? [],
-    total: indicatorsQuery.data?.total,
+    indicators: Array.isArray(indicatorsQuery.data)
+      ? (indicatorsQuery.data as Indicator[])
+      : ((indicatorsQuery.data?.items as Indicator[] | undefined) ?? []),
+    total: Array.isArray(indicatorsQuery.data)
+      ? indicatorsQuery.data.length
+      : indicatorsQuery.data?.total,
     isLoading: indicatorsQuery.isLoading,
     isFetching: indicatorsQuery.isFetching,
     error: indicatorsQuery.error,
@@ -34,15 +38,20 @@ export function useIndicators(query?: BaseListQuery) {
   };
 }
 
-export function useIndicatorMatrix() {
+export function useIndicatorMatrix(query?: {
+  year?: number;
+  quarter?: number;
+  scopeType?: 'national' | 'state' | 'scheme' | 'sector';
+  scopeId?: string;
+}) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
   const matrixQuery = useQuery({
-    queryKey: ME_MATRIX_QUERY_KEY,
+    queryKey: [...ME_MATRIX_QUERY_KEY, query],
     queryFn: async () => {
       const client = getApiClient();
-      return client.getIndicatorMatrix();
+      return client.getIndicatorMatrix(query);
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5,

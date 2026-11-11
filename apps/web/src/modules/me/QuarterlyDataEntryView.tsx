@@ -26,6 +26,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  useToast,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useIndicatorMatrix } from './hooks';
@@ -52,133 +53,29 @@ export interface EntryIndicatorRow {
   };
 }
 
-export const mockEntryRows: EntryIndicatorRow[] = [
-  {
-    id: '018f3a70-0061-7000-8000-000000000001',
-    code: '1a',
-    name: 'Direct project beneficiaries',
-    level: 'pdo',
-    unit: 'Number',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries',
-    annualTarget: '10,000,000',
-    lastQuarterValue: '8,150,000',
-    thisQuarterValue: '8,420,500',
-    status: 'submitted',
-    notes: 'Rollup calculated from verified SLIS active farmer registry and household rosters.',
-    computationSource: {
-      scheme: 'All Active Schemes (HVIP, KRIP, Bakolori)',
-      sourceTable: 'slis.farmers + slis.farmer_households',
-      recordCount: 28490,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000002',
-    code: '1b',
-    name: 'Female beneficiaries (%)',
-    level: 'pdo',
-    unit: '%',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries_female_pct',
-    annualTarget: '50.0',
-    lastQuarterValue: '46.8',
-    thisQuarterValue: '48.2',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'National Project Rollup',
-      sourceTable: 'slis.farmers (gender breakdown)',
-      recordCount: 28490,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000003',
-    code: '2a',
-    name: 'Area provided with irrigation and drainage services',
-    level: 'pdo',
-    unit: 'ha',
-    method: 'computed',
-    computeKey: 'slis.area_serviced',
-    annualTarget: '50,000',
-    lastQuarterValue: '44,200',
-    thisQuarterValue: '46,120',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'HVIP + KRIP + Bakolori Sectors',
-      sourceTable: 'slis.farms (geodesic polygon compute)',
-      recordCount: 34210,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000004',
-    code: '11',
-    name: 'Matching grants disbursed to farmer interest groups',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '450',
-    lastQuarterValue: '390',
-    thisQuarterValue: '412',
-    status: 'submitted',
-    notes: '22 new matching grants disbursed across Hadejia Valley Unit WUAs.',
-    evidenceFiles: ['Matching_Grants_Tranche4_Approval.pdf'],
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000005',
-    code: '12',
-    name: 'Dams with upgraded instrumentation and real-time telemetry',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '8',
-    lastQuarterValue: '6',
-    thisQuarterValue: '7',
-    status: 'draft',
-    notes: 'Tiga Dam piezometer telemetry installation successfully completed.',
-    evidenceFiles: ['Tiga_Dam_Telemetry_Commissioning_Report.pdf'],
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000006',
-    code: '14a',
-    name: 'Yield of main product – Tomato (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    method: 'computed',
-    computeKey: 'slis.yield.tomato',
-    annualTarget: '30.0',
-    lastQuarterValue: '26.8',
-    thisQuarterValue: '28.4',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'Kano River Irrigation Project',
-      sourceTable: 'slis.crop_production',
-      recordCount: 840,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000007',
-    code: '15',
-    name: 'Commercial partnerships with off-takers',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '7',
-    lastQuarterValue: '5',
-    thisQuarterValue: '6',
-    status: 'returned',
-    notes: 'Please attach official signed MoU between Dangote Tomato Processing and Apex WUA.',
-  },
-];
-
 export function QuarterlyDataEntryView() {
   const { currentScope } = useScope();
-  const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix();
+  const { success: toastSuccess } = useToast();
   const [selectedQuarter, setSelectedQuarter] = React.useState('2026-Q4');
   const [selectedScope, setSelectedScope] = React.useState('all');
   const [rows, setRows] = React.useState<EntryIndicatorRow[]>([]);
+
+  const parts = selectedQuarter.split('-Q');
+  const periodYear = Number(parts[0]) || 2026;
+  const periodQuarter = Number(parts[1]) || 4;
+
+  const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix({
+    year: periodYear,
+    quarter: periodQuarter,
+    scopeType:
+      currentScope.type === 'state'
+        ? 'state'
+        : currentScope.type === 'scheme'
+          ? 'scheme'
+          : 'national',
+    scopeId:
+      currentScope.type === 'state' || currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
 
   React.useEffect(() => {
     if (serverMatrix?.items && serverMatrix.items.length > 0) {
@@ -197,6 +94,8 @@ export function QuarterlyDataEntryView() {
           notes: item.message || undefined,
         })),
       );
+    } else {
+      setRows([]);
     }
   }, [serverMatrix]);
 
@@ -250,6 +149,10 @@ export function QuarterlyDataEntryView() {
   const handleSubmitQuarter = () => {
     setRows((prev) =>
       prev.map((r) => (r.status === 'draft' ? { ...r, status: 'submitted' as const } : r)),
+    );
+    toastSuccess(
+      'Quarter Submitted for Review',
+      `Monitoring values for ${selectedQuarter} have been locked and submitted for approval.`,
     );
   };
 
@@ -398,115 +301,132 @@ export function QuarterlyDataEntryView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => {
-                const isComputed = row.method === 'computed';
-                return (
-                  <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                      <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
-                        {row.code}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 max-w-xs">
-                      <div className="font-bold text-slate-900 leading-snug">{row.name}</div>
-                      <div className="mt-1 flex items-center gap-2">
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Table className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No indicator entries found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        No quarterly data entries are available for the selected period (
+                        {selectedQuarter}) and scope.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => {
+                  const isComputed = row.method === 'computed';
+                  return (
+                    <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                        <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
+                          {row.code}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <div className="font-bold text-slate-900 leading-snug">{row.name}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          {isComputed ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                              <Lock className="h-2.5 w-2.5" /> Computed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              <PenTool className="h-2.5 w-2.5" /> Manual Entry
+                            </span>
+                          )}
+                          {row.notes && (
+                            <span className="text-[10px] text-slate-400 truncate max-w-[160px]">
+                              {row.notes}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-700">{row.unit}</td>
+                      <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
+                        {row.annualTarget}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
+                        {row.lastQuarterValue}
+                      </td>
+                      <td className="py-3 px-4">
                         {isComputed ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                            <Lock className="h-2.5 w-2.5" /> Computed
+                          <span className="inline-block font-mono font-black text-blue-900 bg-blue-50/80 px-2 py-1 rounded-lg border border-blue-200 text-xs">
+                            {row.thisQuarterValue}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                            <PenTool className="h-2.5 w-2.5" /> Manual Entry
+                          <span className="inline-block font-mono font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
+                            {row.thisQuarterValue}
                           </span>
                         )}
-                        {row.notes && (
-                          <span className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                            {row.notes}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-700">{row.unit}</td>
-                    <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
-                      {row.annualTarget}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
-                      {row.lastQuarterValue}
-                    </td>
-                    <td className="py-3 px-4">
-                      {isComputed ? (
-                        <span className="inline-block font-mono font-black text-blue-900 bg-blue-50/80 px-2 py-1 rounded-lg border border-blue-200 text-xs">
-                          {row.thisQuarterValue}
-                        </span>
-                      ) : (
-                        <span className="inline-block font-mono font-black text-slate-900 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs">
-                          {row.thisQuarterValue}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {row.status === 'approved' ? (
-                        <Badge
-                          variant="outline"
-                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3" /> Approved
-                        </Badge>
-                      ) : row.status === 'submitted' ? (
-                        <Badge
-                          variant="outline"
-                          className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold gap-1"
-                        >
-                          <Clock className="h-3 w-3" /> Under Review
-                        </Badge>
-                      ) : row.status === 'returned' ? (
-                        <Badge variant="destructive" className="text-[10px] font-bold gap-1">
-                          <Undo2 className="h-3 w-3" /> Returned
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="border-slate-300 text-slate-600 text-[10px] font-bold"
-                        >
-                          Draft
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end">
-                        {isComputed ? (
-                          <Button
-                            size="sm"
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {row.status === 'approved' ? (
+                          <Badge
                             variant="outline"
-                            onClick={() => setSelectedRowForDetail(row)}
-                            className="h-7 px-3 text-xs font-semibold gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
+                            className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
                           >
-                            <Cpu className="h-3 w-3" /> Breakdown
-                          </Button>
+                            <CheckCircle2 className="h-3 w-3" /> Approved
+                          </Badge>
                         ) : row.status === 'submitted' ? (
-                          <Button
-                            size="sm"
+                          <Badge
                             variant="outline"
-                            onClick={() => setReviewingRow(row)}
-                            className="h-7 px-3 text-xs font-bold gap-1.5 text-teal-800 border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 cursor-pointer"
+                            className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold gap-1"
                           >
-                            <SlidersHorizontal className="h-3 w-3 text-teal-700" /> Review
-                          </Button>
+                            <Clock className="h-3 w-3" /> Under Review
+                          </Badge>
+                        ) : row.status === 'returned' ? (
+                          <Badge variant="destructive" className="text-[10px] font-bold gap-1">
+                            <Undo2 className="h-3 w-3" /> Returned
+                          </Badge>
                         ) : (
-                          <Button
-                            size="sm"
+                          <Badge
                             variant="outline"
-                            onClick={() => handleOpenEdit(row)}
-                            className="h-7 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                            className="border-slate-300 text-slate-600 text-[10px] font-bold"
                           >
-                            <FileText className="h-3 w-3 text-slate-500" /> Edit
-                          </Button>
+                            Draft
+                          </Badge>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end">
+                          {isComputed ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedRowForDetail(row)}
+                              className="h-7 px-3 text-xs font-semibold gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
+                            >
+                              <Cpu className="h-3 w-3" /> Breakdown
+                            </Button>
+                          ) : row.status === 'submitted' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setReviewingRow(row)}
+                              className="h-7 px-3 text-xs font-bold gap-1.5 text-teal-800 border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 cursor-pointer"
+                            >
+                              <SlidersHorizontal className="h-3 w-3 text-teal-700" /> Review
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenEdit(row)}
+                              className="h-7 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                            >
+                              <FileText className="h-3 w-3 text-slate-500" /> Edit
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

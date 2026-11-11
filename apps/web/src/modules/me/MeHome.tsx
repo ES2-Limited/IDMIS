@@ -2,17 +2,33 @@ import { Table, ClipboardList, Target, ArrowUpRight, TrendingUp, BarChart3 } fro
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
+import { useIndicators, useIndicatorMatrix } from './hooks';
 
 export function MeHome() {
   const { currentScope } = useScope();
+  const { indicators } = useIndicators({ limit: 100 });
+  const { matrix } = useIndicatorMatrix({
+    scopeType:
+      currentScope.type === 'state'
+        ? 'state'
+        : currentScope.type === 'scheme'
+          ? 'scheme'
+          : 'national',
+    scopeId:
+      currentScope.type === 'state' || currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
+
+  const totalIndicators = indicators.length;
+  const pdoCount = indicators.filter((i) => i.level === 'pdo').length;
+  const matrixCount = matrix?.items?.length ?? 0;
 
   const meSections = [
     {
       title: 'Project Results Framework',
       description:
-        '22 Project Development Objective (PDO) and intermediate results framework indicators.',
-      stats: '22 Indicators',
-      statLabel: '18 On Target',
+        'Project Development Objective (PDO) and intermediate results framework indicators.',
+      stats: `${totalIndicators} Indicators`,
+      statLabel: `${pdoCount} PDO Targets`,
       icon: Target,
       badge: 'Quarterly Cycle',
       badgeStatus: 'syncing' as const,
@@ -30,8 +46,8 @@ export function MeHome() {
       title: 'Quarterly Data Entry Grid',
       description:
         'Matrix input for seasonal irrigation cycles, yield estimates, and evidence document attachments.',
-      stats: 'Q4 2026 Active',
-      statLabel: '87% Submitted',
+      stats: `${matrixCount} Matrix Rows`,
+      statLabel: 'Live Sync',
       icon: Table,
       badge: 'Submission Open',
       badgeStatus: 'approved' as const,
@@ -49,7 +65,7 @@ export function MeHome() {
       title: 'Field Surveys & Beneficiaries',
       description:
         'Mobile offline surveys for farmer household income, yields, and water user satisfaction.',
-      stats: '1,840 Surveys',
+      stats: 'Field Operations',
       statLabel: 'Offline Capable',
       icon: ClipboardList,
       badge: 'Field Syncing',
@@ -67,10 +83,18 @@ export function MeHome() {
   ];
 
   const quickStats = [
-    { label: 'Active PDO Indicators', value: '22 Metrics', sub: '91% tracked' },
-    { label: 'Quarterly Submissions', value: '87.4%', sub: '4 schemes closed' },
-    { label: 'Field Beneficiaries', value: '34,800', sub: '+1,200 this season' },
-    { label: 'Yield Improvement', value: '+34.2%', sub: 'vs baseline' },
+    {
+      label: 'Active Indicators',
+      value: `${totalIndicators} Metrics`,
+      sub: `${pdoCount} PDO tracked`,
+    },
+    { label: 'Matrix Measurements', value: `${matrixCount} Rows`, sub: 'Active period' },
+    {
+      label: 'Active Scope',
+      value: currentScope.name || 'National',
+      sub: currentScope.type.toUpperCase(),
+    },
+    { label: 'Data Source', value: 'Live Postgres', sub: 'Sync triggers active' },
   ];
 
   return (

@@ -46,195 +46,6 @@ export interface MatrixItem {
 }
 
 // 22 Results Framework indicators seeded matching backend mv_indicator_matrix & RF specifications
-const SEEDED_MATRIX_DATA: MatrixItem[] = [
-  {
-    id: 'kpi-1',
-    code: 'PDO-01',
-    name: 'Direct Project Beneficiaries (Number of farmers reached with services)',
-    level: 'pdo',
-    unit: 'Farmers',
-    baseline: '0',
-    targets: { 2024: 25000, 2025: 65000, 2026: 120000 },
-    actuals: { 2024: 26400, 2025: 68150, 2026: 104500 },
-    computationMethod: 'computed',
-    sourceDescription: 'Aggregated unique farmer registries from SLIS with active land parcels',
-    sourceTable: 'slis.farmers JOIN slis.plots',
-    verifiedCount: 104500,
-    lastUpdated: '2026-03-31 16:45',
-  },
-  {
-    id: 'kpi-2',
-    code: 'PDO-02',
-    name: 'Female Beneficiaries reached with project interventions (%)',
-    level: 'pdo',
-    unit: '%',
-    baseline: '12%',
-    targets: { 2024: 20, 2025: 28, 2026: 35 },
-    actuals: { 2024: 21.5, 2025: 29.2, 2026: 34.1 },
-    computationMethod: 'computed',
-    sourceDescription:
-      'Calculated as verified female farmers divided by total registered farmers in SLIS',
-    sourceTable: 'slis.farmers (gender disaggregation)',
-    verifiedCount: 35635,
-    lastUpdated: '2026-03-31 16:45',
-  },
-  {
-    id: 'kpi-3',
-    code: 'PDO-03',
-    name: 'Area provided with new / improved irrigation or drainage services (ha)',
-    level: 'pdo',
-    unit: 'ha',
-    baseline: '0',
-    targets: { 2024: 5000, 2025: 18000, 2026: 38000 },
-    actuals: { 2024: 5200, 2025: 19100, 2026: 36500 },
-    computationMethod: 'computed',
-    sourceDescription:
-      'Sum of digitized command polygon parcels with verified water infrastructure delivery',
-    sourceTable: 'slis.plots JOIN slis.command_areas',
-    verifiedCount: 18450,
-    lastUpdated: '2026-03-31 15:20',
-  },
-  {
-    id: 'kpi-4',
-    code: 'PDO-04',
-    name: 'Average crop yield — Rice (tonnes/ha)',
-    level: 'pdo',
-    unit: 't/ha',
-    baseline: '2.5',
-    targets: { 2024: 3.2, 2025: 4.0, 2026: 4.8 },
-    actuals: { 2024: 3.3, 2025: 4.1, 2026: 4.6 },
-    computationMethod: 'computed',
-    sourceDescription: 'SLIS seasonal crop harvest logging and seasonal yield sampling surveys',
-    sourceTable: 'slis.crop_productions',
-    verifiedCount: 3420,
-    lastUpdated: '2026-03-30 11:15',
-  },
-  {
-    id: 'kpi-5',
-    code: 'PDO-05',
-    name: 'Average crop yield — Tomato (tonnes/ha)',
-    level: 'pdo',
-    unit: 't/ha',
-    baseline: '15.0',
-    targets: { 2024: 18.0, 2025: 22.0, 2026: 25.0 },
-    actuals: { 2024: 18.4, 2025: 22.8, 2026: 24.2 },
-    computationMethod: 'computed',
-    sourceDescription: 'Dry-season high-value horticultural harvest reports across Kano & Bakolori',
-    sourceTable: 'slis.crop_productions',
-    verifiedCount: 1890,
-    lastUpdated: '2026-03-30 11:15',
-  },
-  {
-    id: 'kpi-6',
-    code: 'PDO-06',
-    name: 'Operational Water User Associations (WUAs) with approved business plans',
-    level: 'pdo',
-    unit: 'WUAs',
-    baseline: '15',
-    targets: { 2024: 50, 2025: 120, 2026: 200 },
-    actuals: { 2024: 52, 2025: 114, 2026: 185 },
-    computationMethod: 'manual',
-    sourceDescription:
-      'Verified institutional governance audits and submitted business registrations',
-    sourceTable: 'core.organisations (WUA units)',
-    verifiedCount: 185,
-    lastUpdated: '2026-03-25 10:00',
-  },
-  {
-    id: 'kpi-7',
-    code: 'PDO-07',
-    name: 'Irrigation Service Fee (ISF) collection efficiency rate (%)',
-    level: 'pdo',
-    unit: '%',
-    baseline: '25%',
-    targets: { 2024: 45, 2025: 65, 2026: 80 },
-    actuals: { 2024: 48, 2025: 62, 2026: 76.5 },
-    computationMethod: 'computed',
-    sourceDescription: 'Total reconciled fee receipts divided by total billed service demand',
-    sourceTable: 'slis.fee_collections JOIN slis.water_billings',
-    verifiedCount: 42100,
-    lastUpdated: '2026-03-31 18:00',
-  },
-  {
-    id: 'kpi-8',
-    code: 'IRI-01',
-    name: 'Dam Safety Management Plans implemented and verified',
-    level: 'intermediate',
-    unit: 'Dams',
-    baseline: '2',
-    targets: { 2024: 4, 2025: 6, 2026: 8 },
-    actuals: { 2024: 4, 2025: 6, 2026: 7 },
-    computationMethod: 'manual',
-    sourceDescription:
-      'Federal Ministry dam safety engineering certifications & inspection reports',
-    sourceTable: 'blis.dam_inspections',
-    verifiedCount: 7,
-    lastUpdated: '2026-03-15 09:30',
-  },
-  {
-    id: 'kpi-9',
-    code: 'IRI-02',
-    name: 'Hydrometric and meteorological stations transmitting telemetry into BLIS',
-    level: 'intermediate',
-    unit: 'Stations',
-    baseline: '10',
-    targets: { 2024: 30, 2025: 65, 2026: 100 },
-    actuals: { 2024: 32, 2025: 58, 2026: 88 },
-    computationMethod: 'computed',
-    sourceDescription: 'Active telemetry ingest pipelines receiving verified 15-minute readings',
-    sourceTable: 'blis.telemetry_readings',
-    verifiedCount: 88,
-    lastUpdated: '2026-03-31 19:10',
-  },
-  {
-    id: 'kpi-10',
-    code: 'IRI-03',
-    name: 'Farmers adopting climate-resilient agricultural technologies (Number)',
-    level: 'intermediate',
-    unit: 'Farmers',
-    baseline: '0',
-    targets: { 2024: 12000, 2025: 35000, 2026: 60000 },
-    actuals: { 2024: 13100, 2025: 33800, 2026: 54200 },
-    computationMethod: 'manual',
-    sourceDescription:
-      'Field verification records for certified early-maturing seeds and solar pumps',
-    sourceTable: 'me.technology_adoptions',
-    verifiedCount: 54200,
-    lastUpdated: '2026-03-28 14:00',
-  },
-  {
-    id: 'kpi-11',
-    code: 'IRI-04',
-    name: 'WUA leaders trained in financial management and scheme O&M',
-    level: 'intermediate',
-    unit: 'Persons',
-    baseline: '120',
-    targets: { 2024: 600, 2025: 1400, 2026: 2200 },
-    actuals: { 2024: 640, 2025: 1450, 2026: 2150 },
-    computationMethod: 'manual',
-    sourceDescription:
-      'Attendance registers from accredited PIM and financial governance workshops',
-    sourceTable: 'slis.training_attendances',
-    verifiedCount: 2150,
-    lastUpdated: '2026-03-20 16:30',
-  },
-  {
-    id: 'kpi-12',
-    code: 'IRI-05',
-    name: 'Youth beneficiaries (aged 18–35) engaged in commercial irrigated agriculture (%)',
-    level: 'intermediate',
-    unit: '%',
-    baseline: '8%',
-    targets: { 2024: 15, 2025: 22, 2026: 30 },
-    actuals: { 2024: 16.2, 2025: 23.1, 2026: 28.5 },
-    computationMethod: 'computed',
-    sourceDescription: 'Calculated from date of birth fields in farmer registration profiles',
-    sourceTable: 'slis.farmers (demographics)',
-    verifiedCount: 29800,
-    lastUpdated: '2026-03-31 16:45',
-  },
-];
-
 export function IndicatorMatrixView() {
   const { currentScope } = useScope();
 
@@ -252,7 +63,17 @@ export function IndicatorMatrixView() {
   );
 
   // Modular custom hook for Results Framework Matrix
-  const { matrix: serverMatrix } = useIndicatorMatrix();
+  const { matrix: serverMatrix } = useIndicatorMatrix({
+    year: selectedYear,
+    scopeType:
+      currentScope.type === 'state'
+        ? 'state'
+        : currentScope.type === 'scheme'
+          ? 'scheme'
+          : 'national',
+    scopeId:
+      currentScope.type === 'state' || currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
 
   const matrixItems: MatrixItem[] = React.useMemo(() => {
     if (serverMatrix?.items && serverMatrix.items.length > 0) {
@@ -274,7 +95,7 @@ export function IndicatorMatrixView() {
           : new Date().toISOString().split('T')[0],
       }));
     }
-    return SEEDED_MATRIX_DATA;
+    return [];
   }, [serverMatrix, selectedYear]);
 
   // Helper to compute achievement rate and status

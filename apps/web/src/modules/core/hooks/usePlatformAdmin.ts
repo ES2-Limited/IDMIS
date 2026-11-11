@@ -65,7 +65,9 @@ export function useLookupValues(typeKey: string) {
     queryKey: [...CORE_LOOKUPS_KEY, typeKey],
     queryFn: async () => {
       const client = getApiClient();
-      return client.get<LookupValueResponse[]>(`/lookups/${typeKey}/values`);
+      return client.get<LookupValueResponse[]>(
+        `/admin/lookups/values?typeKey=${encodeURIComponent(typeKey)}&isActive=true`,
+      );
     },
     enabled: isAuthenticated && Boolean(typeKey),
     staleTime: 1000 * 60 * 60, // 1 hour cache

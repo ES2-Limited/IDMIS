@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Banknote, Plus, Search, CheckCircle2, Clock, Layers, Building } from 'lucide-react';
+import { Banknote, Plus, Search, CheckCircle2, Clock, Layers, Building, Coins } from 'lucide-react';
 import {
   Button,
   Input,
@@ -17,6 +17,8 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useMatchingGrants } from './hooks';
+import { useOrganisations } from '../core/hooks/useOrganisations';
+import { useWuas } from '../core/hooks/usePlatformAdmin';
 
 export interface MatchingGrantRecord {
   id: string;
@@ -33,63 +35,38 @@ export interface MatchingGrantRecord {
   status: 'disbursed' | 'approved' | 'in_review';
 }
 
-const INITIAL_GRANTS: MatchingGrantRecord[] = [
-  {
-    id: 'gr-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    wuaName: 'Kura Canal Maintenance Association',
-    wuaRegNo: 'WUA-KRS-042',
-    purpose: 'Procurement of mini-excavator for lateral desilting and culvert repair',
-    approvedAmountNgn: 15000000,
-    disbursedAmountNgn: 15000000,
-    matchingContributionNgn: 3000000,
-    approvedOn: '2026-01-20',
-    disbursedOn: '2026-02-14',
-    status: 'disbursed',
-  },
-  {
-    id: 'gr-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Scheme',
-    wuaName: 'Talata Mafara Vegetable Producers WUA',
-    wuaRegNo: 'WUA-BIS-018',
-    purpose: 'Solar-powered community cold hub & produce sorting shed',
-    approvedAmountNgn: 22000000,
-    disbursedAmountNgn: 11000000,
-    matchingContributionNgn: 4400000,
-    approvedOn: '2026-02-10',
-    disbursedOn: '2026-03-01',
-    status: 'approved',
-  },
-  {
-    id: 'gr-3',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    wuaName: 'Auyo Rice Growers WUA',
-    wuaRegNo: 'WUA-HVS-007',
-    purpose: 'Installation of parabolic pre-cast lining for tail-end distribution',
-    approvedAmountNgn: 18500000,
-    disbursedAmountNgn: 0,
-    matchingContributionNgn: 3700000,
-    approvedOn: '2026-03-12',
-    disbursedOn: null,
-    status: 'in_review',
-  },
-];
-
 export function MatchingGrantsListView() {
   const { currentScope } = useScope();
+  const { organisations } = useOrganisations({ type: 'scheme' });
+  const schemes = React.useMemo(() => {
+    return organisations.filter((o) => o.type === 'scheme');
+  }, [organisations]);
 
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // Dialog State
   const [isCreateOpen, setIsCreateOpen] = React.useState<boolean>(false);
+  const [selectedSchemeId, setSelectedSchemeId] = React.useState<string>('');
+  const [selectedWuaId, setSelectedWuaId] = React.useState<string>('');
   const [newWuaName, setNewWuaName] = React.useState<string>('');
   const [newWuaReg, setNewWuaReg] = React.useState<string>('');
   const [newPurpose, setNewPurpose] = React.useState<string>('');
   const [newAmount, setNewAmount] = React.useState<string>('12000000');
+
+  // Scheme & WUA queries
+  const targetSchemeForWua =
+    selectedSchemeId || (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id);
+  const { wuas } = useWuas(targetSchemeForWua ? { organisationId: targetSchemeForWua } : undefined);
+
+  // Sync default scheme selection when dialog opens or schemes load
+  React.useEffect(() => {
+    if (currentScope.type === 'scheme') {
+      setSelectedSchemeId(currentScope.id);
+    } else if (schemes.length > 0 && !selectedSchemeId) {
+      setSelectedSchemeId(schemes[0]!.id);
+    }
+  }, [currentScope, schemes, selectedSchemeId]);
 
   // Modular custom hook for Matching Grants
   const { grants: serverGrants, createGrant } = useMatchingGrants(
@@ -98,23 +75,26 @@ export function MatchingGrantsListView() {
 
   const grants: MatchingGrantRecord[] = React.useMemo(() => {
     if (serverGrants && serverGrants.length > 0) {
-      return serverGrants.map((g) => ({
-        id: g.id,
-        schemeId: g.schemeId,
-        schemeName: currentScope.name || 'KRIS Scheme',
-        wuaName: g.wuaId ? `WUA ${g.wuaId.slice(-4)}` : 'Apex WUA Federation',
-        wuaRegNo: g.wuaId ? `WUA-REG-${g.wuaId.slice(0, 4).toUpperCase()}` : 'WUA-REG-001',
-        purpose: g.purpose || 'Canal maintenance and secondary gate rehabilitation',
-        approvedAmountNgn: g.amountNgn ? Number(g.amountNgn) : 10000000,
-        disbursedAmountNgn: g.disbursedOn ? (g.amountNgn ? Number(g.amountNgn) : 10000000) : 0,
-        matchingContributionNgn: Math.round((g.amountNgn ? Number(g.amountNgn) : 10000000) * 0.2),
-        approvedOn: g.approvedOn || '2026-01-01',
-        disbursedOn: g.disbursedOn,
-        status: g.disbursedOn ? 'disbursed' : 'approved',
-      }));
+      return serverGrants.map((g) => {
+        const foundScheme = schemes.find((s) => s.id === g.schemeId);
+        return {
+          id: g.id,
+          schemeId: g.schemeId,
+          schemeName: foundScheme?.name || currentScope.name || 'KRIS Scheme',
+          wuaName: g.wuaId ? `WUA ${g.wuaId.slice(-4)}` : 'Apex WUA Federation',
+          wuaRegNo: g.wuaId ? `WUA-REG-${g.wuaId.slice(0, 4).toUpperCase()}` : 'WUA-REG-001',
+          purpose: g.purpose || 'Canal maintenance and secondary gate rehabilitation',
+          approvedAmountNgn: g.amountNgn ? Number(g.amountNgn) : 10000000,
+          disbursedAmountNgn: g.disbursedOn ? (g.amountNgn ? Number(g.amountNgn) : 10000000) : 0,
+          matchingContributionNgn: Math.round((g.amountNgn ? Number(g.amountNgn) : 10000000) * 0.2),
+          approvedOn: g.approvedOn || '2026-01-01',
+          disbursedOn: g.disbursedOn,
+          status: g.disbursedOn ? 'disbursed' : 'approved',
+        };
+      });
     }
-    return INITIAL_GRANTS;
-  }, [serverGrants, currentScope.name]);
+    return [];
+  }, [serverGrants, currentScope.name, schemes]);
 
   const filteredGrants = React.useMemo(() => {
     return grants.filter((g) => {
@@ -136,12 +116,18 @@ export function MatchingGrantsListView() {
   const totalDisbursed = grants.reduce((acc, g) => acc + g.disbursedAmountNgn, 0);
 
   const handleCreateGrant = async () => {
-    if (!newWuaName.trim() || !newPurpose.trim()) return;
+    if (!newPurpose.trim()) return;
+
+    const targetSchemeId =
+      selectedSchemeId ||
+      (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id) ||
+      '018f3a5e-0020-7000-8000-000000000001';
 
     const amt = Number(newAmount) || 10000000;
     try {
       await createGrant({
-        schemeId: currentScope.id || '018f3a5e-0000-7000-8000-000000000001',
+        schemeId: targetSchemeId,
+        wuaId: selectedWuaId || undefined,
         purpose: newPurpose,
         amountNgn: String(amt),
       });
@@ -149,6 +135,7 @@ export function MatchingGrantsListView() {
       setNewWuaName('');
       setNewWuaReg('');
       setNewPurpose('');
+      setSelectedWuaId('');
     } catch {
       setIsCreateOpen(false);
     }
@@ -293,51 +280,76 @@ export function MatchingGrantsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredGrants.map((g) => (
-                <tr key={g.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900 leading-snug">{g.wuaName}</div>
-                    <span className="text-[10px] text-slate-400 font-mono font-bold">
-                      {g.wuaRegNo}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-700 leading-relaxed">{g.purpose}</td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">{g.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    ₦{g.approvedAmountNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-black text-teal-800">
-                    ₦{g.disbursedAmountNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">
-                    ₦{g.matchingContributionNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {g.status === 'disbursed' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+              {filteredGrants.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Coins className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No matching grants found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || statusFilter !== 'all'
+                          ? 'No matching grants found for your filter criteria.'
+                          : 'WUA matching grants and disbursed funding records will appear here.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-teal-700 hover:bg-teal-800 text-white text-xs mt-2 gap-1.5"
                       >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Disbursed
-                      </Badge>
-                    ) : g.status === 'approved' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold"
-                      >
-                        Approved
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
-                      >
-                        In Review
-                      </Badge>
-                    )}
+                        <Plus className="h-3.5 w-3.5" /> Record New Grant
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredGrants.map((g) => (
+                  <tr key={g.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900 leading-snug">{g.wuaName}</div>
+                      <span className="text-[10px] text-slate-400 font-mono font-bold">
+                        {g.wuaRegNo}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700 leading-relaxed">{g.purpose}</td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">{g.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      ₦{g.approvedAmountNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-black text-teal-800">
+                      ₦{g.disbursedAmountNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                      ₦{g.matchingContributionNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {g.status === 'disbursed' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Disbursed
+                        </Badge>
+                      ) : g.status === 'approved' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold"
+                        >
+                          Approved
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
+                        >
+                          In Review
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -357,14 +369,65 @@ export function MatchingGrantsListView() {
             </DialogHeader>
 
             <div className="space-y-3 pt-2 text-xs">
+              {currentScope.type !== 'scheme' && (
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Irrigation Scheme *</label>
+                  <Select
+                    value={selectedSchemeId}
+                    onValueChange={(val: string) => {
+                      setSelectedSchemeId(val);
+                      setSelectedWuaId('');
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs py-2">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">WUA Organization Name *</label>
-                <Input
-                  placeholder="e.g. Kadawa Irrigation Water Users..."
-                  value={newWuaName}
-                  onChange={(e) => setNewWuaName(e.target.value)}
-                  className="text-xs"
-                />
+                <label className="font-bold text-slate-700">
+                  Beneficiary Water User Association (WUA)
+                </label>
+                {wuas.length > 0 ? (
+                  <Select
+                    value={selectedWuaId}
+                    onValueChange={(val: string) => {
+                      setSelectedWuaId(val);
+                      const w = wuas.find((item) => item.id === val);
+                      if (w) {
+                        setNewWuaName(w.name);
+                        setNewWuaReg(w.regNo || '');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Accredited WUA" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {wuas.map((w) => (
+                        <SelectItem key={w.id} value={w.id} className="text-xs py-2">
+                          {w.name} {w.regNo ? `(${w.regNo})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder="e.g. Kadawa Irrigation Water Users..."
+                    value={newWuaName}
+                    onChange={(e) => setNewWuaName(e.target.value)}
+                    className="text-xs"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -419,7 +482,7 @@ export function MatchingGrantsListView() {
               <Button
                 size="sm"
                 onClick={handleCreateGrant}
-                disabled={!newWuaName.trim() || !newPurpose.trim()}
+                disabled={(!newWuaName.trim() && !selectedWuaId) || !newPurpose.trim()}
                 className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold"
               >
                 Award Grant

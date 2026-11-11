@@ -50,471 +50,6 @@ export interface IndicatorItem {
   targetsByYear: Record<string, string>;
 }
 
-export const mockIndicators: IndicatorItem[] = [
-  {
-    id: '018f3a70-0051-7000-8000-000000000001',
-    code: '1a',
-    name: 'Direct project beneficiaries',
-    level: 'pdo',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries',
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '10,000,000',
-    endTargetNote: 'World Bank ICR verified target',
-    disaggregations: ['gender', 'scheme', 'state'],
-    currentValue: '8,420,500',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '5,000,000',
-      '2025': '7,500,000',
-      '2026': '10,000,000',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000002',
-    code: '1b',
-    name: 'Female beneficiaries (%)',
-    level: 'pdo',
-    unit: '%',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries_female_pct',
-    baseline: '15.0',
-    baselineYear: 2020,
-    endTarget: '50.0',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '48.2',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '40.0',
-      '2025': '45.0',
-      '2026': '50.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000003',
-    code: '2a',
-    name: 'Area provided with irrigation and drainage services',
-    level: 'pdo',
-    unit: 'ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.area_serviced',
-    baseline: '12,500',
-    baselineYear: 2020,
-    endTarget: '50,000',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '46,120',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '35,000',
-      '2025': '42,000',
-      '2026': '50,000',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000004',
-    code: '2b',
-    name: 'Area provided with irrigation services – improved',
-    level: 'pdo',
-    unit: 'ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.area_improved',
-    baseline: '8,000',
-    baselineYear: 2020,
-    endTarget: '27,000',
-    endTargetNote: 'Gravity canal rehabilitation',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '26,450',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '20,000',
-      '2025': '24,000',
-      '2026': '27,000',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000005',
-    code: '2c',
-    name: 'Area provided with irrigation services – new expansion',
-    level: 'pdo',
-    unit: 'ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.area_new',
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '23,000',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '19,670',
-    status: 'at_risk',
-    targetsByYear: {
-      '2024': '15,000',
-      '2025': '19,000',
-      '2026': '23,000',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000006',
-    code: '3',
-    name: 'Cropping intensity (average annual crops per parcel)',
-    level: 'pdo',
-    unit: '%',
-    frequency: 'annual',
-    method: 'computed',
-    computeKey: 'slis.cropping_intensity',
-    baseline: '110.0',
-    baselineYear: 2020,
-    endTarget: '180.0',
-    disaggregations: ['scheme'],
-    currentValue: '168.5',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '150.0',
-      '2025': '165.0',
-      '2026': '180.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000007',
-    code: '4',
-    name: 'Water user satisfaction with service delivery',
-    level: 'pdo',
-    unit: '%',
-    frequency: 'annual',
-    method: 'survey',
-    baseline: '45.0',
-    baselineYear: 2021,
-    endTarget: '80.0',
-    disaggregations: ['scheme', 'gender'],
-    currentValue: '78.4',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '70.0',
-      '2025': '75.0',
-      '2026': '80.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000008',
-    code: '5',
-    name: 'Fee collection rate vs total operational billing',
-    level: 'intermediate',
-    unit: '%',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.fee_recovery_rate',
-    baseline: '32.0',
-    baselineYear: 2020,
-    endTarget: '85.0',
-    disaggregations: ['scheme', 'wua'],
-    currentValue: '88.2',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '75.0',
-      '2025': '80.0',
-      '2026': '85.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000009',
-    code: '6',
-    name: 'Staff and dam engineers trained in dam safety surveillance',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'annual',
-    method: 'computed',
-    computeKey: 'slis.trained_dam_safety',
-    baseline: '12',
-    baselineYear: 2020,
-    endTarget: '120',
-    disaggregations: ['gender', 'basin'],
-    currentValue: '115',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '80',
-      '2025': '100',
-      '2026': '120',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000010',
-    code: '7',
-    name: 'WUAs legally registered and operational under statutory framework',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'core.wua_operational',
-    baseline: '45',
-    baselineYear: 2020,
-    endTarget: '210',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '198',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '160',
-      '2025': '185',
-      '2026': '210',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000011',
-    code: '8',
-    name: 'Female representation in WUA executive governance committees',
-    level: 'intermediate',
-    unit: '%',
-    frequency: 'annual',
-    method: 'survey',
-    baseline: '8.0',
-    baselineYear: 2020,
-    endTarget: '30.0',
-    disaggregations: ['scheme'],
-    currentValue: '28.5',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '22.0',
-      '2025': '26.0',
-      '2026': '30.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000012',
-    code: '9',
-    name: 'Farmers adopting climate-smart agricultural technology',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'me.tech_adopters',
-    baseline: '1,200',
-    baselineYear: 2020,
-    endTarget: '18,000',
-    disaggregations: ['scheme', 'gender'],
-    currentValue: '16,400',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '12,000',
-      '2025': '15,000',
-      '2026': '18,000',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000013',
-    code: '10',
-    name: 'Female farmers adopting improved technology packages',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'me.tech_adopters_female',
-    baseline: '240',
-    baselineYear: 2020,
-    endTarget: '6,500',
-    disaggregations: ['scheme'],
-    currentValue: '5,920',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '4,000',
-      '2025': '5,200',
-      '2026': '6,500',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000014',
-    code: '11',
-    name: 'Matching grants disbursed to farmer interest groups',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'manual',
-    computeKey: null,
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '450',
-    disaggregations: ['scheme', 'state'],
-    currentValue: '412',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '300',
-      '2025': '380',
-      '2026': '450',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000015',
-    code: '12',
-    name: 'Dams with upgraded instrumentation and real-time telemetry',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'annual',
-    method: 'manual',
-    computeKey: null,
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '8',
-    disaggregations: ['basin'],
-    currentValue: '6',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '4',
-      '2025': '6',
-      '2026': '8',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000016',
-    code: '13',
-    name: 'Emergency Action Plans (EAPs) prepared and tested',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'annual',
-    method: 'manual',
-    computeKey: null,
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '8',
-    disaggregations: ['basin'],
-    currentValue: '7',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '4',
-      '2025': '6',
-      '2026': '8',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000017',
-    code: '14a',
-    name: 'Yield of main product – Tomato (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.yield.tomato',
-    baseline: '14.5',
-    baselineYear: 2020,
-    endTarget: '30.0',
-    disaggregations: ['scheme'],
-    currentValue: '28.4',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '22.0',
-      '2025': '26.0',
-      '2026': '30.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000018',
-    code: '14b',
-    name: 'Yield of main product – Rice (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.yield.rice',
-    baseline: '2.8',
-    baselineYear: 2020,
-    endTarget: '5.5',
-    disaggregations: ['scheme'],
-    currentValue: '5.1',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '4.2',
-      '2025': '4.8',
-      '2026': '5.5',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000019',
-    code: '14c',
-    name: 'Yield of main product – Maize (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.yield.maize',
-    baseline: '2.0',
-    baselineYear: 2020,
-    endTarget: '4.5',
-    disaggregations: ['scheme'],
-    currentValue: '4.2',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '3.2',
-      '2025': '3.8',
-      '2026': '4.5',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000020',
-    code: '14d',
-    name: 'Yield of main product – Onion (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    frequency: 'quarterly',
-    method: 'computed',
-    computeKey: 'slis.yield.onion',
-    baseline: '12.0',
-    baselineYear: 2020,
-    endTarget: '24.0',
-    disaggregations: ['scheme'],
-    currentValue: '23.1',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '18.0',
-      '2025': '21.0',
-      '2026': '24.0',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000021',
-    code: '15',
-    name: 'Commercial partnerships with agro-processing off-takers',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'quarterly',
-    method: 'manual',
-    computeKey: null,
-    baseline: '1',
-    baselineYear: 2020,
-    endTarget: '7',
-    disaggregations: ['scheme'],
-    currentValue: '6',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '4',
-      '2025': '6',
-      '2026': '7',
-    },
-  },
-  {
-    id: '018f3a70-0051-7000-8000-000000000022',
-    code: '16',
-    name: 'Scheme performance scorecards monitored and published',
-    level: 'intermediate',
-    unit: 'Number',
-    frequency: 'annual',
-    method: 'computed',
-    computeKey: 'me.scorecards_published',
-    baseline: '0',
-    baselineYear: 2020,
-    endTarget: '4',
-    disaggregations: ['scheme'],
-    currentValue: '4',
-    status: 'on_track',
-    targetsByYear: {
-      '2024': '2',
-      '2025': '3',
-      '2026': '4',
-    },
-  },
-];
-
 export function IndicatorsListView() {
   const { currentScope } = useScope();
   const [levelFilter, setLevelFilter] = React.useState<'all' | 'pdo' | 'intermediate'>('all');
@@ -773,80 +308,112 @@ export function IndicatorsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredIndicators.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
-                      {item.code}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 max-w-sm">
-                    <div className="font-bold text-slate-900 leading-snug">{item.name}</div>
-                    {item.computeKey && (
-                      <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                        fn: {item.computeKey}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {item.level === 'pdo' ? (
-                      <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
-                        PDO
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-slate-600 border-slate-300 text-[10px] font-medium"
-                      >
-                        Intermediate
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-800">{item.unit}</div>
-                    <div className="text-[10px] text-slate-400 capitalize">{item.frequency}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {item.method === 'computed' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                        <Cpu className="h-3 w-3" /> Computed
-                      </span>
-                    ) : item.method === 'manual' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        <PenTool className="h-3 w-3" /> Manual
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                        <HelpCircle className="h-3 w-3" /> Survey
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
-                    {item.baseline ? `${item.baseline} (${item.baselineYear})` : '—'}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    {item.endTarget || '—'}
-                  </td>
-                  <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedIndicator(item)}
-                      className="text-xs font-semibold gap-1 text-slate-700"
-                    >
-                      <Eye className="h-3 w-3" /> View Detail
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenEditTargets(item)}
-                      className="text-xs font-semibold gap-1 text-amber-900 border-amber-200 hover:bg-amber-50"
-                    >
-                      <Edit3 className="h-3 w-3" /> Edit Targets
-                    </Button>
+              {filteredIndicators.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Target className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No indicators found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || levelFilter !== 'all' || methodFilter !== 'all'
+                          ? 'No indicators match the selected filters or search terms. Try clearing your filters.'
+                          : 'No indicators have been configured in the Results Framework yet.'}
+                      </p>
+                      {(searchQuery || levelFilter !== 'all' || methodFilter !== 'all') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setLevelFilter('all');
+                            setMethodFilter('all');
+                          }}
+                          className="text-xs mt-2"
+                        >
+                          Clear Filters
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredIndicators.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 max-w-sm">
+                      <div className="font-bold text-slate-900 leading-snug">{item.name}</div>
+                      {item.computeKey && (
+                        <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                          fn: {item.computeKey}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {item.level === 'pdo' ? (
+                        <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
+                          PDO
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-slate-600 border-slate-300 text-[10px] font-medium"
+                        >
+                          Intermediate
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-800">{item.unit}</div>
+                      <div className="text-[10px] text-slate-400 capitalize">{item.frequency}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {item.method === 'computed' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <Cpu className="h-3 w-3" /> Computed
+                        </span>
+                      ) : item.method === 'manual' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <PenTool className="h-3 w-3" /> Manual
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                          <HelpCircle className="h-3 w-3" /> Survey
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
+                      {item.baseline ? `${item.baseline} (${item.baselineYear})` : '—'}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      {item.endTarget || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedIndicator(item)}
+                        className="text-xs font-semibold gap-1 text-slate-700"
+                      >
+                        <Eye className="h-3 w-3" /> View Detail
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenEditTargets(item)}
+                        className="text-xs font-semibold gap-1 text-amber-900 border-amber-200 hover:bg-amber-50"
+                      >
+                        <Edit3 className="h-3 w-3" /> Edit Targets
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

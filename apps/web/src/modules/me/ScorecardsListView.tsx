@@ -27,6 +27,7 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useScorecards } from './hooks';
+import { useOrganisations } from '../core/hooks/useOrganisations';
 
 export interface ScorecardRecord {
   id: string;
@@ -44,66 +45,38 @@ export interface ScorecardRecord {
   fileName?: string;
 }
 
-const INITIAL_SCORECARDS: ScorecardRecord[] = [
-  {
-    id: 'sc-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Irrigation Scheme',
-    periodYear: 2026,
-    overallScore: 88,
-    ratingTier: 'A',
-    publishedOn: '2026-03-15',
-    status: 'published',
-    wuaGovernanceScore: 92,
-    isfCollectionRate: 84.5,
-    infrastructureStatus: 'Good (Canal Desilted)',
-    fileName: 'KRIS_Annual_Scorecard_2026.pdf',
-  },
-  {
-    id: 'sc-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Irrigation Scheme',
-    periodYear: 2026,
-    overallScore: 78,
-    ratingTier: 'B',
-    publishedOn: '2026-03-20',
-    status: 'published',
-    wuaGovernanceScore: 80,
-    isfCollectionRate: 76.5,
-    infrastructureStatus: 'Fair (Lateral 8 Gate Repair)',
-    fileName: 'BIS_Performance_Audit_2026.pdf',
-  },
-  {
-    id: 'sc-3',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    periodYear: 2026,
-    overallScore: 68,
-    ratingTier: 'C',
-    publishedOn: null,
-    status: 'under_review',
-    wuaGovernanceScore: 70,
-    isfCollectionRate: 64.0,
-    infrastructureStatus: 'Needs Maintenance (Drain Siltation)',
-    fileName: 'Hadejia_Draft_Scorecard_2026.pdf',
-  },
-];
-
 export function ScorecardsListView() {
   const { currentScope } = useScope();
   const { success, info } = useToast();
+
+  const { organisations } = useOrganisations({ type: 'scheme' });
+  const schemes = React.useMemo(() => {
+    return organisations.filter((o) => o.type === 'scheme');
+  }, [organisations]);
 
   const [selectedYear, setSelectedYear] = React.useState<string>('2026');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // New Scorecard Dialog State
   const [isCreateOpen, setIsCreateOpen] = React.useState<boolean>(false);
+  const [selectedSchemeId, setSelectedSchemeId] = React.useState<string>('');
   const [newSchemeName, setNewSchemeName] = React.useState<string>('Kano River Irrigation Scheme');
   const [newYear, setNewYear] = React.useState<string>('2026');
   const [newGovScore, setNewGovScore] = React.useState<number>(85);
   const [newIsfRate, setNewIsfRate] = React.useState<number>(80);
   const [newInfraStatus, setNewInfraStatus] = React.useState<string>('Satisfactory');
   const [newFileUploaded, setNewFileUploaded] = React.useState<string | null>(null);
+
+  // Sync default scheme selection when dialog opens or schemes load
+  React.useEffect(() => {
+    if (currentScope.type === 'scheme') {
+      setSelectedSchemeId(currentScope.id);
+      setNewSchemeName(currentScope.name);
+    } else if (schemes.length > 0 && !selectedSchemeId) {
+      setSelectedSchemeId(schemes[0]!.id);
+      setNewSchemeName(schemes[0]!.name);
+    }
+  }, [currentScope, schemes, selectedSchemeId]);
 
   // Modular custom hook for Scorecards
   const { scorecards: serverScorecards, createScorecard } = useScorecards(
@@ -113,23 +86,26 @@ export function ScorecardsListView() {
 
   const scorecards: ScorecardRecord[] = React.useMemo(() => {
     if (serverScorecards && serverScorecards.length > 0) {
-      return serverScorecards.map((sc) => ({
-        id: sc.id,
-        schemeId: sc.schemeId,
-        schemeName: currentScope.name || 'KRIS Scheme',
-        periodYear: sc.periodYear,
-        overallScore: 85,
-        ratingTier: 'A',
-        publishedOn: sc.publishedOn,
-        status: sc.publishedOn ? 'published' : 'draft',
-        wuaGovernanceScore: 88,
-        isfCollectionRate: 82.5,
-        infrastructureStatus: 'Satisfactory (Good Lining)',
-        fileName: 'Official_Scheme_Scorecard.pdf',
-      }));
+      return serverScorecards.map((sc) => {
+        const foundScheme = schemes.find((s) => s.id === sc.schemeId);
+        return {
+          id: sc.id,
+          schemeId: sc.schemeId,
+          schemeName: foundScheme?.name || currentScope.name || 'KRIS Scheme',
+          periodYear: sc.periodYear,
+          overallScore: 85,
+          ratingTier: 'A',
+          publishedOn: sc.publishedOn,
+          status: sc.publishedOn ? 'published' : 'draft',
+          wuaGovernanceScore: 88,
+          isfCollectionRate: 82.5,
+          infrastructureStatus: 'Satisfactory (Good Lining)',
+          fileName: 'Official_Scheme_Scorecard.pdf',
+        };
+      });
     }
-    return INITIAL_SCORECARDS;
-  }, [serverScorecards, currentScope.name]);
+    return [];
+  }, [serverScorecards, currentScope.name, schemes]);
 
   const filteredScorecards = React.useMemo(() => {
     return scorecards.filter((sc) => {
@@ -146,9 +122,14 @@ export function ScorecardsListView() {
   }, [scorecards, selectedYear, searchQuery]);
 
   const handleCreateScorecard = async () => {
+    const targetSchemeId =
+      selectedSchemeId ||
+      (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id) ||
+      '018f3a5e-0020-7000-8000-000000000001';
+
     try {
       await createScorecard({
-        schemeId: currentScope.id || '018f3a5e-0000-7000-8000-000000000001',
+        schemeId: targetSchemeId,
         periodYear: Number(newYear),
         publishedOn: new Date().toISOString().split('T')[0],
       });
@@ -156,7 +137,7 @@ export function ScorecardsListView() {
       setNewFileUploaded(null);
       success(
         'Scorecard Published',
-        `${newSchemeName} (${newYear}) evaluation scorecard published to register.`,
+        `${newSchemeName || 'Scheme'} (${newYear}) evaluation scorecard published to register.`,
       );
     } catch {
       setIsCreateOpen(false);
@@ -301,54 +282,79 @@ export function ScorecardsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredScorecards.map((sc) => (
-                <tr key={sc.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{sc.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
-                    {sc.periodYear}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center justify-center h-6 w-6 rounded-full font-black text-xs ${
-                        sc.ratingTier === 'A'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : sc.ratingTier === 'B'
-                            ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                            : 'bg-amber-100 text-amber-900 border border-amber-300'
-                      }`}
-                    >
-                      {sc.ratingTier}
-                    </span>
-                    <span className="ml-2 font-mono font-bold text-slate-700">
-                      {sc.overallScore}%
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-800">
-                    {sc.wuaGovernanceScore}/100
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
-                    {sc.isfCollectionRate}%
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
-                    {sc.infrastructureStatus}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">
-                    {sc.publishedOn || 'Draft Under Review'}
-                  </td>
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        info('Downloading Verified Scorecard', `${sc.fileName} (PDF Document)`)
-                      }
-                      className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 hover:text-amber-800 cursor-pointer"
-                    >
-                      <Download className="h-3 w-3 text-slate-400" /> PDF
-                    </Button>
+              {filteredScorecards.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Award className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No scorecards found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || selectedYear !== 'all'
+                          ? 'No scheme scorecards match the selected filter criteria.'
+                          : 'Institutional scheme audit scorecards will appear here once published.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-amber-600 hover:bg-amber-500 text-white text-xs mt-2 gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Publish New Scorecard
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredScorecards.map((sc) => (
+                  <tr key={sc.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{sc.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
+                      {sc.periodYear}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center justify-center h-6 w-6 rounded-full font-black text-xs ${
+                          sc.ratingTier === 'A'
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : sc.ratingTier === 'B'
+                              ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                              : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}
+                      >
+                        {sc.ratingTier}
+                      </span>
+                      <span className="ml-2 font-mono font-bold text-slate-700">
+                        {sc.overallScore}%
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800">
+                      {sc.wuaGovernanceScore}/100
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
+                      {sc.isfCollectionRate}%
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
+                      {sc.infrastructureStatus}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                      {sc.publishedOn || 'Draft Under Review'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          info('Downloading Verified Scorecard', `${sc.fileName} (PDF Document)`)
+                        }
+                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 hover:text-amber-800 cursor-pointer"
+                      >
+                        <Download className="h-3 w-3 text-slate-400" /> PDF
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -370,11 +376,33 @@ export function ScorecardsListView() {
             <div className="space-y-3 pt-2 text-xs">
               <div className="space-y-1">
                 <label className="font-bold text-slate-700">Scheme Location *</label>
-                <Input
-                  value={newSchemeName}
-                  onChange={(e) => setNewSchemeName(e.target.value)}
-                  className="text-xs"
-                />
+                {currentScope.type !== 'scheme' && schemes.length > 0 ? (
+                  <Select
+                    value={selectedSchemeId}
+                    onValueChange={(val: string) => {
+                      setSelectedSchemeId(val);
+                      const s = schemes.find((item) => item.id === val);
+                      if (s) setNewSchemeName(s.name);
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs py-2">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={newSchemeName}
+                    onChange={(e) => setNewSchemeName(e.target.value)}
+                    className="text-xs"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

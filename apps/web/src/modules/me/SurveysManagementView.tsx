@@ -12,6 +12,7 @@ import {
   Trash2,
   Eye,
   MapPin,
+  Users,
 } from 'lucide-react';
 import {
   Button,
@@ -71,250 +72,6 @@ export interface SurveyResponseItem {
 }
 
 // Initial seeded surveys matching M&E Results Framework and Household surveys
-const INITIAL_SURVEYS: SurveyRecord[] = [
-  {
-    id: 'srv-1',
-    name: 'Farmer Household Income & Living Standards Survey 2026',
-    schemeId: 'kano',
-    schemeName: 'Kano River Irrigation Scheme',
-    version: 1,
-    opensOn: '2026-01-15',
-    closesOn: '2026-06-30',
-    status: 'active',
-    questionsCount: 6,
-    responsesCount: 1420,
-    lastResponseAt: '2026-04-02 09:30',
-    questions: [
-      {
-        id: 'q1',
-        code: 'HH_SIZE',
-        text: 'Total number of family members residing in this farming household?',
-        answerType: 'number',
-        isRequired: true,
-        sortOrder: 1,
-      },
-      {
-        id: 'q2',
-        code: 'PRIMARY_CROP',
-        text: 'What was your primary commercial irrigated crop this cycle?',
-        answerType: 'single',
-        options: ['Rice', 'Tomato', 'Maize', 'Wheat', 'Onion'],
-        isRequired: true,
-        sortOrder: 2,
-      },
-      {
-        id: 'q3',
-        code: 'INCOME_RANGE',
-        text: 'Estimated gross seasonal farm revenue from irrigated parcels (NGN)?',
-        answerType: 'single',
-        options: [
-          'Under 500,000 NGN',
-          '500,000 - 1,500,000 NGN',
-          '1,500,000 - 3,000,000 NGN',
-          'Above 3,000,000 NGN',
-        ],
-        isRequired: true,
-        sortOrder: 3,
-      },
-      {
-        id: 'q4',
-        code: 'OFFTAKE_CHANNEL',
-        text: 'Primary produce sales channel utilized by farmer?',
-        answerType: 'single',
-        options: [
-          'Local Aggregator',
-          'Direct Factory Contract',
-          'Spot Market',
-          'Cooperative Store',
-        ],
-        isRequired: true,
-        sortOrder: 4,
-      },
-      {
-        id: 'q5',
-        code: 'GPS_FARM',
-        text: 'GPS Coordinates of household homestead or farmgate storage',
-        answerType: 'gps',
-        isRequired: false,
-        sortOrder: 5,
-      },
-      {
-        id: 'q6',
-        code: 'NOTES',
-        text: 'Enumerator field observations & verification notes',
-        answerType: 'text',
-        isRequired: false,
-        sortOrder: 6,
-      },
-    ],
-  },
-  {
-    id: 'srv-2',
-    name: 'WUA Water Distribution Satisfaction & Governance Assessment',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Irrigation Scheme',
-    version: 1,
-    opensOn: '2026-02-01',
-    closesOn: '2026-05-31',
-    status: 'active',
-    questionsCount: 5,
-    responsesCount: 420,
-    lastResponseAt: '2026-04-01 14:15',
-    questions: [
-      {
-        id: 'q21',
-        code: 'TAIL_END',
-        text: 'Is your farm parcel situated at the head, middle, or tail end of the lateral canal?',
-        answerType: 'single',
-        options: ['Head Reach', 'Middle Reach', 'Tail End Reach'],
-        isRequired: true,
-        sortOrder: 1,
-      },
-      {
-        id: 'q22',
-        code: 'WATER_RELIABILITY',
-        text: 'How reliable was scheduled irrigation water delivery during peak vegetative stage?',
-        answerType: 'single',
-        options: ['Always on Schedule', 'Occasional Delay (1-2 days)', 'Severe Deficit / Missed'],
-        isRequired: true,
-        sortOrder: 2,
-      },
-      {
-        id: 'q23',
-        code: 'DISPUTE_EXPERIENCE',
-        text: 'Did your block experience water distribution disputes between users this season?',
-        answerType: 'single',
-        options: ['No Disputes', 'Resolved by WUA Executives', 'Escalated to Project Office'],
-        isRequired: true,
-        sortOrder: 3,
-      },
-      {
-        id: 'q24',
-        code: 'WUA_FEE_FAIRNESS',
-        text: 'Do you consider the current ISF fee schedule fair relative to water delivery volume?',
-        answerType: 'single',
-        options: ['Completely Fair', 'Acceptable', 'Unfair / Overbilled'],
-        isRequired: true,
-        sortOrder: 4,
-      },
-      {
-        id: 'q25',
-        code: 'SUGGESTIONS',
-        text: 'Recommendations for WUA executive committee',
-        answerType: 'text',
-        isRequired: false,
-        sortOrder: 5,
-      },
-    ],
-  },
-  {
-    id: 'srv-3',
-    name: 'Post-Harvest Loss & Cold Storage Sample Evaluation',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    version: 2,
-    opensOn: '2026-03-01',
-    closesOn: '2026-08-31',
-    status: 'draft',
-    questionsCount: 4,
-    responsesCount: 0,
-    questions: [
-      {
-        id: 'q31',
-        code: 'CROP_SAMPLED',
-        text: 'Target horticultural produce inspected',
-        answerType: 'single',
-        options: ['Tomato', 'Bell Pepper', 'Onion'],
-        isRequired: true,
-        sortOrder: 1,
-      },
-      {
-        id: 'q32',
-        code: 'LOSS_PCT',
-        text: 'Estimated physical post-harvest discard percentage before market arrival (%)',
-        answerType: 'number',
-        isRequired: true,
-        sortOrder: 2,
-      },
-      {
-        id: 'q33',
-        code: 'STORAGE_USED',
-        text: 'Storage technology employed after harvest',
-        answerType: 'single',
-        options: [
-          'Ambient Basket Stacking',
-          'Zero-Energy Cool Chamber (ZECC)',
-          'Refrigerated Depot',
-        ],
-        isRequired: true,
-        sortOrder: 3,
-      },
-      {
-        id: 'q34',
-        code: 'SAMPLED_DATE',
-        text: 'Inspection sample harvest date',
-        answerType: 'date',
-        isRequired: true,
-        sortOrder: 4,
-      },
-    ],
-  },
-];
-
-// Seeded Sample Responses
-const INITIAL_RESPONSES: SurveyResponseItem[] = [
-  {
-    id: 'rsp-101',
-    surveyId: 'srv-1',
-    surveyName: 'Farmer Household Income & Living Standards Survey 2026',
-    schemeName: 'Kano River Scheme (Sector 4)',
-    farmerName: 'Aliyu Ibrahim Garba (KRIS-04-129)',
-    householdName: 'Garba Compound',
-    collectedAt: '2026-04-02 09:30',
-    enumeratorName: 'Fatima Sanusi (Enumerator #09)',
-    location: { lat: 11.634, lng: 8.528 },
-    answersSummary: {
-      HH_SIZE: '8 Members',
-      PRIMARY_CROP: 'Tomato (Roma VF)',
-      INCOME_RANGE: '1,500,000 - 3,000,000 NGN',
-      OFFTAKE_CHANNEL: 'Direct Factory Contract',
-    },
-  },
-  {
-    id: 'rsp-102',
-    surveyId: 'srv-1',
-    surveyName: 'Farmer Household Income & Living Standards Survey 2026',
-    schemeName: 'Kano River Scheme (Sector 2)',
-    farmerName: 'Zainab Balarabe (KRIS-02-084)',
-    householdName: 'Balarabe Household',
-    collectedAt: '2026-04-01 16:45',
-    enumeratorName: 'Mustapha Danladi (Enumerator #14)',
-    location: { lat: 11.612, lng: 8.514 },
-    answersSummary: {
-      HH_SIZE: '6 Members',
-      PRIMARY_CROP: 'Rice (Faro 44)',
-      INCOME_RANGE: '500,000 - 1,500,000 NGN',
-      OFFTAKE_CHANNEL: 'Local Aggregator',
-    },
-  },
-  {
-    id: 'rsp-103',
-    surveyId: 'srv-2',
-    surveyName: 'WUA Water Distribution Satisfaction & Governance Assessment',
-    schemeName: 'Bakolori Scheme (Lateral 8)',
-    farmerName: 'Umar Farouq Al-Hassan (BIS-08-310)',
-    collectedAt: '2026-04-01 14:15',
-    enumeratorName: 'Kabiru Adamu (M&E Field Officer)',
-    location: { lat: 12.518, lng: 5.922 },
-    answersSummary: {
-      TAIL_END: 'Tail End Reach',
-      WATER_RELIABILITY: 'Occasional Delay (1-2 days)',
-      DISPUTE_EXPERIENCE: 'Resolved by WUA Executives',
-      WUA_FEE_FAIRNESS: 'Acceptable',
-    },
-  },
-];
-
 export function SurveysManagementView() {
   const { currentScope } = useScope();
   const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
@@ -324,7 +81,7 @@ export function SurveysManagementView() {
   const [activeTab, setActiveTab] = React.useState<'surveys' | 'responses'>('surveys');
 
   // Surveys State
-  const [surveys, setSurveys] = React.useState<SurveyRecord[]>(INITIAL_SURVEYS);
+  const [surveys, setSurveys] = React.useState<SurveyRecord[]>([]);
 
   React.useEffect(() => {
     if (serverSurveys && serverSurveys.length > 0) {
@@ -343,9 +100,11 @@ export function SurveysManagementView() {
           questions: [],
         })),
       );
+    } else {
+      setSurveys([]);
     }
   }, [serverSurveys, currentScope.name]);
-  const [responses] = React.useState<SurveyResponseItem[]>(INITIAL_RESPONSES);
+  const [responses] = React.useState<SurveyResponseItem[]>([]);
   const [selectedSurveyFilter, setSelectedSurveyFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
@@ -701,58 +460,81 @@ export function SurveysManagementView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSurveys.map((srv) => (
-                  <tr key={srv.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 max-w-sm">
-                      <div className="font-bold text-slate-900 leading-snug">{srv.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
-                        <span className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
-                          v{srv.version}
-                        </span>
-                        {srv.lastResponseAt && <span>Latest response: {srv.lastResponseAt}</span>}
+                {filteredSurveys.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 px-4 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <ClipboardList className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                        <div className="text-sm font-semibold text-slate-700">No surveys found</div>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          {searchQuery
+                            ? `No surveys match "${searchQuery}". Try clearing your search.`
+                            : 'No survey questionnaires have been created for this scheme yet.'}
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={handleOpenNewBuilder}
+                          className="bg-teal-700 hover:bg-teal-800 text-white text-xs mt-2 gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Design New Survey
+                        </Button>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-700">
-                      {srv.schemeName || 'All Schemes'}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500">
-                      {srv.opensOn} → {srv.closesOn}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800">
-                      {srv.questionsCount} items
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-black text-teal-800">
-                      {srv.responsesCount.toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {srv.status === 'active' ? (
-                        <Badge
-                          variant="outline"
-                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Active
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="border-slate-300 text-slate-600 bg-slate-50 text-[10px] font-bold"
-                        >
-                          Draft
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditSurvey(srv)}
-                        className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
-                      >
-                        Edit Builder
-                      </Button>
-                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSurveys.map((srv) => (
+                    <tr key={srv.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4 max-w-sm">
+                        <div className="font-bold text-slate-900 leading-snug">{srv.name}</div>
+                        <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                          <span className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
+                            v{srv.version}
+                          </span>
+                          {srv.lastResponseAt && <span>Latest response: {srv.lastResponseAt}</span>}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700">
+                        {srv.schemeName || 'All Schemes'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">
+                        {srv.opensOn} → {srv.closesOn}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-800">
+                        {srv.questionsCount} items
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-black text-teal-800">
+                        {srv.responsesCount.toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {srv.status === 'active' ? (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                          >
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Active
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-slate-300 text-slate-600 bg-slate-50 text-[10px] font-bold"
+                          >
+                            Draft
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditSurvey(srv)}
+                          className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
+                        >
+                          Edit Builder
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -775,37 +557,57 @@ export function SurveysManagementView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredResponses.map((rsp) => (
-                  <tr key={rsp.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 leading-snug">
-                        {rsp.farmerName || rsp.householdName}
+                {filteredResponses.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 px-4 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Users className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                        <div className="text-sm font-semibold text-slate-700">
+                          No responses recorded
+                        </div>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          {searchQuery || selectedSurveyFilter !== 'all'
+                            ? 'No survey responses match your filter criteria.'
+                            : 'Field survey responses collected via the PWA mobile surveyor tool will appear here.'}
+                        </p>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">ID: {rsp.id}</span>
-                    </td>
-                    <td className="py-3.5 px-4 max-w-xs font-semibold text-slate-800">
-                      {rsp.surveyName}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-teal-600" />
-                        {rsp.schemeName}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500">{rsp.collectedAt}</td>
-                    <td className="py-3.5 px-4 text-slate-700 font-medium">{rsp.enumeratorName}</td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setInspectResponse(rsp)}
-                        className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
-                      >
-                        <Eye className="h-3 w-3 text-slate-500" /> View Answers
-                      </Button>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredResponses.map((rsp) => (
+                    <tr key={rsp.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900 leading-snug">
+                          {rsp.farmerName || rsp.householdName}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {rsp.id}</span>
+                      </td>
+                      <td className="py-3.5 px-4 max-w-xs font-semibold text-slate-800">
+                        {rsp.surveyName}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 font-medium">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-teal-600" />
+                          {rsp.schemeName}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">{rsp.collectedAt}</td>
+                      <td className="py-3.5 px-4 text-slate-700 font-medium">
+                        {rsp.enumeratorName}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setInspectResponse(rsp)}
+                          className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
+                        >
+                          <Eye className="h-3 w-3 text-slate-500" /> View Answers
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -26,6 +26,8 @@ import {
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useTechAdoption } from './hooks';
+import { useOrganisations } from '../core/hooks/useOrganisations';
+import { useLookupValues } from '../core/hooks/usePlatformAdmin';
 
 export interface TechAdoptionRecord {
   id: string;
@@ -41,111 +43,78 @@ export interface TechAdoptionRecord {
   verifierNotes?: string;
 }
 
-const INITIAL_ADOPTIONS: TechAdoptionRecord[] = [
-  {
-    id: 'ta-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    technologyCode: 'SEED_FARO44',
-    technologyName: 'Certified Faro 44 Early-Maturing Rice Seed',
-    category: 'seed',
-    farmerName: 'Amina Sani Abdullahi',
-    gender: 'female',
-    adoptedOn: '2026-02-15',
-    status: 'approved',
-    verifierNotes: 'Verified receipt from registered agro-dealer cooperative',
-  },
-  {
-    id: 'ta-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Scheme',
-    technologyCode: 'SOLAR_PUMP_5HP',
-    technologyName: 'Solar-Powered 5HP Irrigation Water Pump',
-    category: 'irrigation',
-    farmerName: 'Ibrahim Danbaba',
-    gender: 'male',
-    adoptedOn: '2026-03-01',
-    status: 'approved',
-    verifierNotes: 'Installed at lateral canal tail-end parcel with GPS verification',
-  },
-  {
-    id: 'ta-3',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    technologyCode: 'DRIP_KIT_1HA',
-    technologyName: 'Low-Pressure Horticultural Drip Irrigation Kit',
-    category: 'irrigation',
-    farmerName: 'Halima Yusuf Bello',
-    gender: 'female',
-    adoptedOn: '2026-03-10',
-    status: 'approved',
-    verifierNotes: 'Operating on 0.8ha tomato plot with 45% water saving',
-  },
-  {
-    id: 'ta-4',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    technologyCode: 'FERT_DEEP_PLACE',
-    technologyName: 'Urea Deep Placement (UDP) Briquetting',
-    category: 'fertilizer',
-    farmerName: 'Musa Garba Lawal',
-    gender: 'male',
-    adoptedOn: '2026-03-22',
-    status: 'submitted',
-    verifierNotes: 'Under review by M&E field supervisor',
-  },
-];
-
 export function TechnologyAdoptionListView() {
   const { currentScope } = useScope();
+  const { organisations } = useOrganisations({ type: 'scheme' });
+  const schemes = React.useMemo(() => {
+    return organisations.filter((o) => o.type === 'scheme');
+  }, [organisations]);
+
+  const { data: techLookupValues = [] } = useLookupValues('technology');
+
   const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
   const { adoptions: serverAdoptions, createTechAdoption } = useTechAdoption(schemeId);
 
-  const [adoptions, setAdoptions] = React.useState<TechAdoptionRecord[]>(INITIAL_ADOPTIONS);
+  const [adoptions, setAdoptions] = React.useState<TechAdoptionRecord[]>([]);
 
   React.useEffect(() => {
     if (serverAdoptions && serverAdoptions.length > 0) {
       setAdoptions(
-        serverAdoptions.map((item) => ({
-          id: item.id,
-          schemeId: item.schemeId,
-          schemeName: currentScope.name || 'Current Scheme',
-          technologyCode: 'SEED_FARO44',
-          technologyName: 'Certified Technology',
-          category: 'seed',
-          farmerName: 'Registered Farmer',
-          gender: item.gender,
-          adoptedOn: item.adoptedOn || new Date().toISOString().split('T')[0],
-          status:
-            item.status === 'submitted' || item.status === 'approved' || item.status === 'returned'
-              ? item.status
-              : 'approved',
-          verifierNotes: item.returnComment || undefined,
-        })),
+        serverAdoptions.map((item) => {
+          const techVal = techLookupValues.find((v) => v.id === item.technologyId);
+          const foundScheme = schemes.find((s) => s.id === item.schemeId);
+          return {
+            id: item.id,
+            schemeId: item.schemeId,
+            schemeName: foundScheme?.name || currentScope.name || 'Current Scheme',
+            technologyCode: techVal?.code || 'SEED_FARO44',
+            technologyName: techVal?.label || 'Certified Technology',
+            category: 'seed',
+            farmerName: 'Registered Farmer',
+            gender: item.gender,
+            adoptedOn: item.adoptedOn || new Date().toISOString().split('T')[0],
+            status:
+              item.status === 'submitted' ||
+              item.status === 'approved' ||
+              item.status === 'returned'
+                ? item.status
+                : 'approved',
+            verifierNotes: item.returnComment || undefined,
+          };
+        }),
       );
+    } else {
+      setAdoptions([]);
     }
-  }, [serverAdoptions, currentScope.name]);
+  }, [serverAdoptions, currentScope.name, techLookupValues, schemes]);
+
   const [techFilter, setTechFilter] = React.useState<string>('all');
   const [genderFilter, setGenderFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // Dialog State
   const [isCreateOpen, setIsCreateOpen] = React.useState<boolean>(false);
+  const [selectedSchemeId, setSelectedSchemeId] = React.useState<string>('');
   const [newFarmerName, setNewFarmerName] = React.useState<string>('');
   const [newGender, setNewGender] = React.useState<'female' | 'male'>('female');
-  const [newTechCode, setNewTechCode] = React.useState<string>('SEED_FARO44');
+  const [selectedTechId, setSelectedTechId] = React.useState<string>('');
   const [newNotes, setNewNotes] = React.useState<string>('');
 
-  const techOptions: Record<
-    string,
-    { name: string; cat: 'seed' | 'irrigation' | 'fertilizer' | 'mechanization' }
-  > = {
-    SEED_FARO44: { name: 'Certified Faro 44 Rice Seed', cat: 'seed' },
-    SEED_TOMATO_ROMA: { name: 'Heat-Tolerant Roma VF Hybrid Seed', cat: 'seed' },
-    SOLAR_PUMP_5HP: { name: 'Solar 5HP Tail-End Lift Pump', cat: 'irrigation' },
-    DRIP_KIT_1HA: { name: 'Low-Pressure Drip Irrigation Kit', cat: 'irrigation' },
-    FERT_DEEP_PLACE: { name: 'Urea Deep Placement (UDP) Briquetting', cat: 'fertilizer' },
-  };
+  // Sync default scheme selection when dialog opens or schemes load
+  React.useEffect(() => {
+    if (currentScope.type === 'scheme') {
+      setSelectedSchemeId(currentScope.id);
+    } else if (schemes.length > 0 && !selectedSchemeId) {
+      setSelectedSchemeId(schemes[0]!.id);
+    }
+  }, [currentScope, schemes, selectedSchemeId]);
+
+  // Sync default tech value
+  React.useEffect(() => {
+    if (techLookupValues.length > 0 && !selectedTechId) {
+      setSelectedTechId(techLookupValues[0]!.id);
+    }
+  }, [techLookupValues, selectedTechId]);
 
   const filteredAdoptions = React.useMemo(() => {
     return adoptions.filter((ta) => {
@@ -169,11 +138,19 @@ export function TechnologyAdoptionListView() {
   const handleCreateAdoption = async () => {
     if (!newFarmerName.trim()) return;
 
+    const targetSchemeId =
+      selectedSchemeId ||
+      (currentScope.type === 'scheme' ? currentScope.id : schemes[0]?.id) ||
+      '018f3a5e-0020-7000-8000-000000000001';
+
+    const targetTechId =
+      selectedTechId || techLookupValues[0]?.id || '018f3a5e-0003-7000-0099-000000000001';
+
     try {
       if (createTechAdoption) {
         await createTechAdoption({
-          schemeId: currentScope.id || '00000000-0000-0000-0000-000000000001',
-          technologyId: '00000000-0000-0000-0000-000000000001',
+          schemeId: targetSchemeId,
+          technologyId: targetTechId,
           gender: newGender,
           adoptedOn: new Date().toISOString().split('T')[0],
         });
@@ -182,18 +159,16 @@ export function TechnologyAdoptionListView() {
       // Fallback local update
     }
 
-    const techInfo = techOptions[newTechCode] ?? {
-      name: 'Certified Agricultural Technology',
-      cat: 'seed',
-    };
+    const selectedTech = techLookupValues.find((t) => t.id === targetTechId);
+    const chosenScheme = schemes.find((s) => s.id === targetSchemeId);
 
     const item: TechAdoptionRecord = {
       id: `ta-${Date.now()}`,
-      schemeId: currentScope.id || 'custom-scheme',
-      schemeName: currentScope.name || 'Kano River Scheme',
-      technologyCode: newTechCode,
-      technologyName: techInfo.name,
-      category: techInfo.cat,
+      schemeId: targetSchemeId,
+      schemeName: chosenScheme?.name || currentScope.name || 'Kano River Scheme',
+      technologyCode: selectedTech?.code || 'SEED_FARO44',
+      technologyName: selectedTech?.label || 'Certified Agricultural Technology',
+      category: 'seed',
       farmerName: newFarmerName,
       gender: newGender,
       adoptedOn: new Date().toISOString().split('T')[0],
@@ -364,50 +339,75 @@ export function TechnologyAdoptionListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAdoptions.map((ta) => (
-                <tr key={ta.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{ta.farmerName}</td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        ta.gender === 'female'
-                          ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}
-                    >
-                      {ta.gender}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{ta.technologyName}</div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {ta.technologyCode}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="capitalize text-slate-600 font-semibold">{ta.category}</span>
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">{ta.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">{ta.adoptedOn}</td>
-                  <td className="py-3.5 px-4">
-                    {ta.status === 'approved' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+              {filteredAdoptions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Sprout className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No technology adoption records found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || techFilter !== 'all' || genderFilter !== 'all'
+                          ? 'No technology adoption records match the selected filters.'
+                          : 'Climate-smart and improved agricultural technology adoption logs will appear here.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-lime-700 hover:bg-lime-800 text-white text-xs mt-2 gap-1.5"
                       >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
-                      >
-                        Submitted
-                      </Badge>
-                    )}
+                        <Plus className="h-3.5 w-3.5" /> Log Technology Adoption
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredAdoptions.map((ta) => (
+                  <tr key={ta.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{ta.farmerName}</td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          ta.gender === 'female'
+                            ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {ta.gender}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900">{ta.technologyName}</div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {ta.technologyCode}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="capitalize text-slate-600 font-semibold">{ta.category}</span>
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">{ta.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">{ta.adoptedOn}</td>
+                    <td className="py-3.5 px-4">
+                      {ta.status === 'approved' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
+                        >
+                          Submitted
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -427,6 +427,27 @@ export function TechnologyAdoptionListView() {
             </DialogHeader>
 
             <div className="space-y-3 pt-2 text-xs">
+              {currentScope.type !== 'scheme' && (
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Irrigation Scheme *</label>
+                  <Select
+                    value={selectedSchemeId}
+                    onValueChange={(val: string) => setSelectedSchemeId(val)}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs bg-white">
+                      <SelectValue placeholder="Select Scheme" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-xl">
+                      {schemes.map((s) => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs py-2">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="font-bold text-slate-700">Smallholder Farmer Name *</label>
                 <Input
@@ -459,23 +480,19 @@ export function TechnologyAdoptionListView() {
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700">Technology Package *</label>
-                  <Select value={newTechCode} onValueChange={(val) => setNewTechCode(val)}>
+                  <Select
+                    value={selectedTechId}
+                    onValueChange={(val: string) => setSelectedTechId(val)}
+                  >
                     <SelectTrigger className="h-8.5 text-xs bg-white">
                       <SelectValue placeholder="Package" />
                     </SelectTrigger>
                     <SelectContent className="bg-white shadow-xl">
-                      <SelectItem value="SEED_FARO44" className="text-xs py-1.5">
-                        Faro 44 Certified Seed
-                      </SelectItem>
-                      <SelectItem value="SOLAR_PUMP_5HP" className="text-xs py-1.5">
-                        Solar 5HP Pump
-                      </SelectItem>
-                      <SelectItem value="DRIP_KIT_1HA" className="text-xs py-1.5">
-                        Drip Irrigation Kit
-                      </SelectItem>
-                      <SelectItem value="FERT_DEEP_PLACE" className="text-xs py-1.5">
-                        UDP Briquetting
-                      </SelectItem>
+                      {techLookupValues.map((t) => (
+                        <SelectItem key={t.id} value={t.id} className="text-xs py-1.5">
+                          {t.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
