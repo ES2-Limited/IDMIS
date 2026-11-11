@@ -256,54 +256,79 @@ export function ScorecardsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredScorecards.map((sc) => (
-                <tr key={sc.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{sc.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
-                    {sc.periodYear}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center justify-center h-6 w-6 rounded-full font-black text-xs ${
-                        sc.ratingTier === 'A'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : sc.ratingTier === 'B'
-                            ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                            : 'bg-amber-100 text-amber-900 border border-amber-300'
-                      }`}
-                    >
-                      {sc.ratingTier}
-                    </span>
-                    <span className="ml-2 font-mono font-bold text-slate-700">
-                      {sc.overallScore}%
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-800">
-                    {sc.wuaGovernanceScore}/100
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
-                    {sc.isfCollectionRate}%
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
-                    {sc.infrastructureStatus}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">
-                    {sc.publishedOn || 'Draft Under Review'}
-                  </td>
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        info('Downloading Verified Scorecard', `${sc.fileName} (PDF Document)`)
-                      }
-                      className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 hover:text-amber-800 cursor-pointer"
-                    >
-                      <Download className="h-3 w-3 text-slate-400" /> PDF
-                    </Button>
+              {filteredScorecards.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Award className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No scorecards found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || selectedYear !== 'all'
+                          ? 'No scheme scorecards match the selected filter criteria.'
+                          : 'Institutional scheme audit scorecards will appear here once published.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-amber-600 hover:bg-amber-500 text-white text-xs mt-2 gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Publish New Scorecard
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredScorecards.map((sc) => (
+                  <tr key={sc.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{sc.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
+                      {sc.periodYear}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center justify-center h-6 w-6 rounded-full font-black text-xs ${
+                          sc.ratingTier === 'A'
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : sc.ratingTier === 'B'
+                              ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                              : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}
+                      >
+                        {sc.ratingTier}
+                      </span>
+                      <span className="ml-2 font-mono font-bold text-slate-700">
+                        {sc.overallScore}%
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800">
+                      {sc.wuaGovernanceScore}/100
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-teal-800">
+                      {sc.isfCollectionRate}%
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
+                      {sc.infrastructureStatus}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                      {sc.publishedOn || 'Draft Under Review'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          info('Downloading Verified Scorecard', `${sc.fileName} (PDF Document)`)
+                        }
+                        className="h-7 px-2.5 text-xs font-semibold gap-1 text-slate-700 hover:text-amber-800 cursor-pointer"
+                      >
+                        <Download className="h-3 w-3 text-slate-400" /> PDF
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

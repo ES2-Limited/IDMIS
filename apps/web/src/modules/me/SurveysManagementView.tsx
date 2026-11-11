@@ -12,6 +12,7 @@ import {
   Trash2,
   Eye,
   MapPin,
+  Users,
 } from 'lucide-react';
 import {
   Button,
@@ -459,58 +460,81 @@ export function SurveysManagementView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSurveys.map((srv) => (
-                  <tr key={srv.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 max-w-sm">
-                      <div className="font-bold text-slate-900 leading-snug">{srv.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
-                        <span className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
-                          v{srv.version}
-                        </span>
-                        {srv.lastResponseAt && <span>Latest response: {srv.lastResponseAt}</span>}
+                {filteredSurveys.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 px-4 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <ClipboardList className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                        <div className="text-sm font-semibold text-slate-700">No surveys found</div>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          {searchQuery
+                            ? `No surveys match "${searchQuery}". Try clearing your search.`
+                            : 'No survey questionnaires have been created for this scheme yet.'}
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={handleOpenNewBuilder}
+                          className="bg-teal-700 hover:bg-teal-800 text-white text-xs mt-2 gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Design New Survey
+                        </Button>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-700">
-                      {srv.schemeName || 'All Schemes'}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500">
-                      {srv.opensOn} → {srv.closesOn}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800">
-                      {srv.questionsCount} items
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-black text-teal-800">
-                      {srv.responsesCount.toLocaleString()}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {srv.status === 'active' ? (
-                        <Badge
-                          variant="outline"
-                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Active
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="border-slate-300 text-slate-600 bg-slate-50 text-[10px] font-bold"
-                        >
-                          Draft
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditSurvey(srv)}
-                        className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
-                      >
-                        Edit Builder
-                      </Button>
-                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSurveys.map((srv) => (
+                    <tr key={srv.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4 max-w-sm">
+                        <div className="font-bold text-slate-900 leading-snug">{srv.name}</div>
+                        <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                          <span className="font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
+                            v{srv.version}
+                          </span>
+                          {srv.lastResponseAt && <span>Latest response: {srv.lastResponseAt}</span>}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700">
+                        {srv.schemeName || 'All Schemes'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">
+                        {srv.opensOn} → {srv.closesOn}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-800">
+                        {srv.questionsCount} items
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-black text-teal-800">
+                        {srv.responsesCount.toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {srv.status === 'active' ? (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                          >
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Active
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-slate-300 text-slate-600 bg-slate-50 text-[10px] font-bold"
+                          >
+                            Draft
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditSurvey(srv)}
+                          className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
+                        >
+                          Edit Builder
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -533,37 +557,57 @@ export function SurveysManagementView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredResponses.map((rsp) => (
-                  <tr key={rsp.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 leading-snug">
-                        {rsp.farmerName || rsp.householdName}
+                {filteredResponses.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 px-4 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Users className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                        <div className="text-sm font-semibold text-slate-700">
+                          No responses recorded
+                        </div>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          {searchQuery || selectedSurveyFilter !== 'all'
+                            ? 'No survey responses match your filter criteria.'
+                            : 'Field survey responses collected via the PWA mobile surveyor tool will appear here.'}
+                        </p>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">ID: {rsp.id}</span>
-                    </td>
-                    <td className="py-3.5 px-4 max-w-xs font-semibold text-slate-800">
-                      {rsp.surveyName}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-teal-600" />
-                        {rsp.schemeName}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500">{rsp.collectedAt}</td>
-                    <td className="py-3.5 px-4 text-slate-700 font-medium">{rsp.enumeratorName}</td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setInspectResponse(rsp)}
-                        className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
-                      >
-                        <Eye className="h-3 w-3 text-slate-500" /> View Answers
-                      </Button>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredResponses.map((rsp) => (
+                    <tr key={rsp.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900 leading-snug">
+                          {rsp.farmerName || rsp.householdName}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {rsp.id}</span>
+                      </td>
+                      <td className="py-3.5 px-4 max-w-xs font-semibold text-slate-800">
+                        {rsp.surveyName}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 font-medium">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-teal-600" />
+                          {rsp.schemeName}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">{rsp.collectedAt}</td>
+                      <td className="py-3.5 px-4 text-slate-700 font-medium">
+                        {rsp.enumeratorName}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setInspectResponse(rsp)}
+                          className="h-7 px-3 text-xs font-semibold gap-1 text-slate-700 hover:text-teal-800 cursor-pointer"
+                        >
+                          <Eye className="h-3 w-3 text-slate-500" /> View Answers
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

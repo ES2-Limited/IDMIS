@@ -17,6 +17,7 @@ import {
 } from '@idmis/db';
 import type {
   ImportDatasetHandler,
+  ImportBatchEntity,
   ParseRowResult,
   CommitRowResult,
   UndoRowResult,
@@ -44,7 +45,10 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
     };
   }
 
-  async parseRow(rawRow: Record<string, unknown>): Promise<ParseRowResult> {
+  async parseRow(
+    rawRow: Record<string, unknown>,
+    ctx?: { batch: ImportBatchEntity; authz?: UserAuthz },
+  ): Promise<ParseRowResult> {
     const rawData: Record<string, unknown> = { ...rawRow };
     const parsedData: Record<string, unknown> = { ...rawRow };
     const errors: Array<{ column: string; message: string; code?: string }> = [];
@@ -63,9 +67,21 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
       parsedData.year = yearNum;
     }
 
-    const scopeType = String(rawData.scopeType || '')
+    let scopeType = String(rawData.scopeType || '')
       .trim()
       .toLowerCase();
+
+    // If scopeType is omitted or empty, infer from schemeCode, batch scope, or stateCode
+    if (!scopeType) {
+      if (rawData.schemeCode || ctx?.batch?.schemeId) {
+        scopeType = 'scheme';
+      } else if (rawData.stateCode || ctx?.batch?.stateId) {
+        scopeType = 'state';
+      } else {
+        scopeType = 'national';
+      }
+    }
+
     if (!['national', 'state', 'scheme'].includes(scopeType)) {
       errors.push({
         column: 'scopeType',
@@ -82,7 +98,9 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
       parsedData.schemeCode = String(rawData.schemeCode).trim().toUpperCase();
     }
 
-    const valStr = String(rawData.value ?? '').trim();
+    // Support both 'value' and 'targetValue' column headers
+    const rawVal = rawData.value ?? rawData.targetValue;
+    const valStr = String(rawVal ?? '').trim();
     if (!valStr || !/^-?\d+(\.\d+)?$/.test(valStr)) {
       errors.push({ column: 'value', message: 'Value must be a valid decimal string' });
     } else {
@@ -231,16 +249,21 @@ export class IndicatorTargetImportHandler implements ImportDatasetHandler {
     authz: UserAuthz,
   ): Promise<CommitRowResult> {
     const data = row.parsedData;
+    const scopeType =
+      (data.scopeType as 'national' | 'state' | 'scheme' | undefined) ??
+      (data.scopeOrgId || data.schemeId ? 'scheme' : data.scopeStateId ? 'state' : 'national');
     const created = await this.targetService.createTarget(
       {
         indicatorId: data.indicatorId as string,
         year: data.year as number,
-        scopeType: data.scopeType as 'national' | 'state' | 'scheme',
+        scopeType,
         scopeStateId:
-          data.scopeType === 'scheme' ? undefined : (data.scopeStateId as string | undefined),
+          scopeType === 'scheme' ? undefined : (data.scopeStateId as string | undefined),
         scopeOrgId:
-          data.scopeType === 'scheme' ? (data.scopeOrgId as string | undefined) : undefined,
-        value: String(data.value),
+          scopeType === 'scheme'
+            ? ((data.scopeOrgId ?? data.schemeId) as string | undefined)
+            : undefined,
+        value: String(data.value ?? data.targetValue ?? '0'),
       },
       authz,
       authz.userId,

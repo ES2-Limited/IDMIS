@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Banknote, Plus, Search, CheckCircle2, Clock, Layers, Building } from 'lucide-react';
+import { Banknote, Plus, Search, CheckCircle2, Clock, Layers, Building, Coins } from 'lucide-react';
 import {
   Button,
   Input,
@@ -248,51 +248,76 @@ export function MatchingGrantsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredGrants.map((g) => (
-                <tr key={g.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900 leading-snug">{g.wuaName}</div>
-                    <span className="text-[10px] text-slate-400 font-mono font-bold">
-                      {g.wuaRegNo}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-700 leading-relaxed">{g.purpose}</td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">{g.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    ₦{g.approvedAmountNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-black text-teal-800">
-                    ₦{g.disbursedAmountNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">
-                    ₦{g.matchingContributionNgn.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {g.status === 'disbursed' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+              {filteredGrants.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Coins className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No matching grants found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || statusFilter !== 'all'
+                          ? 'No matching grants found for your filter criteria.'
+                          : 'WUA matching grants and disbursed funding records will appear here.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-teal-700 hover:bg-teal-800 text-white text-xs mt-2 gap-1.5"
                       >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Disbursed
-                      </Badge>
-                    ) : g.status === 'approved' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold"
-                      >
-                        Approved
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
-                      >
-                        In Review
-                      </Badge>
-                    )}
+                        <Plus className="h-3.5 w-3.5" /> Record New Grant
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredGrants.map((g) => (
+                  <tr key={g.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900 leading-snug">{g.wuaName}</div>
+                      <span className="text-[10px] text-slate-400 font-mono font-bold">
+                        {g.wuaRegNo}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700 leading-relaxed">{g.purpose}</td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">{g.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      ₦{g.approvedAmountNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-black text-teal-800">
+                      ₦{g.disbursedAmountNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                      ₦{g.matchingContributionNgn.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {g.status === 'disbursed' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Disbursed
+                        </Badge>
+                      ) : g.status === 'approved' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-teal-300 text-teal-800 bg-teal-50 text-[10px] font-bold"
+                        >
+                          Approved
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
+                        >
+                          In Review
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

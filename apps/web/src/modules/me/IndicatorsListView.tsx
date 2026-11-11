@@ -308,80 +308,112 @@ export function IndicatorsListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredIndicators.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
-                      {item.code}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 max-w-sm">
-                    <div className="font-bold text-slate-900 leading-snug">{item.name}</div>
-                    {item.computeKey && (
-                      <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                        fn: {item.computeKey}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {item.level === 'pdo' ? (
-                      <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
-                        PDO
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-slate-600 border-slate-300 text-[10px] font-medium"
-                      >
-                        Intermediate
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-800">{item.unit}</div>
-                    <div className="text-[10px] text-slate-400 capitalize">{item.frequency}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {item.method === 'computed' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                        <Cpu className="h-3 w-3" /> Computed
-                      </span>
-                    ) : item.method === 'manual' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        <PenTool className="h-3 w-3" /> Manual
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                        <HelpCircle className="h-3 w-3" /> Survey
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
-                    {item.baseline ? `${item.baseline} (${item.baselineYear})` : '—'}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    {item.endTarget || '—'}
-                  </td>
-                  <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedIndicator(item)}
-                      className="text-xs font-semibold gap-1 text-slate-700"
-                    >
-                      <Eye className="h-3 w-3" /> View Detail
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenEditTargets(item)}
-                      className="text-xs font-semibold gap-1 text-amber-900 border-amber-200 hover:bg-amber-50"
-                    >
-                      <Edit3 className="h-3 w-3" /> Edit Targets
-                    </Button>
+              {filteredIndicators.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Target className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No indicators found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || levelFilter !== 'all' || methodFilter !== 'all'
+                          ? 'No indicators match the selected filters or search terms. Try clearing your filters.'
+                          : 'No indicators have been configured in the Results Framework yet.'}
+                      </p>
+                      {(searchQuery || levelFilter !== 'all' || methodFilter !== 'all') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setLevelFilter('all');
+                            setMethodFilter('all');
+                          }}
+                          className="text-xs mt-2"
+                        >
+                          Clear Filters
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredIndicators.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 max-w-sm">
+                      <div className="font-bold text-slate-900 leading-snug">{item.name}</div>
+                      {item.computeKey && (
+                        <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                          fn: {item.computeKey}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {item.level === 'pdo' ? (
+                        <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold">
+                          PDO
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-slate-600 border-slate-300 text-[10px] font-medium"
+                        >
+                          Intermediate
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-800">{item.unit}</div>
+                      <div className="text-[10px] text-slate-400 capitalize">{item.frequency}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {item.method === 'computed' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <Cpu className="h-3 w-3" /> Computed
+                        </span>
+                      ) : item.method === 'manual' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <PenTool className="h-3 w-3" /> Manual
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                          <HelpCircle className="h-3 w-3" /> Survey
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
+                      {item.baseline ? `${item.baseline} (${item.baselineYear})` : '—'}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      {item.endTarget || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedIndicator(item)}
+                        className="text-xs font-semibold gap-1 text-slate-700"
+                      >
+                        <Eye className="h-3 w-3" /> View Detail
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenEditTargets(item)}
+                        className="text-xs font-semibold gap-1 text-amber-900 border-amber-200 hover:bg-amber-50"
+                      >
+                        <Edit3 className="h-3 w-3" /> Edit Targets
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

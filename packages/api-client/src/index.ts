@@ -481,9 +481,13 @@ export class ApiClient {
   public async getIndicators(
     query?: BaseListQuery,
   ): Promise<{ items: Indicator[]; total?: number }> {
-    return this.request<{ items: Indicator[]; total?: number }>(
+    const res = await this.request<Indicator[] | { items: Indicator[]; total?: number }>(
       `/me/indicators${buildQueryString(query)}`,
     );
+    if (Array.isArray(res)) {
+      return { items: res, total: res.length };
+    }
+    return res;
   }
 
   public async getIndicatorMatrix(query?: {

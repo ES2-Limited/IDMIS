@@ -27,7 +27,11 @@ export function useScorecards(schemeId?: string, periodYear?: number) {
       const params = new URLSearchParams();
       if (schemeId) params.set('schemeId', schemeId);
       if (periodYear) params.set('periodYear', String(periodYear));
-      return client.get<Scorecard[]>(`/me/scorecards?${params.toString()}`);
+      const res = await client.get<Scorecard[] | { data: Scorecard[]; total: number }>(
+        `/me/scorecards?${params.toString()}`,
+      );
+      if (Array.isArray(res)) return res;
+      return res?.data ?? [];
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,
@@ -64,7 +68,11 @@ export function useMatchingGrants(schemeId?: string) {
       const client = getApiClient();
       const params = new URLSearchParams();
       if (schemeId) params.set('schemeId', schemeId);
-      return client.get<MatchingGrant[]>(`/me/grants?${params.toString()}`);
+      const res = await client.get<MatchingGrant[] | { data: MatchingGrant[]; total: number }>(
+        `/me/grants?${params.toString()}`,
+      );
+      if (Array.isArray(res)) return res;
+      return res?.data ?? [];
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,
@@ -101,7 +109,11 @@ export function useTechAdoption(schemeId?: string) {
       const client = getApiClient();
       const params = new URLSearchParams();
       if (schemeId) params.set('schemeId', schemeId);
-      return client.get<TechAdoption[]>(`/me/tech-adoption?${params.toString()}`);
+      const res = await client.get<TechAdoption[] | { data: TechAdoption[]; total: number }>(
+        `/me/tech-adoption?${params.toString()}`,
+      );
+      if (Array.isArray(res)) return res;
+      return res?.data ?? [];
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,
@@ -138,7 +150,13 @@ export function useSurveys(schemeId?: string) {
       const client = getApiClient();
       const params = new URLSearchParams();
       if (schemeId) params.set('schemeId', schemeId);
-      return client.get<Survey[]>(`/me/surveys?${params.toString()}`);
+      const res = await client.get<Survey[] | { items?: Survey[]; data?: Survey[]; total: number }>(
+        `/me/surveys?${params.toString()}`,
+      );
+      if (Array.isArray(res)) return res;
+      if (res && 'items' in res && Array.isArray(res.items)) return res.items;
+      if (res && 'data' in res && Array.isArray(res.data)) return res.data;
+      return [];
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,

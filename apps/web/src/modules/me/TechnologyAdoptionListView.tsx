@@ -311,50 +311,75 @@ export function TechnologyAdoptionListView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAdoptions.map((ta) => (
-                <tr key={ta.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{ta.farmerName}</td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        ta.gender === 'female'
-                          ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}
-                    >
-                      {ta.gender}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{ta.technologyName}</div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {ta.technologyCode}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="capitalize text-slate-600 font-semibold">{ta.category}</span>
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">{ta.schemeName}</td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">{ta.adoptedOn}</td>
-                  <td className="py-3.5 px-4">
-                    {ta.status === 'approved' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+              {filteredAdoptions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Sprout className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                      <div className="text-sm font-semibold text-slate-700">
+                        No technology adoption records found
+                      </div>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        {searchQuery || techFilter !== 'all' || genderFilter !== 'all'
+                          ? 'No technology adoption records match the selected filters.'
+                          : 'Climate-smart and improved agricultural technology adoption logs will appear here.'}
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-lime-700 hover:bg-lime-800 text-white text-xs mt-2 gap-1.5"
                       >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
-                      >
-                        Submitted
-                      </Badge>
-                    )}
+                        <Plus className="h-3.5 w-3.5" /> Log Technology Adoption
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredAdoptions.map((ta) => (
+                  <tr key={ta.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{ta.farmerName}</td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          ta.gender === 'female'
+                            ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {ta.gender}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900">{ta.technologyName}</div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {ta.technologyCode}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="capitalize text-slate-600 font-semibold">{ta.category}</span>
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">{ta.schemeName}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">{ta.adoptedOn}</td>
+                    <td className="py-3.5 px-4">
+                      {ta.status === 'approved' ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px] font-bold gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 text-amber-800 bg-amber-50 text-[10px] font-bold"
+                        >
+                          Submitted
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

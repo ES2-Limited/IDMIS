@@ -25,8 +25,12 @@ export function useIndicators(query?: BaseListQuery) {
   });
 
   return {
-    indicators: (indicatorsQuery.data?.items as Indicator[] | undefined) ?? [],
-    total: indicatorsQuery.data?.total,
+    indicators: Array.isArray(indicatorsQuery.data)
+      ? (indicatorsQuery.data as Indicator[])
+      : ((indicatorsQuery.data?.items as Indicator[] | undefined) ?? []),
+    total: Array.isArray(indicatorsQuery.data)
+      ? indicatorsQuery.data.length
+      : indicatorsQuery.data?.total,
     isLoading: indicatorsQuery.isLoading,
     isFetching: indicatorsQuery.isFetching,
     error: indicatorsQuery.error,
