@@ -144,7 +144,7 @@ export function TechnologyAdoptionListView() {
       '018f3a5e-0020-7000-8000-000000000001';
 
     const targetTechId =
-      selectedTechId || techLookupValues[0]?.id || '018f3a5e-0003-7000-0099-000000000001';
+      selectedTechId || techLookupValues[0]?.id || '018f3a5e-0003-7000-8099-000000000001';
 
     try {
       if (createTechAdoption) {

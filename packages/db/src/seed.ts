@@ -525,7 +525,8 @@ export async function seed() {
 
     for (let vIdx = 0; vIdx < lt.values.length; vIdx++) {
       const val = lt.values[vIdx]!;
-      const lookupValId = `018f3a5e-0003-7000-${String(tIdx + 1).padStart(4, '0')}-${String(vIdx + 1).padStart(12, '0')}`;
+      // Variant digit must be 8, 9, a, or b for RFC 4122 compliance (zod uuid validation)
+      const lookupValId = `018f3a5e-0003-7000-8${String(tIdx + 1).padStart(3, '0')}-${String(vIdx + 1).padStart(12, '0')}`;
 
       const existingVal = await db
         .select({ id: lookupValue.id })
