@@ -33,51 +33,6 @@ export interface MatchingGrantRecord {
   status: 'disbursed' | 'approved' | 'in_review';
 }
 
-const INITIAL_GRANTS: MatchingGrantRecord[] = [
-  {
-    id: 'gr-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    wuaName: 'Kura Canal Maintenance Association',
-    wuaRegNo: 'WUA-KRS-042',
-    purpose: 'Procurement of mini-excavator for lateral desilting and culvert repair',
-    approvedAmountNgn: 15000000,
-    disbursedAmountNgn: 15000000,
-    matchingContributionNgn: 3000000,
-    approvedOn: '2026-01-20',
-    disbursedOn: '2026-02-14',
-    status: 'disbursed',
-  },
-  {
-    id: 'gr-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Scheme',
-    wuaName: 'Talata Mafara Vegetable Producers WUA',
-    wuaRegNo: 'WUA-BIS-018',
-    purpose: 'Solar-powered community cold hub & produce sorting shed',
-    approvedAmountNgn: 22000000,
-    disbursedAmountNgn: 11000000,
-    matchingContributionNgn: 4400000,
-    approvedOn: '2026-02-10',
-    disbursedOn: '2026-03-01',
-    status: 'approved',
-  },
-  {
-    id: 'gr-3',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    wuaName: 'Auyo Rice Growers WUA',
-    wuaRegNo: 'WUA-HVS-007',
-    purpose: 'Installation of parabolic pre-cast lining for tail-end distribution',
-    approvedAmountNgn: 18500000,
-    disbursedAmountNgn: 0,
-    matchingContributionNgn: 3700000,
-    approvedOn: '2026-03-12',
-    disbursedOn: null,
-    status: 'in_review',
-  },
-];
-
 export function MatchingGrantsListView() {
   const { currentScope } = useScope();
 
@@ -113,7 +68,7 @@ export function MatchingGrantsListView() {
         status: g.disbursedOn ? 'disbursed' : 'approved',
       }));
     }
-    return INITIAL_GRANTS;
+    return [];
   }, [serverGrants, currentScope.name]);
 
   const filteredGrants = React.useMemo(() => {

@@ -52,133 +52,28 @@ export interface EntryIndicatorRow {
   };
 }
 
-export const mockEntryRows: EntryIndicatorRow[] = [
-  {
-    id: '018f3a70-0061-7000-8000-000000000001',
-    code: '1a',
-    name: 'Direct project beneficiaries',
-    level: 'pdo',
-    unit: 'Number',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries',
-    annualTarget: '10,000,000',
-    lastQuarterValue: '8,150,000',
-    thisQuarterValue: '8,420,500',
-    status: 'submitted',
-    notes: 'Rollup calculated from verified SLIS active farmer registry and household rosters.',
-    computationSource: {
-      scheme: 'All Active Schemes (HVIP, KRIP, Bakolori)',
-      sourceTable: 'slis.farmers + slis.farmer_households',
-      recordCount: 28490,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000002',
-    code: '1b',
-    name: 'Female beneficiaries (%)',
-    level: 'pdo',
-    unit: '%',
-    method: 'computed',
-    computeKey: 'slis.beneficiaries_female_pct',
-    annualTarget: '50.0',
-    lastQuarterValue: '46.8',
-    thisQuarterValue: '48.2',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'National Project Rollup',
-      sourceTable: 'slis.farmers (gender breakdown)',
-      recordCount: 28490,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000003',
-    code: '2a',
-    name: 'Area provided with irrigation and drainage services',
-    level: 'pdo',
-    unit: 'ha',
-    method: 'computed',
-    computeKey: 'slis.area_serviced',
-    annualTarget: '50,000',
-    lastQuarterValue: '44,200',
-    thisQuarterValue: '46,120',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'HVIP + KRIP + Bakolori Sectors',
-      sourceTable: 'slis.farms (geodesic polygon compute)',
-      recordCount: 34210,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000004',
-    code: '11',
-    name: 'Matching grants disbursed to farmer interest groups',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '450',
-    lastQuarterValue: '390',
-    thisQuarterValue: '412',
-    status: 'submitted',
-    notes: '22 new matching grants disbursed across Hadejia Valley Unit WUAs.',
-    evidenceFiles: ['Matching_Grants_Tranche4_Approval.pdf'],
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000005',
-    code: '12',
-    name: 'Dams with upgraded instrumentation and real-time telemetry',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '8',
-    lastQuarterValue: '6',
-    thisQuarterValue: '7',
-    status: 'draft',
-    notes: 'Tiga Dam piezometer telemetry installation successfully completed.',
-    evidenceFiles: ['Tiga_Dam_Telemetry_Commissioning_Report.pdf'],
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000006',
-    code: '14a',
-    name: 'Yield of main product – Tomato (t/ha)',
-    level: 'intermediate',
-    unit: 't/ha',
-    method: 'computed',
-    computeKey: 'slis.yield.tomato',
-    annualTarget: '30.0',
-    lastQuarterValue: '26.8',
-    thisQuarterValue: '28.4',
-    status: 'submitted',
-    computationSource: {
-      scheme: 'Kano River Irrigation Project',
-      sourceTable: 'slis.crop_production',
-      recordCount: 840,
-      lastComputedAt: 'Today, 06:00 AM',
-    },
-  },
-  {
-    id: '018f3a70-0061-7000-8000-000000000007',
-    code: '15',
-    name: 'Commercial partnerships with off-takers',
-    level: 'intermediate',
-    unit: 'Number',
-    method: 'manual',
-    annualTarget: '7',
-    lastQuarterValue: '5',
-    thisQuarterValue: '6',
-    status: 'returned',
-    notes: 'Please attach official signed MoU between Dangote Tomato Processing and Apex WUA.',
-  },
-];
-
 export function QuarterlyDataEntryView() {
   const { currentScope } = useScope();
-  const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix();
   const [selectedQuarter, setSelectedQuarter] = React.useState('2026-Q4');
   const [selectedScope, setSelectedScope] = React.useState('all');
   const [rows, setRows] = React.useState<EntryIndicatorRow[]>([]);
+
+  const parts = selectedQuarter.split('-Q');
+  const periodYear = Number(parts[0]) || 2026;
+  const periodQuarter = Number(parts[1]) || 4;
+
+  const { matrix: serverMatrix, submitQuarterlyValue } = useIndicatorMatrix({
+    year: periodYear,
+    quarter: periodQuarter,
+    scopeType:
+      currentScope.type === 'state'
+        ? 'state'
+        : currentScope.type === 'scheme'
+          ? 'scheme'
+          : 'national',
+    scopeId:
+      currentScope.type === 'state' || currentScope.type === 'scheme' ? currentScope.id : undefined,
+  });
 
   React.useEffect(() => {
     if (serverMatrix?.items && serverMatrix.items.length > 0) {
@@ -197,6 +92,8 @@ export function QuarterlyDataEntryView() {
           notes: item.message || undefined,
         })),
       );
+    } else {
+      setRows([]);
     }
   }, [serverMatrix]);
 

@@ -41,67 +41,12 @@ export interface TechAdoptionRecord {
   verifierNotes?: string;
 }
 
-const INITIAL_ADOPTIONS: TechAdoptionRecord[] = [
-  {
-    id: 'ta-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    technologyCode: 'SEED_FARO44',
-    technologyName: 'Certified Faro 44 Early-Maturing Rice Seed',
-    category: 'seed',
-    farmerName: 'Amina Sani Abdullahi',
-    gender: 'female',
-    adoptedOn: '2026-02-15',
-    status: 'approved',
-    verifierNotes: 'Verified receipt from registered agro-dealer cooperative',
-  },
-  {
-    id: 'ta-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Scheme',
-    technologyCode: 'SOLAR_PUMP_5HP',
-    technologyName: 'Solar-Powered 5HP Irrigation Water Pump',
-    category: 'irrigation',
-    farmerName: 'Ibrahim Danbaba',
-    gender: 'male',
-    adoptedOn: '2026-03-01',
-    status: 'approved',
-    verifierNotes: 'Installed at lateral canal tail-end parcel with GPS verification',
-  },
-  {
-    id: 'ta-3',
-    schemeId: 'kano',
-    schemeName: 'Kano River Scheme',
-    technologyCode: 'DRIP_KIT_1HA',
-    technologyName: 'Low-Pressure Horticultural Drip Irrigation Kit',
-    category: 'irrigation',
-    farmerName: 'Halima Yusuf Bello',
-    gender: 'female',
-    adoptedOn: '2026-03-10',
-    status: 'approved',
-    verifierNotes: 'Operating on 0.8ha tomato plot with 45% water saving',
-  },
-  {
-    id: 'ta-4',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    technologyCode: 'FERT_DEEP_PLACE',
-    technologyName: 'Urea Deep Placement (UDP) Briquetting',
-    category: 'fertilizer',
-    farmerName: 'Musa Garba Lawal',
-    gender: 'male',
-    adoptedOn: '2026-03-22',
-    status: 'submitted',
-    verifierNotes: 'Under review by M&E field supervisor',
-  },
-];
-
 export function TechnologyAdoptionListView() {
   const { currentScope } = useScope();
   const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
   const { adoptions: serverAdoptions, createTechAdoption } = useTechAdoption(schemeId);
 
-  const [adoptions, setAdoptions] = React.useState<TechAdoptionRecord[]>(INITIAL_ADOPTIONS);
+  const [adoptions, setAdoptions] = React.useState<TechAdoptionRecord[]>([]);
 
   React.useEffect(() => {
     if (serverAdoptions && serverAdoptions.length > 0) {
@@ -123,6 +68,8 @@ export function TechnologyAdoptionListView() {
           verifierNotes: item.returnComment || undefined,
         })),
       );
+    } else {
+      setAdoptions([]);
     }
   }, [serverAdoptions, currentScope.name]);
   const [techFilter, setTechFilter] = React.useState<string>('all');

@@ -44,51 +44,6 @@ export interface ScorecardRecord {
   fileName?: string;
 }
 
-const INITIAL_SCORECARDS: ScorecardRecord[] = [
-  {
-    id: 'sc-1',
-    schemeId: 'kano',
-    schemeName: 'Kano River Irrigation Scheme',
-    periodYear: 2026,
-    overallScore: 88,
-    ratingTier: 'A',
-    publishedOn: '2026-03-15',
-    status: 'published',
-    wuaGovernanceScore: 92,
-    isfCollectionRate: 84.5,
-    infrastructureStatus: 'Good (Canal Desilted)',
-    fileName: 'KRIS_Annual_Scorecard_2026.pdf',
-  },
-  {
-    id: 'sc-2',
-    schemeId: 'bakolori',
-    schemeName: 'Bakolori Irrigation Scheme',
-    periodYear: 2026,
-    overallScore: 78,
-    ratingTier: 'B',
-    publishedOn: '2026-03-20',
-    status: 'published',
-    wuaGovernanceScore: 80,
-    isfCollectionRate: 76.5,
-    infrastructureStatus: 'Fair (Lateral 8 Gate Repair)',
-    fileName: 'BIS_Performance_Audit_2026.pdf',
-  },
-  {
-    id: 'sc-3',
-    schemeId: 'hadejia',
-    schemeName: 'Hadejia Valley Scheme',
-    periodYear: 2026,
-    overallScore: 68,
-    ratingTier: 'C',
-    publishedOn: null,
-    status: 'under_review',
-    wuaGovernanceScore: 70,
-    isfCollectionRate: 64.0,
-    infrastructureStatus: 'Needs Maintenance (Drain Siltation)',
-    fileName: 'Hadejia_Draft_Scorecard_2026.pdf',
-  },
-];
-
 export function ScorecardsListView() {
   const { currentScope } = useScope();
   const { success, info } = useToast();
@@ -128,7 +83,7 @@ export function ScorecardsListView() {
         fileName: 'Official_Scheme_Scorecard.pdf',
       }));
     }
-    return INITIAL_SCORECARDS;
+    return [];
   }, [serverScorecards, currentScope.name]);
 
   const filteredScorecards = React.useMemo(() => {

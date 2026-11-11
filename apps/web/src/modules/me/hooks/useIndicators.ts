@@ -34,15 +34,20 @@ export function useIndicators(query?: BaseListQuery) {
   };
 }
 
-export function useIndicatorMatrix() {
+export function useIndicatorMatrix(query?: {
+  year?: number;
+  quarter?: number;
+  scopeType?: 'national' | 'state' | 'scheme' | 'sector';
+  scopeId?: string;
+}) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
   const matrixQuery = useQuery({
-    queryKey: ME_MATRIX_QUERY_KEY,
+    queryKey: [...ME_MATRIX_QUERY_KEY, query],
     queryFn: async () => {
       const client = getApiClient();
-      return client.getIndicatorMatrix();
+      return client.getIndicatorMatrix(query);
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5,
