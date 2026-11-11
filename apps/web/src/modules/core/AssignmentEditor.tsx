@@ -10,7 +10,7 @@ import {
   SelectItem,
 } from '@idmis/ui';
 import type { ModuleKey, ScopeType } from '@idmis/contracts';
-import { mockOrganisations, mockRoles } from '../../mocks/coreData';
+import { useOrganisations, useGeography, useRoles } from './hooks';
 
 export interface AssignmentFormData {
   roleId: string;
@@ -30,7 +30,10 @@ interface AssignmentEditorProps {
 }
 
 export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditorProps) {
-  const selectedRole = mockRoles.find((r) => r.id === value.roleId) || mockRoles[0];
+  const { organisations: serverOrgs } = useOrganisations();
+  const { states } = useGeography();
+  const { roles } = useRoles();
+  const selectedRole = roles.find((r) => r.id === value.roleId) || roles[0];
 
   const handleRoleChange = (roleId: string) => {
     onChange({ ...value, roleId });
@@ -44,9 +47,9 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
     onChange({
       ...value,
       scopeType,
-      scopeStateId: scopeType === 'state' ? '018f3a70-0001-7000-8000-000000000001' : null,
+      scopeStateId: scopeType === 'state' ? (states[0]?.id ?? null) : null,
       scopeOrgId: ['rbda', 'scheme', 'sector'].includes(scopeType)
-        ? (mockOrganisations[0]?.id ?? null)
+        ? (serverOrgs[0]?.id ?? null)
         : null,
     });
   };
@@ -98,7 +101,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
           System Role
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {mockRoles.map((role) => {
+          {roles.map((role) => {
             const isSelected = value.roleId === role.id;
             return (
               <button
@@ -195,7 +198,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
             Specific Organisation / Unit
           </label>
           <Select
-            value={value.scopeOrgId || mockOrganisations[0]?.id || ''}
+            value={value.scopeOrgId || serverOrgs[0]?.id || ''}
             onValueChange={(val) => onChange({ ...value, scopeOrgId: val })}
             disabled={disabled}
           >
@@ -203,7 +206,7 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
               <SelectValue placeholder="Choose organisation unit" />
             </SelectTrigger>
             <SelectContent className="rounded-xl shadow-xl border-slate-200">
-              {mockOrganisations
+              {serverOrgs
                 .filter((o) => (value.scopeType === 'rbda' ? o.type === 'rbda' : true))
                 .map((org) => (
                   <SelectItem key={org.id} value={org.id} className="text-xs font-medium py-2">
@@ -223,38 +226,19 @@ export function AssignmentEditor({ value, onChange, disabled }: AssignmentEditor
             Assigned State Jurisdiction
           </label>
           <Select
-            value={value.scopeStateId || '018f3a70-0001-7000-8000-000000000001'}
+            value={value.scopeStateId || states[0]?.id || ''}
             onValueChange={(val) => onChange({ ...value, scopeStateId: val })}
             disabled={disabled}
           >
             <SelectTrigger className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-2xs hover:border-teal-600 transition-all cursor-pointer">
               <SelectValue placeholder="Choose state" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl shadow-xl border-slate-200">
-              <SelectItem
-                value="018f3a70-0001-7000-8000-000000000001"
-                className="text-xs font-medium py-2"
-              >
-                Kano State
-              </SelectItem>
-              <SelectItem
-                value="018f3a70-0002-7000-8000-000000000002"
-                className="text-xs font-medium py-2"
-              >
-                Jigawa State
-              </SelectItem>
-              <SelectItem
-                value="018f3a70-0003-7000-8000-000000000003"
-                className="text-xs font-medium py-2"
-              >
-                Zamfara State
-              </SelectItem>
-              <SelectItem
-                value="018f3a70-0004-7000-8000-000000000004"
-                className="text-xs font-medium py-2"
-              >
-                Sokoto State
-              </SelectItem>
+            <SelectContent className="rounded-xl shadow-xl border-slate-200 max-h-60 overflow-y-auto">
+              {states.map((st) => (
+                <SelectItem key={st.id} value={st.id} className="text-xs font-medium py-2">
+                  {st.name} ({st.code})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

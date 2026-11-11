@@ -10,17 +10,53 @@ import {
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
+import { useFarmers, usePlots, useReviewQueue, useSlisReports } from './hooks';
 
 export function SlisHome() {
   const { currentScope } = useScope();
+  const schemeId = currentScope.type === 'scheme' ? currentScope.id : undefined;
+
+  // Direct entity list queries for live active counts
+  const { total: liveFarmersCount, isLoading: loadingFarmers } = useFarmers({
+    schemeId,
+    limit: 100,
+  });
+
+  const { total: livePlotsCount, isLoading: loadingPlots } = usePlots({
+    schemeId,
+    limit: 100,
+  });
+
+  // Aggregated reports query
+  const { farmersByScope, areaByService, isLoading: loadingReports } = useSlisReports(schemeId);
+
+  // If reports materialized view has numbers use it, otherwise fall back to live entity count
+  const reportFarmers = farmersByScope?.totalFarmers ?? 0;
+  const totalFarmers = reportFarmers > 0 ? reportFarmers : liveFarmersCount;
+
+  const reportAreaHa = areaByService?.totalAreaHa ? Number(areaByService.totalAreaHa) : 0;
+  const reportPlots = areaByService?.items?.reduce((sum, item) => sum + item.plotCount, 0) ?? 0;
+  const totalPlots = reportPlots > 0 ? reportPlots : livePlotsCount;
+
+  const { total: totalReviewItems, isLoading: loadingReview } = useReviewQueue({
+    schemeId,
+    status: 'submitted',
+    limit: 1,
+  });
+
+  const isLoadingData = loadingFarmers || loadingPlots || loadingReports;
 
   const slisSections = [
     {
       title: 'Farmer Registry & Households',
       description:
         'Farmer profiles, household member rosters, national identity (NIN/BVN) verification, and tenure documents.',
-      stats: '28,490 Farmers',
-      statLabel: '94% Identity Verified',
+      stats: isLoadingData
+        ? 'Loading...'
+        : totalFarmers > 0
+          ? `${totalFarmers.toLocaleString()} Farmers`
+          : '0 Farmers',
+      statLabel: totalFarmers > 0 ? 'Verified In Scope' : 'No records yet',
       icon: Users,
       badge: 'Field Ready',
       badgeStatus: 'saved_on_device' as const,
@@ -38,8 +74,12 @@ export function SlisHome() {
       title: 'Plots & GIS Boundaries',
       description:
         'Cadastral irrigation parcels, GPS boundary walks, vertex smoothing, and crop rotation cycles.',
-      stats: '46,120 Hectares',
-      statLabel: '34,210 Polygons',
+      stats: isLoadingData
+        ? 'Loading...'
+        : totalPlots > 0
+          ? `${totalPlots.toLocaleString()} Parcels${reportAreaHa > 0 ? ` (${reportAreaHa.toLocaleString()} ha)` : ''}`
+          : '0 Parcels',
+      statLabel: totalPlots > 0 ? 'Digitized Boundaries' : 'No parcels yet',
       icon: MapPin,
       badge: 'Spatial GIS',
       badgeStatus: 'approved' as const,
@@ -57,8 +97,12 @@ export function SlisHome() {
       title: 'Review Queue & Conflicts',
       description:
         'Supervisory approval workflow, concurrent edits resolution, and held offline conflict queues.',
-      stats: '14 Held Conflicts',
-      statLabel: 'Needs Supervisor',
+      stats: loadingReview
+        ? 'Loading...'
+        : totalReviewItems !== undefined
+          ? `${totalReviewItems} Pending`
+          : '0 Pending',
+      statLabel: totalReviewItems && totalReviewItems > 0 ? 'Needs Supervisor' : 'Queue Clear',
       icon: AlertTriangle,
       badge: 'Resolution Required',
       badgeStatus: 'conflict' as const,
@@ -75,10 +119,35 @@ export function SlisHome() {
   ];
 
   const quickStats = [
-    { label: 'Registered Farmers', value: '28,490', sub: '+310 this week' },
-    { label: 'Mapped Farmland', value: '46,120 ha', sub: '92% irrigated' },
-    { label: 'Unsynced Records', value: '4 Saved', sub: 'Cached on device' },
-    { label: 'Approval Status', value: '98.8%', sub: 'Field verified' },
+    {
+      label: 'Registered Farmers',
+      value: isLoadingData ? '...' : totalFarmers.toLocaleString(),
+      sub: totalFarmers > 0 ? 'Live Registry' : 'Empty database',
+    },
+    {
+      label: 'Mapped Farmland',
+      value: isLoadingData
+        ? '...'
+        : reportAreaHa > 0
+          ? `${reportAreaHa.toLocaleString()} ha`
+          : `${totalPlots} parcels`,
+      sub:
+        reportAreaHa > 0
+          ? 'Command Area'
+          : totalPlots > 0
+            ? 'Digitized parcels'
+            : 'No parcels mapped',
+    },
+    { label: 'Unsynced Records', value: '0 Saved', sub: 'Cached on device' },
+    {
+      label: 'Pending Review',
+      value: loadingReview
+        ? '...'
+        : totalReviewItems !== undefined
+          ? String(totalReviewItems)
+          : '0',
+      sub: totalReviewItems && totalReviewItems > 0 ? 'Awaiting Action' : 'Up to date',
+    },
   ];
 
   return (

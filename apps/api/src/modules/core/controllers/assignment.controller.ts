@@ -19,6 +19,12 @@ export class AssignmentController {
     return this.assignmentService.listUserAssignments(userId);
   }
 
+  @Get('roles')
+  @Can(permissions.CORE_ROLE_READ)
+  async listRoles() {
+    return this.assignmentService.listRoles();
+  }
+
   @Post()
   @Can(permissions.CORE_ASSIGNMENT_MANAGE)
   async createAssignment(

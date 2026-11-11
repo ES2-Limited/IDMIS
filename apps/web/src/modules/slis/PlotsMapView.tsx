@@ -46,68 +46,10 @@ export interface PlotItem {
   coordinatesCount: number;
 }
 
-export const mockPlots: PlotItem[] = [
-  {
-    id: '018f3a70-0011-7000-8000-000000000001',
-    plotCode: 'PLT-B4-082',
-    sectorName: 'Sector B4 (Kura Canal Reach)',
-    allocatedFarmer: 'Musa Ibrahim Danbatta',
-    areaHa: '1.4500',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'approved',
-    coordinatesCount: 8,
-  },
-  {
-    id: '018f3a70-0012-7000-8000-000000000002',
-    plotCode: 'PLT-B4-083',
-    sectorName: 'Sector B4 (Kura Canal Reach)',
-    allocatedFarmer: 'Musa Ibrahim Danbatta',
-    areaHa: '0.9000',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'approved',
-    coordinatesCount: 6,
-  },
-  {
-    id: '018f3a70-0013-7000-8000-000000000003',
-    plotCode: 'PLT-A2-014',
-    sectorName: 'Sector A2 (Gari Sub-system)',
-    allocatedFarmer: 'Amina Bello Galadima',
-    areaHa: '2.1000',
-    irrigationType: 'Low-lift Lateral',
-    serviceType: 'pump',
-    status: 'approved',
-    coordinatesCount: 12,
-  },
-  {
-    id: '018f3a70-0014-7000-8000-000000000004',
-    plotCode: 'PLT-C1-019',
-    sectorName: 'Sector C1 (Hadejia Floodplain)',
-    allocatedFarmer: 'Haruna Yusuf Sani',
-    areaHa: '0.8000',
-    irrigationType: 'Tubewell Pump',
-    serviceType: 'conjunctive',
-    status: 'conflict',
-    coordinatesCount: 7,
-  },
-  {
-    id: '018f3a70-0015-7000-8000-000000000005',
-    plotCode: 'PLT-D3-104',
-    sectorName: 'Sector D3 (Auyo)',
-    allocatedFarmer: 'Fatima Mohammed',
-    areaHa: '1.2000',
-    irrigationType: 'Gravity Canal',
-    serviceType: 'gravity',
-    status: 'awaiting_review',
-    coordinatesCount: 9,
-  },
-];
-
 export function PlotsMapView() {
   const { currentScope } = useScope();
   const { info, success } = useToast();
-  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(mockPlots[0] ?? null);
+  const [selectedPlot, setSelectedPlot] = React.useState<PlotItem | null>(null);
   const [search, setSearch] = React.useState('');
   const [serviceFilter, setServiceFilter] = React.useState('all');
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -233,44 +175,54 @@ export function PlotsMapView() {
 
             {/* Parcels List Scrollable Container */}
             <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-              {filtered.map((plot) => {
-                const isSelected = selectedPlot?.id === plot.id;
-                return (
-                  <div
-                    key={plot.id}
-                    onClick={() => setSelectedPlot(plot)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
-                        : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-xs text-slate-900">
-                            {plot.plotCode}
-                          </span>
-                          <StatusChip status={plot.status}>{plot.status}</StatusChip>
+              {filtered.length === 0 ? (
+                <div className="py-12 px-4 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                  <MapPin className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No plots mapped in scope</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    No cadastral parcels found for the active filter.
+                  </p>
+                </div>
+              ) : (
+                filtered.map((plot) => {
+                  const isSelected = selectedPlot?.id === plot.id;
+                  return (
+                    <div
+                      key={plot.id}
+                      onClick={() => setSelectedPlot(plot)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
+                          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-xs text-slate-900">
+                              {plot.plotCode}
+                            </span>
+                            <StatusChip status={plot.status}>{plot.status}</StatusChip>
+                          </div>
+                          <p className="text-xs font-semibold text-slate-800 mt-1">
+                            {plot.allocatedFarmer}
+                          </p>
+                          <p className="text-[11px] text-slate-400">{plot.sectorName}</p>
                         </div>
-                        <p className="text-xs font-semibold text-slate-800 mt-1">
-                          {plot.allocatedFarmer}
-                        </p>
-                        <p className="text-[11px] text-slate-400">{plot.sectorName}</p>
-                      </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                          {plot.areaHa} ha
-                        </span>
-                        <p className="text-[10px] text-slate-400 mt-1 font-medium">
-                          {plot.irrigationType}
-                        </p>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            {plot.areaHa} ha
+                          </span>
+                          <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                            {plot.irrigationType}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -448,7 +400,7 @@ export function PlotsMapView() {
             </DialogTitle>
           </DialogHeader>
           <ImportWizard
-            initialDatasetId="plot"
+            initialDatasetId="slis.plot"
             onCancel={() => setIsImportOpen(false)}
             onBatchCommitted={() => setIsImportOpen(false)}
           />

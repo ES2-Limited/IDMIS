@@ -18,20 +18,23 @@ import {
   SelectContent,
   SelectItem,
 } from '@idmis/ui';
-import type { AppUserResponse, AssignmentResponse, CreateAppUserInput } from '@idmis/contracts';
-import { mockRoles } from '../../mocks/coreData';
+import type { CreateAppUserInput, CreateAssignmentInput } from '@idmis/contracts';
 import { CreateUserDialog } from './CreateUserDialog';
+import { EditScopeDialog } from './EditScopeDialog';
 import { useToast } from '@idmis/ui';
-import { useUsers } from './hooks';
-
-type UserWithAssignments = AppUserResponse & { assignments?: AssignmentResponse[] };
+import { useUsers, useRoles, type UserWithAssignments } from './hooks';
+import { useScope } from '../../shell/ScopeContext';
 
 export function UserManagementView() {
+  const { currentScope } = useScope();
   const toast = useToast();
   const [search, setSearch] = React.useState('');
   const [roleFilter, setRoleFilter] = React.useState<string>('all');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [userToEditScope, setUserToEditScope] = React.useState<UserWithAssignments | null>(null);
+
+  const { roles } = useRoles();
 
   // Modular custom hook for Users
   const {
@@ -41,6 +44,8 @@ export function UserManagementView() {
     refetch,
     createUser,
     isCreating,
+    assignScope,
+    isAssigningScope,
   } = useUsers({
     limit: 50,
     isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
@@ -57,10 +62,38 @@ export function UserManagementView() {
     }
   };
 
+  const handleAssignScope = async (data: CreateAssignmentInput) => {
+    try {
+      await assignScope(data);
+      toast.success('Scope assignment updated successfully');
+      setUserToEditScope(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update scope assignment';
+      toast.error(msg);
+      throw err;
+    }
+  };
+
   // Pure live data from server
   const activeUsers: UserWithAssignments[] = serverUsers ?? [];
 
-  const filteredUsers = activeUsers.filter((user) => {
+  const scopedUsers = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      return activeUsers.filter((u) =>
+        u.assignments?.some(
+          (a) => a.scopeType === 'national' || a.scopeStateId === currentScope.id,
+        ),
+      );
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return activeUsers.filter((u) =>
+        u.assignments?.some((a) => a.scopeType === 'national' || a.scopeOrgId === currentScope.id),
+      );
+    }
+    return activeUsers;
+  }, [activeUsers, currentScope]);
+
+  const filteredUsers = scopedUsers.filter((user) => {
     const matchesSearch =
       user.fullName.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -144,7 +177,7 @@ export function UserManagementView() {
               <SelectItem value="all" className="text-xs font-medium py-2">
                 All Roles
               </SelectItem>
-              {mockRoles.map((r) => (
+              {roles.map((r) => (
                 <SelectItem key={r.id} value={r.id} className="text-xs font-medium py-2">
                   {r.name}
                 </SelectItem>
@@ -216,7 +249,7 @@ export function UserManagementView() {
                     <span className="text-slate-400 block font-medium">Assigned Role</span>
                     <span className="font-semibold text-slate-700">
                       {assignment
-                        ? mockRoles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
+                        ? roles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
                         : 'No Role'}
                     </span>
                   </div>
@@ -234,6 +267,18 @@ export function UserManagementView() {
                     <span>Offline PWA Device Authorized</span>
                   </div>
                 )}
+
+                <div className="pt-2 border-t border-slate-100 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUserToEditScope(user)}
+                    className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50 cursor-pointer h-7 px-2"
+                  >
+                    Edit Scope
+                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -274,7 +319,7 @@ export function UserManagementView() {
                       <td className="py-3 px-4">
                         <span className="font-medium text-slate-700">
                           {assignment
-                            ? mockRoles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
+                            ? roles.find((r) => r.id === assignment.roleId)?.name || 'Custom'
                             : 'Unassigned'}
                         </span>
                       </td>
@@ -308,7 +353,8 @@ export function UserManagementView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50"
+                          onClick={() => setUserToEditScope(user)}
+                          className="text-xs text-teal-700 hover:text-teal-800 hover:bg-teal-50 cursor-pointer"
                         >
                           Edit Scope
                           <ChevronRight className="h-3.5 w-3.5 ml-1" />
@@ -328,6 +374,14 @@ export function UserManagementView() {
         onOpenChange={setIsCreateOpen}
         onSubmitUser={handleCreateUser}
         isLoading={isCreating}
+      />
+
+      <EditScopeDialog
+        user={userToEditScope}
+        open={Boolean(userToEditScope)}
+        onOpenChange={(open) => !open && setUserToEditScope(null)}
+        onSubmitAssignment={handleAssignScope}
+        isLoading={isAssigningScope}
       />
     </div>
   );

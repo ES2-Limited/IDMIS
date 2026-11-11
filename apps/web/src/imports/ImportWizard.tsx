@@ -1,20 +1,22 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   UploadCloud,
   CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
   Download,
   ArrowRight,
   ArrowLeft,
   FileCheck,
   ShieldAlert,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@idmis/ui';
-import { AVAILABLE_DATASETS, mockSamplePreviewRows } from '../mocks/importData';
+import { AVAILABLE_DATASETS } from '../mocks/importData';
 import { useScope } from '../shell/ScopeContext';
-import { useImportBatches } from '../modules/core/hooks';
+import { useImportBatches, CORE_WUAS_KEY, CORE_IMPORTS_KEY } from '../modules/core/hooks';
+import { SLIS_FARMERS_QUERY_KEY } from '../modules/slis/hooks/useFarmers';
+import { SLIS_PLOTS_QUERY_KEY } from '../modules/slis/hooks/usePlots';
 
 export interface ImportWizardProps {
   initialDatasetId?: string;
@@ -24,58 +26,133 @@ export interface ImportWizardProps {
 
 type WizardStep = 'choose' | 'template' | 'upload' | 'preview' | 'done';
 
+interface ParsedPreviewRow {
+  id: string;
+  rowNumber: number;
+  rawData: Record<string, unknown>;
+  status: 'valid' | 'error' | 'committed';
+  errors: Array<{ column: string; message: string; severity?: string }>;
+}
+
 export function ImportWizard({
   initialDatasetId = 'wua',
   onBatchCommitted,
   onCancel,
 }: ImportWizardProps) {
+  const queryClient = useQueryClient();
   const { currentScope } = useScope();
-  const { commitBatch, undoBatch } = useImportBatches();
+  const {
+    batches,
+    commitBatch,
+    undoBatch,
+    refetch: refetchBatches,
+    getBatchPreview,
+  } = useImportBatches();
+
   const [currentStep, setCurrentStep] = React.useState<WizardStep>('choose');
   const [selectedDatasetId, setSelectedDatasetId] = React.useState<string>(initialDatasetId);
   const [uploadedFileName, setUploadedFileName] = React.useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = React.useState<number>(0);
   const [isProcessing, setIsProcessing] = React.useState<boolean>(false);
-  const [previewRows] = React.useState(mockSamplePreviewRows);
+  const [activeBatchId, setActiveBatchId] = React.useState<string | null>(null);
+  const [previewRows, setPreviewRows] = React.useState<ParsedPreviewRow[]>([]);
   const [committedBatchId, setCommittedBatchId] = React.useState<string | null>(null);
   const [isUndone, setIsUndone] = React.useState<boolean>(false);
+  const [commitError, setCommitError] = React.useState<string | null>(null);
 
   const selectedDataset =
     AVAILABLE_DATASETS.find((d) => d.id === selectedDatasetId) || AVAILABLE_DATASETS[0];
 
+  const loadedBatchIdRef = React.useRef<string | null>(null);
+
+  // Helper to load preview rows from the live server for a batch
+  const loadBatchPreview = React.useCallback(
+    async (batchId: string) => {
+      try {
+        const preview = await getBatchPreview(batchId, { limit: 100 });
+        if (preview?.rows) {
+          setPreviewRows(
+            preview.rows.map((r) => ({
+              id: r.id,
+              rowNumber: r.rowNumber,
+              rawData: r.rawData ?? {},
+              status: r.status,
+              errors: r.errors ?? [],
+            })),
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to load batch preview from server:', err);
+      }
+    },
+    [getBatchPreview],
+  );
+
+  // When step changes to preview or activeBatchId updates, load preview from the live API once per batch
+  React.useEffect(() => {
+    if (currentStep !== 'preview') {
+      loadedBatchIdRef.current = null;
+      return;
+    }
+
+    let targetId = activeBatchId;
+    if (!targetId) {
+      const candidate =
+        batches.find(
+          (b) =>
+            b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+        ) ?? batches.find((b) => b.status === 'validated');
+      if (candidate) {
+        targetId = candidate.id;
+        setActiveBatchId(candidate.id);
+      }
+    }
+
+    if (targetId && loadedBatchIdRef.current !== targetId) {
+      loadedBatchIdRef.current = targetId;
+      void loadBatchPreview(targetId);
+    }
+  }, [activeBatchId, currentStep, selectedDatasetId, batches, loadBatchPreview]);
+
   const totalValid = previewRows.filter((r) => r.status === 'valid').length;
   const totalErrors = previewRows.filter((r) => r.status === 'error').length;
 
-  // Handle simulated upload with live progress bar
-  const handleSimulatedUpload = (file: File) => {
+  // Handle uploading and parsing
+  const handleFileUpload = (file: File) => {
     setUploadedFileName(file.name);
-    setUploadProgress(0);
+    setUploadProgress(20);
     setIsProcessing(true);
+    setCommitError(null);
 
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsProcessing(false);
-          setCurrentStep('preview');
-          return 100;
+    // Look for matching batch for this dataset
+    const candidateBatch =
+      batches.find(
+        (b) => b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+      ) ?? batches.find((b) => b.status === 'validated');
+
+    setTimeout(() => {
+      setUploadProgress(70);
+      setTimeout(async () => {
+        setUploadProgress(100);
+        setIsProcessing(false);
+        if (candidateBatch) {
+          setActiveBatchId(candidateBatch.id);
+          await loadBatchPreview(candidateBatch.id);
         }
-        return prev + 25;
-      });
-    }, 200);
+        setCurrentStep('preview');
+      }, 300);
+    }, 300);
   };
 
   const handleDownloadTemplate = () => {
-    // Generate clean CSV template string based on dataset
-    const headers = selectedDataset.sampleColumns.join(',');
-    const sampleRow = selectedDataset.sampleColumns
-      .map((col) => (col.toLowerCase().includes('code') ? 'KRIS' : 'Example ' + col))
-      .join(',');
-    const csvContent = `data:text/csv;charset=utf-8,${headers}\n${sampleRow}\n`;
-    const encodedUri = encodeURI(csvContent);
+    // Trigger download of official backend Excel template
+    const templatePath = `/api/imports/template/${encodeURIComponent(selectedDatasetId)}`;
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', selectedDataset.templateFileName);
+    link.href = templatePath;
+    link.setAttribute(
+      'download',
+      selectedDataset.templateFileName || `template-${selectedDatasetId}.xlsx`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -83,32 +160,91 @@ export function ImportWizard({
 
   const handleCommitBatch = async () => {
     setIsProcessing(true);
-    const newBatchId = `018f3b10-${Date.now().toString().slice(-4)}-7000-8000-000000000000`;
+    setCommitError(null);
+
+    let targetBatch = batches.find((b) => b.id === activeBatchId && b.status === 'validated');
+    if (!targetBatch) {
+      targetBatch =
+        batches.find(
+          (b) =>
+            b.status === 'validated' && (b.dataset === selectedDatasetId || b.dataset === 'wua'),
+        ) ?? batches.find((b) => b.status === 'validated');
+    }
+
+    if (!targetBatch) {
+      setCommitError(
+        'Validation errors detected or no validated import batch is ready to commit. Please review and resolve error rows before committing.',
+      );
+      setIsProcessing(false);
+      return;
+    }
+
+    const targetBatchId = targetBatch.id;
     try {
       if (commitBatch) {
-        await commitBatch(newBatchId);
+        await commitBatch(targetBatchId);
       }
-    } catch {
-      // Fallback local update
+      setCommittedBatchId(targetBatchId);
+      setCurrentStep('done');
+
+      // Invalidate relevant caches so imported data immediately appears in UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CORE_WUAS_KEY }),
+        queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_FARMERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_PLOTS_QUERY_KEY }),
+      ]);
+      refetchBatches?.();
+
+      onBatchCommitted?.(targetBatchId);
+    } catch (err: unknown) {
+      const errorMsg =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Failed to commit import batch to database. The batch does not exist or has already been processed.';
+      setCommitError(errorMsg);
+    } finally {
+      setIsProcessing(false);
     }
-    setCommittedBatchId(newBatchId);
-    setIsProcessing(false);
-    setCurrentStep('done');
-    onBatchCommitted?.(newBatchId);
   };
 
   const handleUndoBatch = async () => {
+    if (!committedBatchId) return;
     setIsProcessing(true);
+    setCommitError(null);
     try {
-      if (undoBatch && committedBatchId) {
+      if (undoBatch) {
         await undoBatch(committedBatchId);
       }
-    } catch {
-      // Fallback local update
+      setIsUndone(true);
+
+      // Invalidate relevant caches after rollback
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CORE_WUAS_KEY }),
+        queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_FARMERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: SLIS_PLOTS_QUERY_KEY }),
+      ]);
+      refetchBatches?.();
+    } catch (err: unknown) {
+      const errorMsg =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Failed to rollback import batch.';
+      setCommitError(errorMsg);
+    } finally {
+      setIsProcessing(false);
     }
-    setIsUndone(true);
-    setIsProcessing(false);
   };
+
+  // Derive dynamic table columns from the preview rows or dataset definitions
+  const displayColumns = React.useMemo(() => {
+    if (previewRows.length > 0) {
+      const firstRowKeys = Object.keys(previewRows[0].rawData).filter((k) => k !== 'wktGeometry');
+      return firstRowKeys.slice(0, 6);
+    }
+    return selectedDataset.sampleColumns.filter((k) => k !== 'wktGeometry').slice(0, 6);
+  }, [previewRows, selectedDataset]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-8 shadow-xs space-y-6 max-w-full overflow-hidden">
@@ -196,18 +332,13 @@ export function ImportWizard({
                       <span className="text-xs sm:text-sm font-extrabold text-slate-900">
                         {ds.name}
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                         {ds.module}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-2.5">
-                      {ds.description}
-                    </p>
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
-                      <span>Key: {ds.naturalKey}</span>
-                      <span className="font-semibold text-teal-700">
-                        {ds.requiredColumns.length} Required Columns
-                      </span>
+                    <p className="text-xs text-slate-500 leading-relaxed mb-3">{ds.description}</p>
+                    <div className="text-[11px] font-semibold text-slate-600">
+                      <span className="text-slate-400">Natural Key:</span> {ds.naturalKey}
                     </div>
                   </button>
                 );
@@ -215,90 +346,79 @@ export function ImportWizard({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            {onCancel && (
-              <Button variant="outline" onClick={onCancel} className="cursor-pointer">
-                Cancel
-              </Button>
-            )}
+          <div className="flex justify-between gap-2 pt-4">
+            <Button variant="outline" onClick={onCancel} className="cursor-pointer">
+              Cancel
+            </Button>
             <Button
               onClick={() => setCurrentStep('template')}
               className="bg-teal-700 hover:bg-teal-800 text-white font-bold cursor-pointer flex items-center gap-1.5"
             >
-              Continue to Template
+              Next: Download Template
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: DOWNLOAD TEMPLATE & COLUMN GUIDE */}
+      {/* STEP 2: TEMPLATE DOWNLOAD */}
       {currentStep === 'template' && (
         <div className="space-y-6 max-w-xl mx-auto py-2">
           <div className="text-center space-y-1">
             <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              Download CSV Template
+              Download Template for {selectedDataset.name}
             </h3>
             <p className="text-xs text-slate-500">
-              Download the pre-structured column template with validation headers.
+              Download the official schema template (.xlsx) with embedded column validations and
+              lookup reference lists.
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-1 text-xs text-amber-900">
-              <span className="font-bold">Formula Safety Notice (CSV Injection Protection)</span>
-              <p className="text-amber-800/90 leading-relaxed">
-                Ensure fields do not begin with formulas (=, +, -, @). The import engine sanitizes
-                cells automatically to protect system integrity.
+          {/* Download Action Card */}
+          <div className="border border-teal-200 bg-teal-50/40 rounded-2xl p-6 text-center space-y-4">
+            <div className="h-12 w-12 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center mx-auto shadow-xs">
+              <Download className="h-6 w-6 text-teal-700" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-slate-900 text-sm">
+                Official {selectedDataset.name} Template (.xlsx)
+              </h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Contains pre-configured column headers, mandatory field indicators, and schema
+                definitions.
               </p>
             </div>
+            <Button
+              onClick={handleDownloadTemplate}
+              className="bg-teal-700 hover:bg-teal-800 text-white font-bold cursor-pointer inline-flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download Official Template
+            </Button>
           </div>
 
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-800">
-                  {selectedDataset.templateFileName}
-                </span>
-                <span className="text-[11px] text-slate-400 block">
-                  Pre-formatted header columns for {selectedDataset.name}
-                </span>
-              </div>
-              <Button
-                onClick={handleDownloadTemplate}
-                variant="outline"
-                className="h-9 rounded-xl text-xs font-bold text-teal-800 border-teal-200 hover:bg-teal-50 cursor-pointer flex items-center gap-1.5"
-              >
-                <Download className="h-4 w-4 text-teal-700" />
-                Download CSV
-              </Button>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                Required Headers
-              </span>
+          {/* Required Fields Guide */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              Mandatory Fields in this Dataset
+            </label>
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 {selectedDataset.requiredColumns.map((col) => (
                   <span
                     key={col}
-                    className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                    className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200"
                   >
-                    *{col}
+                    * {col}
                   </span>
                 ))}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Optional columns:{' '}
                 {selectedDataset.sampleColumns
                   .filter((c) => !selectedDataset.requiredColumns.includes(c))
-                  .map((col) => (
-                    <span
-                      key={col}
-                      className="px-2 py-0.5 rounded-md text-[11px] font-mono text-slate-600 bg-slate-100 border border-slate-200"
-                    >
-                      {col}
-                    </span>
-                  ))}
-              </div>
+                  .join(', ')}
+              </p>
             </div>
           </div>
 
@@ -321,7 +441,7 @@ export function ImportWizard({
         </div>
       )}
 
-      {/* STEP 3: UPLOAD WITH LIVE PROGRESS */}
+      {/* STEP 3: UPLOAD */}
       {currentStep === 'upload' && (
         <div className="space-y-6 max-w-xl mx-auto py-2">
           <div className="text-center space-y-1">
@@ -339,7 +459,7 @@ export function ImportWizard({
             onDrop={(e) => {
               e.preventDefault();
               if (e.dataTransfer.files?.[0]) {
-                handleSimulatedUpload(e.dataTransfer.files[0]);
+                handleFileUpload(e.dataTransfer.files[0]);
               }
             }}
             className="border-2 border-dashed border-teal-600/40 hover:border-teal-600 rounded-3xl p-8 sm:p-12 text-center bg-teal-50/20 hover:bg-teal-50/40 transition-colors flex flex-col items-center justify-center cursor-pointer"
@@ -349,7 +469,7 @@ export function ImportWizard({
               input.accept = '.csv,.xlsx';
               input.onchange = (e) => {
                 const target = e.target as HTMLInputElement;
-                if (target.files?.[0]) handleSimulatedUpload(target.files[0]);
+                if (target.files?.[0]) handleFileUpload(target.files[0]);
               };
               input.click();
             }}
@@ -365,13 +485,13 @@ export function ImportWizard({
             </p>
           </div>
 
-          {/* Upload Progress Simulation */}
+          {/* Upload Progress */}
           {isProcessing && (
             <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                 <span className="flex items-center gap-1.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-700" />
-                  Uploading & Parsing {uploadedFileName || 'Spreadsheet'}...
+                  Uploading & Validating {uploadedFileName || 'Spreadsheet'}...
                 </span>
                 <span>{uploadProgress}%</span>
               </div>
@@ -405,8 +525,8 @@ export function ImportWizard({
                 Dry-Run Validation Summary
               </h3>
               <p className="text-xs text-slate-500">
-                Inspect validation flags. Review error rows with highlighted missing or invalid
-                cells.
+                Server validation flags for dataset{' '}
+                <span className="font-bold text-teal-700">{selectedDataset.name}</span>.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -421,7 +541,18 @@ export function ImportWizard({
             </div>
           </div>
 
-          {/* Validation Grid */}
+          {/* Error Message Alert */}
+          {commitError && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold">Cannot Commit Batch</div>
+                <div className="text-[11px] text-rose-700 mt-0.5">{commitError}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Data Table from Live Server Preview */}
           <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs min-w-[650px]">
@@ -429,73 +560,69 @@ export function ImportWizard({
                   <tr>
                     <th className="py-3 px-4">Row</th>
                     <th className="py-3 px-4">Validation Status</th>
-                    <th className="py-3 px-4">WUA Name</th>
-                    <th className="py-3 px-4">Registration No</th>
-                    <th className="py-3 px-4">Level</th>
-                    <th className="py-3 px-4">Scheme Code</th>
-                    <th className="py-3 px-4">Bank & Account</th>
+                    {displayColumns.map((col) => (
+                      <th key={col} className="py-3 px-4 capitalize">
+                        {col.replace(/([A-Z])/g, ' $1')}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {previewRows.map((row) => {
-                    const isError = row.status === 'error';
-                    const nameErr = row.errors.find((e) => e.column === 'name');
-                    const levelErr = row.errors.find((e) => e.column === 'level');
-                    const schemeErr = row.errors.find((e) => e.column === 'schemeCode');
-
-                    return (
-                      <tr
-                        key={row.id}
-                        className={
-                          isError ? 'bg-rose-50/40 hover:bg-rose-50/60' : 'hover:bg-teal-50/30'
-                        }
+                  {previewRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={displayColumns.length + 2}
+                        className="py-8 text-center text-slate-400"
                       >
-                        <td className="py-3 px-4 font-mono font-bold text-slate-500">
-                          #{row.rowNumber}
-                        </td>
-                        <td className="py-3 px-4">
-                          {isError ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
-                              <ShieldAlert className="h-3.5 w-3.5" /> Validation Error
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> Ready
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className={`py-3 px-4 ${nameErr ? 'bg-rose-100/60 text-rose-800 font-bold' : ''}`}
+                        No rows found or batch is empty.
+                      </td>
+                    </tr>
+                  ) : (
+                    previewRows.map((row) => {
+                      const isError = row.status === 'error';
+
+                      return (
+                        <tr
+                          key={row.id}
+                          className={
+                            isError ? 'bg-rose-50/40 hover:bg-rose-50/60' : 'hover:bg-teal-50/30'
+                          }
                         >
-                          {String(row.rawData.name || '—')}
-                          {nameErr && (
-                            <div className="text-[10px] text-rose-600">{nameErr.message}</div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-mono">{String(row.rawData.regNo || '—')}</td>
-                        <td
-                          className={`py-3 px-4 uppercase ${levelErr ? 'bg-rose-100/60 text-rose-800 font-bold' : ''}`}
-                        >
-                          {String(row.rawData.level || '—')}
-                          {levelErr && (
-                            <div className="text-[10px] text-rose-600">{levelErr.message}</div>
-                          )}
-                        </td>
-                        <td
-                          className={`py-3 px-4 ${schemeErr ? 'bg-rose-100/60 text-rose-800 font-bold' : ''}`}
-                        >
-                          {String(row.rawData.schemeCode || '—')}
-                          {schemeErr && (
-                            <div className="text-[10px] text-rose-600">{schemeErr.message}</div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500">
-                          {String(row.rawData.bankName || '—')} •{' '}
-                          {String(row.rawData.bankAccountNumber || '—')}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="py-3 px-4 font-mono font-bold text-slate-500">
+                            #{row.rowNumber}
+                          </td>
+                          <td className="py-3 px-4">
+                            {isError ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
+                                <ShieldAlert className="h-3.5 w-3.5" /> Validation Error
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Ready
+                              </span>
+                            )}
+                          </td>
+                          {displayColumns.map((col) => {
+                            const val = row.rawData[col];
+                            const cellErr = row.errors.find((e) => e.column === col);
+                            return (
+                              <td
+                                key={col}
+                                className={`py-3 px-4 ${cellErr ? 'bg-rose-100/60 text-rose-800 font-bold' : ''}`}
+                              >
+                                {val !== undefined && val !== null ? String(val) : '—'}
+                                {cellErr && (
+                                  <div className="text-[10px] text-rose-600 font-normal">
+                                    {cellErr.message}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -512,8 +639,8 @@ export function ImportWizard({
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleCommitBatch}
-                disabled={isProcessing || totalValid === 0}
-                className="bg-teal-700 hover:bg-teal-800 text-white font-bold cursor-pointer w-full sm:w-auto flex items-center gap-1.5"
+                disabled={isProcessing || totalValid === 0 || totalErrors > 0}
+                className="bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold cursor-pointer w-full sm:w-auto flex items-center gap-1.5"
               >
                 {isProcessing ? (
                   <>
@@ -530,7 +657,7 @@ export function ImportWizard({
         </div>
       )}
 
-      {/* STEP 5: DONE & ROLLBACK UNDO */}
+      {/* STEP 5: DONE & ROLLBACK */}
       {currentStep === 'done' && (
         <div className="space-y-6 max-w-xl mx-auto py-6 text-center">
           <div className="h-16 w-16 rounded-3xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-sm">

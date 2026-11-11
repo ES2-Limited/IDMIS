@@ -1,20 +1,88 @@
 import * as React from 'react';
 import { Users, Building, UploadCloud, ShieldCheck, KeyRound } from 'lucide-react';
 import { StatusChip, Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@idmis/ui';
+import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
 import { UserManagementView } from './UserManagementView';
 import { OrganisationsTreeView } from './OrganisationsTreeView';
 import { ImportCenterView } from '../../imports/ImportCenterView';
+import { useOrganisations, useWuas, useUsers, useImportBatches, useRoles } from './hooks';
 
 export function CoreHome() {
   const { currentScope } = useScope();
   const [activeTab, setActiveTab] = React.useState('users');
 
+  const { organisations } = useOrganisations(
+    currentScope.type === 'state' ? { stateId: currentScope.id } : undefined,
+  );
+  const { total: totalWuas, wuas } = useWuas();
+  const { total: totalUsers, users } = useUsers();
+  const { batches } = useImportBatches(
+    currentScope.type === 'state'
+      ? { stateId: currentScope.id }
+      : currentScope.type === 'scheme'
+        ? { schemeId: currentScope.id }
+        : currentScope.type === 'rbda'
+          ? { rbdaId: currentScope.id }
+          : undefined,
+  );
+  const { roles } = useRoles();
+
+  const activeSchemesCount = organisations.filter((o) => o.type === 'scheme').length;
+
+  // Filter WUAs and Users by scope
+  const scopedWuas = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      const stateOrgIds = new Set(organisations.map((o) => o.id));
+      return wuas.filter((w) => stateOrgIds.has(w.organisationId));
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return wuas.filter((w) => w.organisationId === currentScope.id);
+    }
+    return wuas;
+  }, [wuas, currentScope, organisations]);
+
+  const scopedUsers = React.useMemo(() => {
+    if (currentScope.type === 'state') {
+      return users.filter((u) =>
+        u.assignments?.some(
+          (a) => a.scopeType === 'national' || a.scopeStateId === currentScope.id,
+        ),
+      );
+    }
+    if (currentScope.type === 'scheme' || currentScope.type === 'rbda') {
+      return users.filter((u) =>
+        u.assignments?.some((a) => a.scopeType === 'national' || a.scopeOrgId === currentScope.id),
+      );
+    }
+    return users;
+  }, [users, currentScope]);
+
+  const userCount =
+    currentScope.type === 'national' ? (totalUsers ?? users.length) : scopedUsers.length;
+  const wuaCount = currentScope.type === 'national' ? totalWuas || wuas.length : scopedWuas.length;
+
   const quickStats = [
-    { label: 'System RBAC Roles', value: '14 Roles', sub: 'Deny-by-default' },
-    { label: 'Active Schemes', value: '5 Schemes', sub: 'Kano, Bakolori...' },
-    { label: 'Import Batches', value: '48 Batches', sub: 'Undo capable' },
-    { label: 'Audit Trail', value: '100% Logged', sub: 'Immutable' },
+    {
+      label: 'System Users',
+      value: `${userCount} Users`,
+      sub: `${roles.length} RBAC Roles`,
+    },
+    {
+      label: 'Active Schemes',
+      value: `${activeSchemesCount} Schemes`,
+      sub: `${organisations.length} Total Units`,
+    },
+    {
+      label: 'Registered WUAs',
+      value: `${wuaCount} WUAs`,
+      sub: 'Apex, Sector & Unit',
+    },
+    {
+      label: 'Import Batches',
+      value: `${batches.length} Batches`,
+      sub: 'Audit & Undo Ready',
+    },
   ];
 
   return (
@@ -42,13 +110,15 @@ export function CoreHome() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer w-full sm:w-auto"
-            >
-              <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-300" />
-              Audit Logs
-            </Button>
+            <Link to="/core/audit">
+              <Button
+                variant="outline"
+                className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer w-full sm:w-auto"
+              >
+                <KeyRound className="h-3.5 w-3.5 mr-1.5 text-teal-300" />
+                Audit Logs
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

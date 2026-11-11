@@ -60,6 +60,10 @@ export class AssignmentService {
     return this.assignmentRepo.listByUser(userId);
   }
 
+  async listRoles() {
+    return this.assignmentRepo.listAllRoles();
+  }
+
   async createAssignment(
     input: CreateAssignmentInput,
     assignerAuthz: UserAuthz,

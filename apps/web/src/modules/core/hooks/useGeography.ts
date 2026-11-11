@@ -21,7 +21,9 @@ export function useGeography() {
   });
 
   return {
-    states: (statesQuery.data as StateResponse[] | undefined) ?? [],
+    states: Array.isArray(statesQuery.data)
+      ? (statesQuery.data as StateResponse[])
+      : (statesQuery.data?.items ?? []),
     isLoadingStates: statesQuery.isLoading,
     statesError: statesQuery.error,
     refetchStates: statesQuery.refetch,

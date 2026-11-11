@@ -64,7 +64,7 @@ export function useMatchingGrants(schemeId?: string) {
       const client = getApiClient();
       const params = new URLSearchParams();
       if (schemeId) params.set('schemeId', schemeId);
-      return client.get<MatchingGrant[]>(`/me/matching-grants?${params.toString()}`);
+      return client.get<MatchingGrant[]>(`/me/grants?${params.toString()}`);
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,
@@ -73,7 +73,7 @@ export function useMatchingGrants(schemeId?: string) {
   const createGrantMutation = useMutation({
     mutationFn: async (payload: CreateMatchingGrantInput) => {
       const client = getApiClient();
-      return client.post<MatchingGrant>('/me/matching-grants', payload);
+      return client.post<MatchingGrant>('/me/grants', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ME_GRANTS_KEY });

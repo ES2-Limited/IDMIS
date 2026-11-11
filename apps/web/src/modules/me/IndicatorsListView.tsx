@@ -1055,7 +1055,7 @@ export function IndicatorsListView() {
             </DialogHeader>
             <div className="pt-2">
               <ImportWizard
-                initialDatasetId="me_targets"
+                initialDatasetId="me.indicator_target"
                 onBatchCommitted={() => setIsImportWizardOpen(false)}
                 onCancel={() => setIsImportWizardOpen(false)}
               />

@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getApiClient } from '@idmis/api-client';
 import type {
@@ -15,7 +16,7 @@ export const CORE_WUAS_KEY = ['core', 'wuas'] as const;
 export const CORE_LOOKUPS_KEY = ['core', 'lookups'] as const;
 export const CORE_IMPORTS_KEY = ['core', 'imports'] as const;
 
-export function useWuas(query?: ListWuasQuery) {
+export function useWuas(query?: Partial<ListWuasQuery>) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
@@ -47,7 +48,7 @@ export function useWuas(query?: ListWuasQuery) {
 
   return {
     wuas: wuasQuery.data?.items ?? [],
-    total: wuasQuery.data?.total ?? 0,
+    total: wuasQuery.data?.total ?? wuasQuery.data?.items?.length ?? 0,
     isLoading: wuasQuery.isLoading,
     isFetching: wuasQuery.isFetching,
     error: wuasQuery.error,
@@ -71,7 +72,7 @@ export function useLookupValues(typeKey: string) {
   });
 }
 
-export function useImportBatches(query?: ListImportBatchesQuery) {
+export function useImportBatches(query?: Partial<ListImportBatchesQuery>) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
@@ -83,9 +84,11 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
       if (query?.dataset) params.set('dataset', query.dataset);
       if (query?.status) params.set('status', query.status);
       if (query?.schemeId) params.set('schemeId', query.schemeId);
+      if (query?.stateId) params.set('stateId', query.stateId);
+      if (query?.rbdaId) params.set('rbdaId', query.rbdaId);
 
       return client.get<{ items: ImportBatchResponse[]; total: number }>(
-        `/imports/batches?${params.toString()}`,
+        `/imports?${params.toString()}`,
       );
     },
     enabled: isAuthenticated,
@@ -95,7 +98,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const initiateImportMutation = useMutation({
     mutationFn: async (payload: InitiateImportInput) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>('/imports/batches', payload);
+      return client.post<ImportBatchResponse>('/imports', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });
@@ -105,7 +108,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const commitBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>(`/imports/batches/${batchId}/commit`);
+      return client.post<ImportBatchResponse>(`/imports/${batchId}/commit`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });
@@ -115,12 +118,48 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
   const undoBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const client = getApiClient();
-      return client.post<ImportBatchResponse>(`/imports/batches/${batchId}/undo`);
+      return client.post<ImportBatchResponse>(`/imports/${batchId}/undo`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CORE_IMPORTS_KEY });
     },
   });
+
+  const getBatchPreview = React.useCallback(
+    async (batchId: string, params?: { page?: number; limit?: number; status?: string }) => {
+      const client = getApiClient();
+      const qs = new URLSearchParams();
+      if (params?.page) qs.set('page', String(params.page));
+      if (params?.limit) qs.set('limit', String(params.limit));
+      if (params?.status) qs.set('status', params.status);
+      const query = qs.toString() ? `?${qs.toString()}` : '';
+
+      return client.get<{
+        batch: ImportBatchResponse;
+        rows: Array<{
+          id: string;
+          batchId: string;
+          rowNumber: number;
+          rawData: Record<string, unknown>;
+          status: 'valid' | 'error' | 'committed';
+          errors: Array<{ column: string; message: string; severity?: string }>;
+          naturalKey?: string | null;
+          targetEntityId?: string | null;
+        }>;
+        page: number;
+        limit: number;
+        totalRows: number;
+        totalErrorRows: number;
+        totalValidRows: number;
+      }>(`/imports/${batchId}/preview${query}`);
+    },
+    [],
+  );
+
+  const getBatch = React.useCallback(async (batchId: string) => {
+    const client = getApiClient();
+    return client.get<ImportBatchResponse>(`/imports/${batchId}`);
+  }, []);
 
   return {
     batches: batchesQuery.data?.items ?? [],
@@ -135,5 +174,7 @@ export function useImportBatches(query?: ListImportBatchesQuery) {
     isCommitting: commitBatchMutation.isPending,
     undoBatch: undoBatchMutation.mutateAsync,
     isUndoing: undoBatchMutation.isPending,
+    getBatchPreview,
+    getBatch,
   };
 }

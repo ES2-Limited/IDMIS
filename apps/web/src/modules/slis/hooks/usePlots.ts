@@ -44,9 +44,12 @@ export function usePlots(query?: ListPlotsQuery) {
     },
   });
 
+  const plots = (plotsQuery.data?.items as PlotResponse[] | undefined) ?? [];
+  const total = plotsQuery.data?.total ?? plots.length;
+
   return {
-    plots: (plotsQuery.data?.items as PlotResponse[] | undefined) ?? [],
-    total: plotsQuery.data?.total,
+    plots,
+    total,
     isLoading: plotsQuery.isLoading,
     isFetching: plotsQuery.isFetching,
     error: plotsQuery.error,

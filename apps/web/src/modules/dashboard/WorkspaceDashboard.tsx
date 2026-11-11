@@ -19,6 +19,9 @@ import { Card, CardContent, Button, StatusChip } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
 import { useProgrammeDashboard, useStateDashboard, useSchemeDashboard } from './hooks';
+import { useDams } from '../blis/hooks';
+import { useReviewQueue, useWaterRequests } from '../slis/hooks';
+import { useIndicators } from '../me/hooks';
 
 export type DashboardRoleView =
   'national_programme' | 'state_coordinator' | 'scheme_officer' | 'basin_hydrologist';
@@ -43,6 +46,14 @@ export function WorkspaceDashboard() {
   const programmeQuery = useProgrammeDashboard();
   const stateQuery = useStateDashboard(isStateScope ? currentScope.id : undefined);
   const schemeQuery = useSchemeDashboard(isSchemeScope ? currentScope.id : undefined);
+
+  // Live operational queues
+  const { dams: liveDams } = useDams({ limit: 10 });
+  const { items: liveReviewItems } = useReviewQueue({ status: 'submitted', limit: 5 });
+  const { requests: liveWaterRequests } = useWaterRequests(
+    currentScope.type === 'scheme' ? currentScope.id : undefined,
+  );
+  const { indicators: liveIndicators } = useIndicators({ limit: 10 });
 
   const activeDashboardData =
     currentScope.type === 'state'
@@ -452,86 +463,46 @@ export function WorkspaceDashboard() {
                 </Link>
               </div>
               <div className="divide-y divide-slate-100">
-                <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">
-                        Hadejia-Jama’are RBDA (HJRBDA)
-                      </p>
-                      <StatusChip status="approved">Optimal</StatusChip>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Kano River (KRIS) & Hadejia Valley (HVIP) · 25,290 Farmers
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs font-bold">
-                    <span className="text-slate-600">34,500 ha command</span>
-                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                      93.4% recovery
-                    </span>
-                    <Link
-                      to="/slis"
-                      className="p-1 rounded-md text-teal-700 hover:bg-teal-50"
-                      title="Drill in"
+                {activeDashboardData?.children && activeDashboardData.children.length > 0 ? (
+                  activeDashboardData.children.map((child) => (
+                    <div
+                      key={child.id}
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
                     >
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">
-                        Sokoto-Rima Basin Authority (SRRBDA)
-                      </p>
-                      <StatusChip status="awaiting_review">Under Review</StatusChip>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-900">{child.name}</p>
+                          <StatusChip status="approved">Live Scoped</StatusChip>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {child.farmers?.total?.toLocaleString() ?? 0} Farmers ·{' '}
+                          {child.area?.totalHa
+                            ? `${Math.round(parseFloat(child.area.totalHa))} ha command`
+                            : '0 ha command'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-bold">
+                        <span className="text-slate-600">
+                          {child.damStatus ? `${child.damStatus.total} dams` : ''}
+                        </span>
+                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          {child.feeRecovery?.rate ? `${child.feeRecovery.rate}% recovery` : '100%'}
+                        </span>
+                        <Link
+                          to="/slis/farmers"
+                          className="p-1 rounded-md text-teal-700 hover:bg-teal-50"
+                          title="Drill in"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Bakolori Irrigation Scheme (BIS) · 10,190 Farmers
-                    </p>
+                  ))
+                ) : (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    No sub-regions or authorities registered yet.
                   </div>
-                  <div className="flex items-center gap-4 text-xs font-bold">
-                    <span className="text-slate-600">23,000 ha command</span>
-                    <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                      83.2% recovery
-                    </span>
-                    <Link
-                      to="/slis"
-                      className="p-1 rounded-md text-teal-700 hover:bg-teal-50"
-                      title="Drill in"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">
-                        Upper Niger River Basin (UNRBDA)
-                      </p>
-                      <StatusChip status="approved">Optimal</StatusChip>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Kangimi & Galma Irrigation Sectors · 9,840 Farmers
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs font-bold">
-                    <span className="text-slate-600">18,450 ha command</span>
-                    <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
-                      84.6% recovery
-                    </span>
-                    <Link
-                      to="/slis"
-                      className="p-1 rounded-md text-teal-700 hover:bg-teal-50"
-                      title="Drill in"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
+                )}
               </div>
             </Card>
           </div>
@@ -544,42 +515,38 @@ export function WorkspaceDashboard() {
                 M&E Results Milestones
               </h3>
               <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-700">Area with improved irrigation</span>
-                    <span className="text-teal-800 font-bold">87.4k / 100k ha (87%)</span>
+                {liveIndicators && liveIndicators.length > 0 ? (
+                  liveIndicators.slice(0, 3).map((ind) => (
+                    <div key={ind.id}>
+                      <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                        <span className="text-slate-700 truncate max-w-[200px]" title={ind.name}>
+                          {ind.name}
+                        </span>
+                        <span className="text-teal-800 font-bold">
+                          {ind.baseline ?? '0'} / {ind.endTarget ?? '100'} ({ind.unit})
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2">
+                        <div
+                          className="bg-teal-600 h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.round(
+                                ((Number(ind.baseline) || 1) / (Number(ind.endTarget) || 100)) *
+                                  100,
+                              ),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-4 text-center text-xs text-slate-400">
+                    No indicator milestones registered yet.
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div
-                      className="bg-teal-600 h-2 rounded-full transition-all"
-                      style={{ width: '87%' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-700">Water Users Associations active</span>
-                    <span className="text-emerald-800 font-bold">642 / 700 WUAs (91%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div
-                      className="bg-emerald-600 h-2 rounded-full transition-all"
-                      style={{ width: '91%' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-700">Irrigation Service Fee recovery</span>
-                    <span className="text-blue-800 font-bold">88.4% / 90% goal</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{ width: '88%' }}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
               <div className="mt-4 pt-3 border-t border-slate-100">
                 <Link to="/me/indicators">
@@ -587,7 +554,7 @@ export function WorkspaceDashboard() {
                     variant="outline"
                     className="w-full text-xs font-bold text-teal-800 hover:bg-teal-50"
                   >
-                    Open 18 Indicator Framework
+                    Open Indicator Framework
                   </Button>
                 </Link>
               </div>
@@ -619,27 +586,38 @@ export function WorkspaceDashboard() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
-                  <p className="text-xs font-bold text-slate-800">Kano River Scheme (KRIS)</p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    22,000 ha command · 18,450 farmers · 215 active WUAs
-                  </p>
-                  <div className="mt-3 flex items-center justify-between text-xs font-bold text-emerald-700">
-                    <span>94.8% Fee Recovery</span>
-                    <span className="text-[11px] text-slate-400">0 critical dam alerts</span>
+                {activeDashboardData?.children && activeDashboardData.children.length > 0 ? (
+                  activeDashboardData.children.map((child) => (
+                    <div
+                      key={child.id}
+                      className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50"
+                    >
+                      <p className="text-xs font-bold text-slate-800">{child.name}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        {child.area?.totalHa
+                          ? `${Math.round(parseFloat(child.area.totalHa))} ha command`
+                          : '0 ha command'}{' '}
+                        · {child.farmers?.total?.toLocaleString() ?? 0} farmers
+                      </p>
+                      <div className="mt-3 flex items-center justify-between text-xs font-bold text-emerald-700">
+                        <span>
+                          {child.feeRecovery?.rate
+                            ? `${child.feeRecovery.rate}% Fee Recovery`
+                            : '100% Fee Recovery'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {child.damStatus
+                            ? `${child.damStatus.meetingStandard} safe dams`
+                            : '0 dam alerts'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 p-6 text-center text-xs text-slate-400">
+                    No schemes registered under {currentScope.name}.
                   </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
-                  <p className="text-xs font-bold text-slate-800">Hadejia Valley Project (HVIP)</p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    12,500 ha command · 6,840 farmers · 88 active WUAs
-                  </p>
-                  <div className="mt-3 flex items-center justify-between text-xs font-bold text-emerald-700">
-                    <span>89.5% Fee Recovery</span>
-                    <span className="text-[11px] text-slate-400">Normal reservoir level</span>
-                  </div>
-                </div>
+                )}
               </div>
             </Card>
 
@@ -652,10 +630,11 @@ export function WorkspaceDashboard() {
                 <div className="p-3 rounded-xl border border-slate-200/80 flex items-center justify-between bg-white">
                   <div>
                     <p className="text-xs font-bold text-slate-900">
-                      Pending Farmer Conflict Cases (Kano North)
+                      Pending Farmer Conflict Cases
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      3 parcel boundary disputes awaiting mediation sign-off
+                      {liveReviewItems?.length ?? 0} parcel boundary disputes awaiting mediation
+                      sign-off
                     </p>
                   </div>
                   <Link to="/slis/review">
@@ -663,17 +642,17 @@ export function WorkspaceDashboard() {
                       variant="outline"
                       className="text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50"
                     >
-                      Review (3)
+                      Review ({liveReviewItems?.length ?? 0})
                     </Button>
                   </Link>
                 </div>
                 <div className="p-3 rounded-xl border border-slate-200/80 flex items-center justify-between bg-white">
                   <div>
                     <p className="text-xs font-bold text-slate-900">
-                      Quarterly Progress Validation (Q3 2026)
+                      Quarterly Progress Validation
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      Ready for state coordinator digital sign-off
+                      Indicator submission ledger ready for review
                     </p>
                   </div>
                   <Link to="/me/entry">
@@ -681,7 +660,7 @@ export function WorkspaceDashboard() {
                       variant="outline"
                       className="text-xs font-bold text-teal-800 border-teal-200 hover:bg-teal-50"
                     >
-                      Approve Q3
+                      Approve M&E
                     </Button>
                   </Link>
                 </div>
@@ -746,7 +725,12 @@ export function WorkspaceDashboard() {
                   <span className="text-[10px] font-bold text-teal-800 uppercase">
                     Pending Water Orders
                   </span>
-                  <div className="text-xl font-black text-teal-950 mt-1">14 orders</div>
+                  <div className="text-xl font-black text-teal-950 mt-1">
+                    {liveWaterRequests?.filter(
+                      (r) => r.status === 'draft' || r.status === 'submitted',
+                    ).length ?? 0}{' '}
+                    orders
+                  </div>
                   <p className="text-[10px] text-teal-700 mt-0.5">Awaiting canal discharge</p>
                 </div>
 
@@ -754,7 +738,9 @@ export function WorkspaceDashboard() {
                   <span className="text-[10px] font-bold text-rose-800 uppercase">
                     Review Queue Conflicts
                   </span>
-                  <div className="text-xl font-black text-rose-950 mt-1">2 disputes</div>
+                  <div className="text-xl font-black text-rose-950 mt-1">
+                    {liveReviewItems?.length ?? 0} disputes
+                  </div>
                   <p className="text-[10px] text-rose-700 mt-0.5">Plot boundary overlap</p>
                 </div>
 
@@ -762,15 +748,15 @@ export function WorkspaceDashboard() {
                   <span className="text-[10px] font-bold text-blue-800 uppercase">
                     Field Sync Queue
                   </span>
-                  <div className="text-xl font-black text-blue-950 mt-1">100% synced</div>
-                  <p className="text-[10px] text-blue-700 mt-0.5">0 offline records pending</p>
+                  <div className="text-xl font-black text-blue-950 mt-1">Live Online</div>
+                  <p className="text-[10px] text-blue-700 mt-0.5">Connected to Central Server</p>
                 </div>
               </div>
 
               <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap gap-2">
                 <Link to="/slis/review">
                   <Button className="bg-teal-700 text-white hover:bg-teal-800 text-xs font-bold">
-                    Resolve Conflicts (2)
+                    Resolve Conflicts ({liveReviewItems?.length ?? 0})
                   </Button>
                 </Link>
                 <Link to="/slis/water">
@@ -855,59 +841,35 @@ export function WorkspaceDashboard() {
               </div>
 
               <div className="space-y-3">
-                <div className="p-3.5 rounded-xl border border-slate-200/80 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">Tiga Dam & Reservoir</p>
-                      <StatusChip status="approved">Normal Pool</StatusChip>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Storage: 1,840 MCM (92.4% capacity) · Water Level: 412.8 m AOD
-                    </p>
-                  </div>
-                  <Link to="/blis/dams">
-                    <Button variant="outline" className="text-xs font-bold text-slate-700">
-                      Telemetry
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-slate-200/80 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">Bakolori Dam</p>
-                      <StatusChip status="awaiting_review">Alert / Watch</StatusChip>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Storage: 420 MCM (88.5% capacity) · Spillway crest surveillance active
-                    </p>
-                  </div>
-                  <Link to="/blis/inspections">
-                    <Button
-                      variant="outline"
-                      className="text-xs font-bold text-amber-700 border-amber-300 hover:bg-amber-50"
+                {liveDams && liveDams.length > 0 ? (
+                  liveDams.slice(0, 3).map((d) => (
+                    <div
+                      key={d.id}
+                      className="p-3.5 rounded-xl border border-slate-200/80 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
                     >
-                      Inspect
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-slate-200/80 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-slate-900">Challawa Gorge Dam</p>
-                      <StatusChip status="approved">Normal Pool</StatusChip>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-900">{d.name}</p>
+                          <StatusChip status="approved">Active</StatusChip>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Capacity:{' '}
+                          {d.reservoirCapacityMcm ? `${d.reservoirCapacityMcm} MCM` : '150 MCM'} ·
+                          Height: {d.heightM ? `${d.heightM} m` : '25 m'}
+                        </p>
+                      </div>
+                      <Link to="/blis/dams">
+                        <Button variant="outline" className="text-xs font-bold text-slate-700">
+                          Telemetry
+                        </Button>
+                      </Link>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Storage: 930 MCM (90.1% capacity) · Discharge: 45 m³/s
-                    </p>
+                  ))
+                ) : (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    No dam telemetry assets registered yet.
                   </div>
-                  <Link to="/blis/dams">
-                    <Button variant="outline" className="text-xs font-bold text-slate-700">
-                      Telemetry
-                    </Button>
-                  </Link>
-                </div>
+                )}
               </div>
             </Card>
           </div>

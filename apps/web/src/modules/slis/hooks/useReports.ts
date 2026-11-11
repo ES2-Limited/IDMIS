@@ -5,6 +5,7 @@ import type {
   AreaByServiceResponse,
   CroppingResponse,
   FeeRecoveryResponse,
+  WuaSummaryResponse,
 } from '@idmis/contracts';
 import { useAuth } from '../../../auth';
 
@@ -65,15 +66,29 @@ export function useSlisReports(schemeId?: string) {
     staleTime: 1000 * 60 * 5,
   });
 
+  const wuaSummariesQuery = useQuery({
+    queryKey: [...SLIS_REPORTS_KEY, 'wua-summaries', schemeId],
+    queryFn: async () => {
+      const client = getApiClient();
+      const params = new URLSearchParams();
+      if (schemeId) params.set('schemeId', schemeId);
+      return client.get<WuaSummaryResponse>(`/slis/reports/wua-summaries?${params.toString()}`);
+    },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
+  });
+
   return {
     farmersByScope: farmersByScopeQuery.data,
     areaByService: areaByServiceQuery.data,
     cropping: croppingQuery.data,
     feeRecovery: feeRecoveryQuery.data,
+    wuaSummaries: wuaSummariesQuery.data,
     isLoading:
       farmersByScopeQuery.isLoading ||
       areaByServiceQuery.isLoading ||
       croppingQuery.isLoading ||
-      feeRecoveryQuery.isLoading,
+      feeRecoveryQuery.isLoading ||
+      wuaSummariesQuery.isLoading,
   };
 }

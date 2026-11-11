@@ -53,6 +53,10 @@ const ImportCenterView = lazyRouteComponent(
   () => import('../imports/ImportCenterView'),
   'ImportCenterView',
 );
+const AuditLogsView = lazyRouteComponent(
+  () => import('../modules/core/AuditLogsView'),
+  'AuditLogsView',
+);
 
 const SlisHome = lazyRouteComponent(() => import('../modules/slis/SlisHome'), 'SlisHome');
 const FarmersListView = lazyRouteComponent(
@@ -352,6 +356,21 @@ const coreImportsRoute = createRoute({
   ),
 });
 
+const coreAuditRoute = createRoute({
+  getParentRoute: () => appShellRoute,
+  path: '/core/audit',
+  component: () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <span>Core Administration</span>
+        <span>/</span>
+        <span className="text-teal-700 font-bold">Security Audit Trail</span>
+      </div>
+      <AuditLogsView />
+    </div>
+  ),
+});
+
 // Module routes: SLIS
 const slisRoute = createRoute({
   getParentRoute: () => appShellRoute,
@@ -632,6 +651,7 @@ const authenticatedChildren = appShellRoute.addChildren([
   coreUsersRoute,
   coreOrganisationsRoute,
   coreImportsRoute,
+  coreAuditRoute,
   slisRoute,
   slisFarmersRoute,
   slisPlotsRoute,

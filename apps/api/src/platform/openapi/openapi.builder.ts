@@ -785,6 +785,27 @@ export function buildOpenApiDocument(
     // -------------------------------------------------------------
     // ASSIGNMENTS (ADMIN)
     // -------------------------------------------------------------
+    '/admin/assignments/roles': {
+      get: {
+        summary: 'List all system roles',
+        tags: ['assignments'],
+        security: SECURED,
+        responses: {
+          '200': {
+            description: 'List of roles with permissions',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/RoleResponse' },
+                },
+              },
+            },
+          },
+          ...errors([401, 403]),
+        },
+      },
+    },
     '/admin/assignments': {
       post: {
         summary: 'Create role assignment for user',

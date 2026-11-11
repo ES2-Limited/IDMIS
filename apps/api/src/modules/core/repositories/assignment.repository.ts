@@ -156,4 +156,36 @@ export class AssignmentRepository {
       );
     return [...new Set(rows.map((r) => r.permission))];
   }
+
+  async listAllRoles(txDb: DatabaseOrTx = db) {
+    const roles = await txDb
+      .select({
+        id: role.id,
+        key: role.key,
+        name: role.name,
+        description: role.description,
+        isSystem: role.isSystem,
+      })
+      .from(role)
+      .orderBy(role.name);
+
+    const perms = await txDb
+      .select({
+        roleId: rolePermission.roleId,
+        permission: rolePermission.permission,
+      })
+      .from(rolePermission);
+
+    const permsByRoleId = new Map<string, string[]>();
+    for (const p of perms) {
+      const list = permsByRoleId.get(p.roleId) ?? [];
+      list.push(p.permission);
+      permsByRoleId.set(p.roleId, list);
+    }
+
+    return roles.map((r) => ({
+      ...r,
+      permissions: permsByRoleId.get(r.id) ?? [],
+    }));
+  }
 }
