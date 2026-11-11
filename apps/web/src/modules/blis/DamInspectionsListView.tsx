@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Search, Plus, ArrowUpRight } from 'lucide-react';
+import { Search, Plus, ArrowUpRight, ClipboardCheck } from 'lucide-react';
 import {
   Button,
   Input,
@@ -14,11 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  EmptyState,
 } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
-import { useDamInspections } from './hooks';
+import { useDamInspections, useDams, useBasins } from './hooks';
 
 export interface DamSafetyInspectionRecord {
   id: string;
@@ -47,149 +48,27 @@ export interface DamSafetyInspectionRecord {
   status: 'submitted' | 'approved' | 'returned';
 }
 
-export const mockInspections: DamSafetyInspectionRecord[] = [
-  {
-    id: 'insp-001',
-    damName: 'Tiga Dam',
-    damCode: 'DAM-HJB-001',
-    basinName: "Hadejia-Jama'are River Basin",
-    inspectedOn: '2026-10-14',
-    nextDueOn: '2027-05-15',
-    hazardClass: 'high',
-    overallCondition: 'good',
-    leadEngineer: 'Engr. Ibrahim Lawan (HJRBDA)',
-    staffOnSite: 14,
-    safetyBudgetNgn: 15000000,
-    meetsStandard: true,
-    specificHazards:
-      'Upstream riprap minor wave displacement near chainage 2+400; downstream toe drain discharge clear.',
-    components: {
-      dam_body: 'good',
-      spillway_1: 'good',
-      spillway_2: 'good',
-      inlet: 'fair',
-      outlet: 'good',
-      electrical: 'good',
-      mechanical: 'good',
-    },
-    photoCount: 6,
-    status: 'approved',
-  },
-  {
-    id: 'insp-002',
-    damName: 'Bakolori Dam',
-    damCode: 'DAM-SRB-001',
-    basinName: 'Sokoto-Rima River Basin',
-    inspectedOn: '2026-09-22',
-    nextDueOn: '2027-04-10',
-    hazardClass: 'high',
-    overallCondition: 'good',
-    leadEngineer: 'Engr. Shehu Aliyu (SRRBDA)',
-    staffOnSite: 18,
-    safetyBudgetNgn: 22000000,
-    meetsStandard: true,
-    specificHazards:
-      'Stilling basin clean; radial gates tested under partial load without cavitation.',
-    components: {
-      dam_body: 'good',
-      spillway_1: 'good',
-      spillway_2: 'fair',
-      inlet: 'good',
-      outlet: 'good',
-      electrical: 'good',
-      mechanical: 'good',
-    },
-    photoCount: 8,
-    status: 'approved',
-  },
-  {
-    id: 'insp-003',
-    damName: 'Goronyo Dam',
-    damCode: 'DAM-SRB-002',
-    basinName: 'Sokoto-Rima River Basin',
-    inspectedOn: '2026-08-30',
-    nextDueOn: '2027-03-01',
-    hazardClass: 'high',
-    overallCondition: 'fair',
-    leadEngineer: 'Engr. Aminu Bello',
-    staffOnSite: 11,
-    safetyBudgetNgn: 18000000,
-    meetsStandard: true,
-    specificHazards:
-      'Vegetation growth along secondary saddle dyke requires immediate clearance before rainy season cresting.',
-    components: {
-      dam_body: 'fair',
-      spillway_1: 'good',
-      spillway_2: 'fair',
-      inlet: 'fair',
-      outlet: 'fair',
-      electrical: 'fair',
-      mechanical: 'good',
-    },
-    photoCount: 5,
-    status: 'approved',
-  },
-  {
-    id: 'insp-004',
-    damName: 'Challawa Gorge Dam',
-    damCode: 'DAM-HJB-002',
-    basinName: "Hadejia-Jama'are River Basin",
-    inspectedOn: '2026-11-02',
-    nextDueOn: '2027-06-15',
-    hazardClass: 'high',
-    overallCondition: 'fair',
-    leadEngineer: 'Engr. Fatima Garba',
-    staffOnSite: 12,
-    safetyBudgetNgn: 14000000,
-    meetsStandard: true,
-    specificHazards:
-      'Intake trash rack clearing scheduled for next quarter; morning glory spillway crest intact.',
-    components: {
-      dam_body: 'good',
-      spillway_1: 'fair',
-      spillway_2: 'fair',
-      inlet: 'fair',
-      outlet: 'good',
-      electrical: 'fair',
-      mechanical: 'fair',
-    },
-    photoCount: 4,
-    status: 'submitted',
-  },
-  {
-    id: 'insp-005',
-    damName: 'Hadejia Barrage & Weir',
-    damCode: 'DAM-HJB-003',
-    basinName: "Hadejia-Jama'are River Basin",
-    inspectedOn: '2026-10-05',
-    nextDueOn: '2027-01-15',
-    hazardClass: 'significant',
-    overallCondition: 'poor',
-    leadEngineer: 'Engr. Kabir Sanusi',
-    staffOnSite: 6,
-    safetyBudgetNgn: 8500000,
-    meetsStandard: false,
-    specificHazards:
-      'Sluice gate hoist #3 jammed due to silt accumulation; emergency desilting and motor overhaul required.',
-    components: {
-      dam_body: 'fair',
-      spillway_1: 'poor',
-      spillway_2: 'poor',
-      inlet: 'poor',
-      outlet: 'poor',
-      electrical: 'poor',
-      mechanical: 'critical',
-    },
-    photoCount: 7,
-    status: 'returned',
-  },
-];
-
 export function DamInspectionsListView() {
   const { currentScope } = useScope();
   const canInspect = useCan('blis.irrigation.write');
   const [search, setSearch] = React.useState('');
   const [conditionFilter, setConditionFilter] = React.useState<string>('all');
+
+  const { dams = [] } = useDams({ limit: 100 });
+  const { basins = [] } = useBasins();
+
+  const damMap = React.useMemo(() => {
+    const map = new Map<string, { name: string; code: string; basinId: string }>();
+    dams.forEach((d) => map.set(d.id, { name: d.name, code: d.code || 'DAM', basinId: d.basinId }));
+    return map;
+  }, [dams]);
+
+  const basinMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    basins.forEach((b) => map.set(b.id, b.name));
+    return map;
+  }, [basins]);
+
   const { inspections: serverInspections } = useDamInspections({
     page: 1,
     limit: 50,
@@ -206,18 +85,26 @@ export function DamInspectionsListView() {
             ? 'critical'
             : 'poor';
 
+        const damId = String(item.damId || '');
+        const damInfo = damMap.get(damId);
+        const damName = damInfo?.name || String(item.damName || 'Dam Asset');
+        const damCode = damInfo?.code || String(item.damCode || `DAM-${damId.slice(0, 4)}`);
+        const basinName = damInfo
+          ? basinMap.get(damInfo.basinId) || 'River Basin'
+          : String(item.basinName || currentScope.name || 'River Basin');
+
         return {
           id: String(item.id),
-          damName: String(item.damName || 'Tiga Dam Asset'),
-          damCode: String(item.damCode || `DAM-${String(item.damId || item.id).slice(0, 4)}`),
-          basinName: String(item.basinName || currentScope.name || "Hadejia-Jama'are River Basin"),
+          damName,
+          damCode,
+          basinName,
           inspectedOn: String(item.inspectedOn || new Date().toISOString().split('T')[0]),
           nextDueOn: String(item.nextDueOn || '2027-06-30'),
           hazardClass: 'high' as const,
           overallCondition: condition,
           leadEngineer: String(item.safetyContact || item.staffQualifications || 'Safety Auditor'),
-          staffOnSite: typeof item.staffOnSite === 'number' ? item.staffOnSite : 12,
-          safetyBudgetNgn: item.safetyBudgetNgn ? Number(item.safetyBudgetNgn) : 15000000,
+          staffOnSite: typeof item.staffOnSite === 'number' ? item.staffOnSite : 0,
+          safetyBudgetNgn: item.safetyBudgetNgn ? Number(item.safetyBudgetNgn) : 0,
           meetsStandard: meetsStd,
           specificHazards: String(
             item.specificHazards || 'Routine safety surveillance and periodic audit logged.',
@@ -231,13 +118,13 @@ export function DamInspectionsListView() {
             electrical: 'good' as const,
             mechanical: meetsStd ? 'good' : 'fair',
           },
-          photoCount: 4,
+          photoCount: 0,
           status,
         };
       });
     }
     return [];
-  }, [serverInspections, currentScope.name]);
+  }, [serverInspections, damMap, basinMap, currentScope.name]);
 
   const [selectedInspection, setSelectedInspection] =
     React.useState<DamSafetyInspectionRecord | null>(null);
@@ -249,8 +136,8 @@ export function DamInspectionsListView() {
         item.damCode.toLowerCase().includes(search.toLowerCase()) ||
         item.leadEngineer.toLowerCase().includes(search.toLowerCase()) ||
         item.basinName.toLowerCase().includes(search.toLowerCase());
-      const matchCond = conditionFilter === 'all' || item.overallCondition === conditionFilter;
-      return matchSearch && matchCond;
+      const matchCondition = conditionFilter === 'all' || item.overallCondition === conditionFilter;
+      return matchSearch && matchCondition;
     });
   }, [activeInspections, search, conditionFilter]);
 
@@ -371,8 +258,29 @@ export function DamInspectionsListView() {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    No inspection audits found.
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <EmptyState
+                        icon={<ClipboardCheck className="w-8 h-8 text-teal-600" />}
+                        title="No Safety Inspections Recorded"
+                        description={
+                          search
+                            ? 'No inspection audits matching search criteria.'
+                            : 'No structural or routine safety inspections have been submitted.'
+                        }
+                        action={
+                          canInspect && !search ? (
+                            <Link
+                              to="/field/capture/dam-inspection"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold shadow-sm"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Log First Inspection
+                            </Link>
+                          ) : undefined
+                        }
+                      />
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -431,20 +339,20 @@ export function DamInspectionsListView() {
             </DialogHeader>
 
             <div className="space-y-4 py-3 text-xs">
-              {/* Component breakdown grid */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-slate-100 px-3.5 py-2 font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                  Component Condition Evaluation
+              {/* Component Health Grid */}
+              <div className="space-y-2">
+                <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                  Structural Component Ratings:
                 </div>
-                <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="p-2 bg-slate-50 rounded border border-slate-100">
-                    <span className="text-[11px] text-slate-400 block">Dam Embankment</span>
+                    <span className="text-[11px] text-slate-400 block">Main Embankment</span>
                     <span className="font-bold text-slate-800 capitalize">
                       {selectedInspection.components.dam_body}
                     </span>
                   </div>
                   <div className="p-2 bg-slate-50 rounded border border-slate-100">
-                    <span className="text-[11px] text-slate-400 block">Primary Spillway</span>
+                    <span className="text-[11px] text-slate-400 block">Service Spillway</span>
                     <span className="font-bold text-slate-800 capitalize">
                       {selectedInspection.components.spillway_1}
                     </span>

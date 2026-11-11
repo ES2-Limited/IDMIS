@@ -22,11 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  EmptyState,
 } from '@idmis/ui';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
 import { ImportWizard } from '../../imports/ImportWizard';
-import { useStations } from './hooks';
+import { useStations, useBasins } from './hooks';
+import { useLookupValues } from '../core/hooks/usePlatformAdmin';
 
 export type StationType = 'discharge' | 'rainfall' | 'water_level' | 'meteorological';
 export type TelemetryQuality = 'checked' | 'raw' | 'suspect';
@@ -35,8 +37,10 @@ export interface StationRecord {
   id: string;
   code: string;
   name: string;
+  basinId?: string;
   basinName: string;
   stationType: StationType;
+  stationTypeLabel?: string;
   river?: string;
   latitude: number;
   longitude: number;
@@ -48,107 +52,6 @@ export interface StationRecord {
   version: number;
 }
 
-export const mockStations: StationRecord[] = [
-  {
-    id: '018f3a70-0003-7000-8000-000000000301',
-    code: 'HYD-HJB-001',
-    name: 'Wudil River Gauging Station',
-    basinName: "Hadejia-Jama'are River Basin",
-    stationType: 'discharge',
-    river: 'Hadejia River (Wudil Reach)',
-    latitude: 11.8124,
-    longitude: 8.8412,
-    installedOn: '2018-04-12',
-    telemetryQuality: 'checked',
-    status: 'active',
-    operatorOrg: 'HJRBDA / NIHSA',
-    description:
-      'Acoustic Doppler Current Profiler (ADCP) telemetry station transmitting 15-min stage-discharge.',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0003-7000-8000-000000000302',
-    code: 'HYD-HJB-002',
-    name: 'Hadejia Wetland Inflow Gauge',
-    basinName: "Hadejia-Jama'are River Basin",
-    stationType: 'water_level',
-    river: 'Hadejia River',
-    latitude: 12.4501,
-    longitude: 10.0418,
-    installedOn: '2019-09-20',
-    telemetryQuality: 'raw',
-    status: 'active',
-    operatorOrg: 'HJRBDA',
-    description: 'Radar stage sensor monitoring wetland inflow and ecological flood recession.',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0003-7000-8000-000000000303',
-    code: 'MET-HJB-001',
-    name: 'Kadawa Agro-Meteorological Station',
-    basinName: "Hadejia-Jama'are River Basin",
-    stationType: 'meteorological',
-    river: 'N/A',
-    latitude: 11.642,
-    longitude: 8.451,
-    installedOn: '2016-11-05',
-    telemetryQuality: 'checked',
-    status: 'active',
-    operatorOrg: 'IAR / KRIS Scheme',
-    description:
-      'Full weather station: solar radiation, air temp, humidity, wind velocity, pan evapotranspiration.',
-    version: 2,
-  },
-  {
-    id: '018f3a70-0003-7000-8000-000000000304',
-    code: 'HYD-SRB-001',
-    name: 'Bakolori Spillway Tailrace Station',
-    basinName: 'Sokoto-Rima River Basin',
-    stationType: 'discharge',
-    river: 'Sokoto River',
-    latitude: 12.512,
-    longitude: 5.891,
-    installedOn: '2020-02-14',
-    telemetryQuality: 'checked',
-    status: 'active',
-    operatorOrg: 'SRRBDA',
-    description: 'Calibrated stilling well and pressure transducer measuring dam outflow.',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0003-7000-8000-000000000305',
-    code: 'HYD-SRB-002',
-    name: 'Goronyo Hydromet Monitoring Point',
-    basinName: 'Sokoto-Rima River Basin',
-    stationType: 'water_level',
-    river: 'Rima River',
-    latitude: 13.441,
-    longitude: 5.682,
-    installedOn: '2021-08-30',
-    telemetryQuality: 'suspect',
-    status: 'maintenance',
-    operatorOrg: 'SRRBDA',
-    description: 'Submerged pressure logger undergoing recalibration following high silt deposit.',
-    version: 2,
-  },
-  {
-    id: '018f3a70-0003-7000-8000-000000000306',
-    code: 'RNF-HJB-003',
-    name: 'Tiga Automatic Tipping Bucket Rain Gauge',
-    basinName: "Hadejia-Jama'are River Basin",
-    stationType: 'rainfall',
-    river: 'Kano River Basin',
-    latitude: 11.428,
-    longitude: 8.614,
-    installedOn: '2017-06-18',
-    telemetryQuality: 'checked',
-    status: 'active',
-    operatorOrg: 'HJRBDA',
-    description: '0.2mm sensitivity dual-chamber tipping bucket telemetry rain gauge.',
-    version: 1,
-  },
-];
-
 export function StationsListView() {
   const { currentScope } = useScope();
   const canManage = useCan('blis.irrigation.write');
@@ -159,57 +62,101 @@ export function StationsListView() {
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
+  // Basins and lookup values
+  const { basins } = useBasins();
+  const { data: stationTypeLookups = [] } = useLookupValues('station_type');
+
+  const basinMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    basins.forEach((b) => map.set(b.id, b.name));
+    return map;
+  }, [basins]);
+
+  const stationTypeMap = React.useMemo(() => {
+    const map = new Map<string, { code: string; label: string }>();
+    stationTypeLookups.forEach((l) => map.set(l.id, { code: l.code, label: l.label }));
+    return map;
+  }, [stationTypeLookups]);
+
   // Modular custom hook for Stations
-  const { stations: serverStations, createStation } = useStations({
+  const {
+    stations: serverStations,
+    createStation,
+    isCreating,
+  } = useStations({
     limit: 50,
   });
 
   const activeStations: StationRecord[] = React.useMemo(() => {
     if (serverStations && serverStations.length > 0) {
-      return serverStations.map((s) => ({
-        id: s.id,
-        code: s.code,
-        name: s.name,
-        basinName: s.basinId ? `Basin ${s.basinId.slice(-4)}` : "Hadejia-Jama'are River Basin",
-        stationType: 'discharge',
-        river: s.river || 'Main River',
-        latitude:
-          s.geom &&
-          typeof s.geom === 'object' &&
-          'coordinates' in s.geom &&
-          Array.isArray((s.geom as { coordinates: number[] }).coordinates)
-            ? (s.geom as { coordinates: number[] }).coordinates[1]!
-            : 11.85,
-        longitude:
-          s.geom &&
-          typeof s.geom === 'object' &&
-          'coordinates' in s.geom &&
-          Array.isArray((s.geom as { coordinates: number[] }).coordinates)
-            ? (s.geom as { coordinates: number[] }).coordinates[0]!
-            : 8.52,
-        installedOn: s.installedOn || '2020-01-01',
-        telemetryQuality: 'checked',
-        status: s.isActive ? 'active' : 'offline',
-        operatorOrg: 'HJRBDA',
-        description: s.description || undefined,
-        version: s.version || 1,
-      }));
+      return serverStations.map((s) => {
+        const typeInfo = stationTypeMap.get(s.stationTypeId);
+        const mappedType: StationType =
+          typeInfo?.code === 'rainfall'
+            ? 'rainfall'
+            : typeInfo?.code === 'water_level'
+              ? 'water_level'
+              : typeInfo?.code === 'meteorological' || typeInfo?.code === 'agro_meteorological'
+                ? 'meteorological'
+                : 'discharge';
+
+        let lat = 11.85;
+        let lng = 8.52;
+        if (s.geom && typeof s.geom === 'object' && 'coordinates' in s.geom) {
+          const coords = (s.geom as { coordinates: number[] }).coordinates;
+          if (Array.isArray(coords) && coords.length >= 2) {
+            lng = coords[0]!;
+            lat = coords[1]!;
+          }
+        }
+
+        return {
+          id: s.id,
+          code: s.code,
+          name: s.name,
+          basinId: s.basinId,
+          basinName: basinMap.get(s.basinId) || `Basin ${s.basinId.slice(-4)}`,
+          stationType: mappedType,
+          stationTypeLabel: typeInfo?.label,
+          river: s.river || undefined,
+          latitude: lat,
+          longitude: lng,
+          installedOn: s.installedOn || '2020-01-01',
+          telemetryQuality: 'checked',
+          status: s.isActive ? 'active' : 'offline',
+          operatorOrg: 'National Hydrological Services Agency',
+          description: s.description || undefined,
+          version: s.version || 1,
+        };
+      });
     }
     return [];
-  }, [serverStations]);
+  }, [serverStations, basinMap, stationTypeMap]);
 
   // New Station Form State
   const [formData, setFormData] = React.useState({
     name: '',
     code: '',
-    basinName: "Hadejia-Jama'are River Basin",
-    stationType: 'discharge' as StationType,
+    basinId: '',
+    stationTypeId: '',
     river: '',
     latitude: 12.0,
     longitude: 8.5,
     operatorOrg: 'HJRBDA',
     description: '',
   });
+
+  React.useEffect(() => {
+    if (basins.length > 0 && !formData.basinId) {
+      setFormData((prev) => ({ ...prev, basinId: basins[0]!.id }));
+    }
+  }, [basins, formData.basinId]);
+
+  React.useEffect(() => {
+    if (stationTypeLookups.length > 0 && !formData.stationTypeId) {
+      setFormData((prev) => ({ ...prev, stationTypeId: stationTypeLookups[0]!.id }));
+    }
+  }, [stationTypeLookups, formData.stationTypeId]);
 
   const filteredStations = React.useMemo(() => {
     return activeStations.filter((item) => {
@@ -226,37 +173,36 @@ export function StationsListView() {
 
   const handleCreateStation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newStation: StationRecord = {
-      id: `station-${Date.now()}`,
-      code: formData.code.toUpperCase(),
-      name: formData.name,
-      basinName: formData.basinName,
-      stationType: formData.stationType,
-      river: formData.river || undefined,
-      latitude: Number(formData.latitude),
-      longitude: Number(formData.longitude),
-      installedOn: new Date().toISOString().split('T')[0],
-      telemetryQuality: 'raw',
-      status: 'active',
-      operatorOrg: formData.operatorOrg,
-      description: formData.description,
-      version: 1,
-    };
+    if (!formData.basinId || !formData.stationTypeId) return;
+
     try {
       await createStation({
-        name: newStation.name,
-        code: newStation.code,
-        river: newStation.river,
-        basinId: '018f3a5e-0000-7000-8000-000000000001',
-        stationTypeId: '018f3a5e-0002-7000-8000-000000000001',
+        name: formData.name,
+        code: formData.code.toUpperCase(),
+        river: formData.river || undefined,
+        basinId: formData.basinId,
+        stationTypeId: formData.stationTypeId,
         geom: {
           type: 'Point',
-          coordinates: [newStation.longitude, newStation.latitude],
+          coordinates: [Number(formData.longitude), Number(formData.latitude)],
         },
+        description: formData.description || undefined,
+        installedOn: new Date().toISOString().split('T')[0],
       });
       setIsCreateModalOpen(false);
+      setFormData({
+        name: '',
+        code: '',
+        basinId: basins[0]?.id || '',
+        stationTypeId: stationTypeLookups[0]?.id || '',
+        river: '',
+        latitude: 12.0,
+        longitude: 8.5,
+        operatorOrg: 'HJRBDA',
+        description: '',
+      });
     } catch {
-      setIsCreateModalOpen(false);
+      // Handled by query boundary
     }
   };
 
@@ -302,12 +248,12 @@ export function StationsListView() {
               Hydrological & Meteorological Stations
             </h1>
             <Badge className="bg-teal-100 text-teal-800 border-teal-200 font-mono text-xs">
-              {currentScope.name || 'National Basin Network'}
+              {currentScope.name || 'National Basin Scoped'}
             </Badge>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Telemetry stations transmitting water stage, discharge rates, rainfall and
-            meteorological time-series.
+            Real-time telemetry networks, river discharge gauging posts, precipitation sensors, and
+            automated weather stations.
           </p>
         </div>
 
@@ -316,18 +262,18 @@ export function StationsListView() {
             <>
               <Button
                 variant="outline"
-                className="min-h-[44px] gap-2 px-3 text-xs"
+                className="min-h-[44px] gap-2 px-4 shadow-sm text-xs"
                 onClick={() => setIsImportModalOpen(true)}
               >
-                <UploadCloud className="w-4 h-4 text-slate-600" />
-                Batch Import CSV
+                <UploadCloud className="w-4 h-4" />
+                Import Stations
               </Button>
               <Button
                 className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] gap-2 px-4 shadow-sm"
                 onClick={() => setIsCreateModalOpen(true)}
               >
                 <Plus className="w-4 h-4" />
-                Add Hydromet Station
+                Register Station
               </Button>
             </>
           )}
@@ -339,7 +285,7 @@ export function StationsListView() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder="Search station by name, code, river..."
+            placeholder="Search stations by name, code, river, basin..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-11 text-xs"
@@ -348,21 +294,21 @@ export function StationsListView() {
 
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="h-11 min-w-[140px] text-xs">
+            <SelectTrigger className="h-11 min-w-[150px] text-xs">
               <SelectValue placeholder="Station Type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="discharge">Discharge Gauges</SelectItem>
-              <SelectItem value="rainfall">Rainfall Stations</SelectItem>
-              <SelectItem value="water_level">Water Level</SelectItem>
-              <SelectItem value="meteorological">Weather Stations</SelectItem>
+              <SelectItem value="water_level">Water Level Sensors</SelectItem>
+              <SelectItem value="rainfall">Precipitation</SelectItem>
+              <SelectItem value="meteorological">Meteorological (AWS)</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-11 min-w-[140px] text-xs">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="h-11 min-w-[150px] text-xs">
+              <SelectValue placeholder="Network Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
@@ -393,8 +339,30 @@ export function StationsListView() {
             <tbody className="divide-y divide-slate-100">
               {filteredStations.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    No stations matching search criteria.
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <EmptyState
+                        icon={<Radio className="w-8 h-8 text-teal-600" />}
+                        title="No Hydromet Stations"
+                        description={
+                          search
+                            ? 'No telemetry stations matching search criteria.'
+                            : 'No telemetry or river gauging stations have been registered.'
+                        }
+                        action={
+                          canManage && !search ? (
+                            <Button
+                              size="sm"
+                              className="bg-teal-700 hover:bg-teal-800 text-white min-h-[40px] gap-2 px-4"
+                              onClick={() => setIsCreateModalOpen(true)}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Register First Station
+                            </Button>
+                          ) : undefined
+                        }
+                      />
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -462,51 +430,46 @@ export function StationsListView() {
               <DialogTitle className="text-xl font-bold text-slate-900 mt-2">
                 {selectedStation.name}
               </DialogTitle>
+              <p className="text-xs text-slate-500">
+                Operating in {selectedStation.basinName} • Installed on{' '}
+                {selectedStation.installedOn}
+              </p>
             </DialogHeader>
 
             <div className="space-y-4 py-3 text-xs">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
                 <div>
-                  <span className="text-slate-400 block">Basin Authority:</span>
-                  <span className="font-semibold text-slate-800">{selectedStation.basinName}</span>
+                  <span className="text-slate-400 block text-[11px]">Geographic Location</span>
+                  <span className="font-mono font-semibold text-slate-800">
+                    {selectedStation.latitude.toFixed(6)}° N, {selectedStation.longitude.toFixed(6)}
+                    ° E
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Operating Entity:</span>
+                  <span className="text-slate-400 block text-[11px]">Associated River Reach</span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedStation.river || 'Catchment Overground'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Operating Agency</span>
                   <span className="font-semibold text-slate-800">
                     {selectedStation.operatorOrg}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">River Channel:</span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedStation.river || 'None / Meteorological'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Installed Date:</span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedStation.installedOn}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Geographic Coordinates:</span>
-                  <span className="font-mono text-slate-800">
-                    {selectedStation.latitude}° N, {selectedStation.longitude}° E
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Telemetry Quality Flag:</span>
-                  <span className="font-semibold text-slate-800 uppercase">
-                    {selectedStation.telemetryQuality}
+                  <span className="text-slate-400 block text-[11px]">Telemetry QA Status</span>
+                  <span className="font-semibold text-slate-800 capitalize">
+                    {selectedStation.telemetryQuality} (automated ingestion)
                   </span>
                 </div>
               </div>
 
               {selectedStation.description && (
-                <div className="p-3 bg-teal-50/50 rounded-lg border border-teal-100 text-slate-700">
-                  <div className="font-bold text-teal-900 mb-1">
-                    Equipment Description & Sensors:
-                  </div>
+                <div className="text-slate-600 bg-teal-50/50 p-3 rounded border border-teal-100">
+                  <span className="font-bold text-teal-900 block mb-1">
+                    Telemetry Equipment Details:
+                  </span>
                   {selectedStation.description}
                 </div>
               )}
@@ -560,19 +523,18 @@ export function StationsListView() {
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">Station Type *</label>
                 <Select
-                  value={formData.stationType}
-                  onValueChange={(val: StationType) =>
-                    setFormData({ ...formData, stationType: val })
-                  }
+                  value={formData.stationTypeId}
+                  onValueChange={(val) => setFormData({ ...formData, stationTypeId: val })}
                 >
                   <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="discharge">Discharge Gauge</SelectItem>
-                    <SelectItem value="water_level">Water Level Sensor</SelectItem>
-                    <SelectItem value="rainfall">Rainfall Bucket</SelectItem>
-                    <SelectItem value="meteorological">Weather Station</SelectItem>
+                    {stationTypeLookups.map((st) => (
+                      <SelectItem key={st.id} value={st.id}>
+                        {st.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -582,18 +544,18 @@ export function StationsListView() {
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">Basin Unit *</label>
                 <Select
-                  value={formData.basinName}
-                  onValueChange={(val) => setFormData({ ...formData, basinName: val })}
+                  value={formData.basinId}
+                  onValueChange={(val) => setFormData({ ...formData, basinId: val })}
                 >
                   <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select Basin" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Hadejia-Jama'are River Basin">
-                      Hadejia-Jama'are River Basin
-                    </SelectItem>
-                    <SelectItem value="Sokoto-Rima River Basin">Sokoto-Rima River Basin</SelectItem>
-                    <SelectItem value="Upper Niger River Basin">Upper Niger River Basin</SelectItem>
+                    {basins.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name} ({b.code})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -631,6 +593,16 @@ export function StationsListView() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-slate-600 font-semibold mb-1">Description / Notes</label>
+              <Input
+                placeholder="Sensor model, transmission protocol, telemetry specs..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="h-10 text-xs"
+              />
+            </div>
+
             <DialogFooter className="pt-2">
               <Button
                 type="button"
@@ -642,28 +614,34 @@ export function StationsListView() {
               </Button>
               <Button
                 type="submit"
+                disabled={isCreating || !formData.basinId || !formData.stationTypeId}
                 className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] text-xs"
               >
-                Save Station Asset
+                {isCreating ? 'Saving...' : 'Save Station'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Batch Import Modal */}
+      {/* Dataset Import Modal */}
       {isImportModalOpen && (
         <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold text-slate-900">
-                Batch Import Hydromet Stations
+                Import Hydromet Station Registry
               </DialogTitle>
             </DialogHeader>
-            <ImportWizard
-              initialDatasetId="blis.station"
-              onCancel={() => setIsImportModalOpen(false)}
-            />
+            <div className="py-2">
+              <ImportWizard
+                initialDatasetId="blis.station"
+                onBatchCommitted={() => {
+                  setIsImportModalOpen(false);
+                }}
+                onCancel={() => setIsImportModalOpen(false)}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       )}

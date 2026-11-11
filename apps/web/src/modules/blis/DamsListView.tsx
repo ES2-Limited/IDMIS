@@ -14,16 +14,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  EmptyState,
 } from '@idmis/ui';
 import { useCan } from '../../auth';
 import { useScope } from '../../shell/ScopeContext';
-import { useDams, useReservoirs } from './hooks';
+import { useDams, useReservoirs, useBasins } from './hooks';
+import { useLookupValues } from '../core/hooks/usePlatformAdmin';
 
 export interface DamRecord {
   id: string;
   code: string;
   name: string;
   altName?: string;
+  basinId?: string;
   basinName: string;
   reservoirName?: string;
   completionYear: number;
@@ -54,166 +57,6 @@ export interface ReservoirRecord {
   version: number;
 }
 
-export const mockDams: DamRecord[] = [
-  {
-    id: '018f3a70-0001-7000-8000-000000000101',
-    code: 'DAM-HJB-001',
-    name: 'Tiga Dam',
-    altName: 'Kano River Main Reservoir Dam',
-    basinName: "Hadejia-Jama'are River Basin",
-    reservoirName: 'Lake Tiga Reservoir',
-    completionYear: 1974,
-    heightM: 48,
-    crestLengthM: 6000,
-    reservoirCapacityMcm: 1968,
-    reservoirAreaKm2: 178,
-    spillwayType: 'Ogee Crest with Chute',
-    spillwayCapacityM3s: 2150,
-    hazardRating: 'high',
-    lastCondition: 'good',
-    nearestTown: 'Rano / Tiga, Kano State',
-    ownerOrg: "Hadejia-Jama'are River Basin Development Authority (HJRBDA)",
-    notes: 'Major storage dam supporting Kano River Irrigation Project (Phase I & II).',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0001-7000-8000-000000000102',
-    code: 'DAM-HJB-002',
-    name: 'Challawa Gorge Dam',
-    altName: 'Challawa River Dam',
-    basinName: "Hadejia-Jama'are River Basin",
-    reservoirName: 'Challawa Gorge Reservoir',
-    completionYear: 1992,
-    heightM: 42,
-    crestLengthM: 7800,
-    reservoirCapacityMcm: 904,
-    reservoirAreaKm2: 101,
-    spillwayType: 'Morning Glory Ungated Spillway',
-    spillwayCapacityM3s: 1400,
-    hazardRating: 'high',
-    lastCondition: 'fair',
-    nearestTown: 'Karaye, Kano State',
-    ownerOrg: 'HJRBDA',
-    notes: 'Provides water supply to Kano metropolis and Challawa river scheme downstream.',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0001-7000-8000-000000000103',
-    code: 'DAM-SRB-001',
-    name: 'Bakolori Dam',
-    altName: 'Sokoto River Impoundment',
-    basinName: 'Sokoto-Rima River Basin',
-    reservoirName: 'Bakolori Reservoir',
-    completionYear: 1978,
-    heightM: 52,
-    crestLengthM: 5400,
-    reservoirCapacityMcm: 450,
-    reservoirAreaKm2: 80,
-    spillwayType: 'Radial Gated Concrete Chute',
-    spillwayCapacityM3s: 1850,
-    hazardRating: 'high',
-    lastCondition: 'good',
-    nearestTown: 'Talata Mafara, Zamfara State',
-    ownerOrg: 'Sokoto-Rima River Basin Development Authority (SRRBDA)',
-    notes: 'Primary intake feeder for Bakolori Irrigation Project network.',
-    version: 2,
-  },
-  {
-    id: '018f3a70-0001-7000-8000-000000000104',
-    code: 'DAM-SRB-002',
-    name: 'Goronyo Dam',
-    altName: 'Rima River Dam Complex',
-    basinName: 'Sokoto-Rima River Basin',
-    reservoirName: 'Goronyo Impoundment',
-    completionYear: 1984,
-    heightM: 21,
-    crestLengthM: 12500,
-    reservoirCapacityMcm: 942,
-    reservoirAreaKm2: 200,
-    spillwayType: 'Twin Broad-Crested Overflow',
-    spillwayCapacityM3s: 2900,
-    hazardRating: 'high',
-    lastCondition: 'fair',
-    nearestTown: 'Goronyo, Sokoto State',
-    ownerOrg: 'SRRBDA',
-    notes: 'Secondary embankment requires periodic surveillance during wet season peak.',
-    version: 1,
-  },
-  {
-    id: '018f3a70-0001-7000-8000-000000000105',
-    code: 'DAM-HJB-003',
-    name: 'Hadejia Barrage & Weir',
-    altName: 'Hadejia Wetlands Control Structure',
-    basinName: "Hadejia-Jama'are River Basin",
-    reservoirName: 'Hadejia River Pool',
-    completionYear: 1988,
-    heightM: 11,
-    crestLengthM: 850,
-    reservoirCapacityMcm: 45,
-    reservoirAreaKm2: 15,
-    spillwayType: 'Sluice Gates with Broad Weir',
-    spillwayCapacityM3s: 600,
-    hazardRating: 'significant',
-    lastCondition: 'poor',
-    nearestTown: 'Hadejia, Jigawa State',
-    ownerOrg: 'HJRBDA',
-    notes:
-      'Regulates water levels for the Hadejia-Nguru wetlands bird sanctuary & local diversions.',
-    version: 3,
-  },
-];
-
-export const mockReservoirs: ReservoirRecord[] = [
-  {
-    id: '018f3a70-0002-7000-8000-000000000201',
-    basinName: "Hadejia-Jama'are River Basin",
-    name: 'Lake Tiga Reservoir',
-    river: 'Kano River',
-    areaKm2: 178,
-    volumeMcm: 1968,
-    meanDepthM: 11.1,
-    maxDepthM: 40,
-    sedimentRatio: 0.042,
-    version: 1,
-  },
-  {
-    id: '018f3a70-0002-7000-8000-000000000202',
-    basinName: "Hadejia-Jama'are River Basin",
-    name: 'Challawa Gorge Reservoir',
-    river: 'Challawa River',
-    areaKm2: 101,
-    volumeMcm: 904,
-    meanDepthM: 8.9,
-    maxDepthM: 36,
-    sedimentRatio: 0.065,
-    version: 1,
-  },
-  {
-    id: '018f3a70-0002-7000-8000-000000000203',
-    basinName: 'Sokoto-Rima River Basin',
-    name: 'Bakolori Reservoir',
-    river: 'Sokoto River',
-    areaKm2: 80,
-    volumeMcm: 450,
-    meanDepthM: 5.6,
-    maxDepthM: 44,
-    sedimentRatio: 0.078,
-    version: 2,
-  },
-  {
-    id: '018f3a70-0002-7000-8000-000000000204',
-    basinName: 'Sokoto-Rima River Basin',
-    name: 'Goronyo Impoundment',
-    river: 'Rima River',
-    areaKm2: 200,
-    volumeMcm: 942,
-    meanDepthM: 4.7,
-    maxDepthM: 19,
-    sedimentRatio: 0.091,
-    version: 1,
-  },
-];
-
 export function DamsListView() {
   const { currentScope } = useScope();
   const canManage = useCan('blis.irrigation.write');
@@ -224,24 +67,41 @@ export function DamsListView() {
   const [selectedDam, setSelectedDam] = React.useState<DamRecord | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
-  // Modular custom hook for Dams
-  const { dams: serverDams, createDam } = useDams({
+  // Modular custom hooks for Dams, Reservoirs, Basins, and Lookups
+  const { basins } = useBasins();
+  const { data: damPurposes = [] } = useLookupValues('dam_purpose');
+  const { data: damCategories = [] } = useLookupValues('dam_category');
+
+  const {
+    dams: serverDams,
+    createDam,
+    isCreating,
+  } = useDams({
     limit: 50,
   });
 
   const { reservoirs: serverReservoirs } = useReservoirs();
 
+  const basinMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    basins.forEach((b) => map.set(b.id, b.name));
+    return map;
+  }, [basins]);
+
   const activeReservoirs: ReservoirRecord[] = React.useMemo(() => {
     if (serverReservoirs && serverReservoirs.length > 0) {
       return (serverReservoirs as unknown as Array<Record<string, unknown>>).map((r) => ({
         id: String(r.id),
-        basinName: String(
-          r.basinId ? `Basin ${String(r.basinId).slice(-4)}` : "Hadejia-Jama'are River Basin",
-        ),
+        basinName:
+          r.basinId && basinMap.has(String(r.basinId))
+            ? basinMap.get(String(r.basinId))!
+            : String(
+                r.basinId ? `Basin ${String(r.basinId).slice(-4)}` : "Hadejia-Jama'are River Basin",
+              ),
         name: String(r.name),
-        river: String(r.river || 'Hadejia River'),
-        areaKm2: r.areaKm2 ? Number(r.areaKm2) : 100,
-        volumeMcm: r.volumeMcm ? Number(r.volumeMcm) : 500,
+        river: String(r.river || 'River Source'),
+        areaKm2: r.areaKm2 ? Number(r.areaKm2) : 0,
+        volumeMcm: r.volumeMcm ? Number(r.volumeMcm) : 0,
         meanDepthM: r.meanDepthM ? Number(r.meanDepthM) : undefined,
         maxDepthM: r.maxDepthM ? Number(r.maxDepthM) : undefined,
         sedimentRatio: r.sedimentRatio ? Number(r.sedimentRatio) : undefined,
@@ -249,7 +109,7 @@ export function DamsListView() {
       }));
     }
     return [];
-  }, [serverReservoirs]);
+  }, [serverReservoirs, basinMap]);
 
   const activeDams: DamRecord[] = React.useMemo(() => {
     if (serverDams && serverDams.length > 0) {
@@ -258,33 +118,36 @@ export function DamsListView() {
         code: d.code || `DAM-${d.id.slice(0, 4)}`,
         name: d.name,
         altName: d.altName || undefined,
-        basinName: d.basinId ? `Basin ${d.basinId.slice(-4)}` : "Hadejia-Jama'are River Basin",
+        basinId: d.basinId,
+        basinName: basinMap.get(d.basinId) || `Basin ${d.basinId.slice(-4)}`,
         reservoirName: d.reservoirId ? `Reservoir ${d.reservoirId.slice(-4)}` : undefined,
         completionYear: d.completionYear || 2020,
-        heightM: d.heightM ? Number(d.heightM) : 25,
-        crestLengthM: d.crestLengthM ? Number(d.crestLengthM) : 1200,
-        reservoirCapacityMcm: d.reservoirCapacityMcm ? Number(d.reservoirCapacityMcm) : 150,
-        reservoirAreaKm2: d.reservoirAreaKm2 ? Number(d.reservoirAreaKm2) : 30,
+        heightM: d.heightM ? Number(d.heightM) : 0,
+        crestLengthM: d.crestLengthM ? Number(d.crestLengthM) : 0,
+        reservoirCapacityMcm: d.reservoirCapacityMcm ? Number(d.reservoirCapacityMcm) : 0,
+        reservoirAreaKm2: d.reservoirAreaKm2 ? Number(d.reservoirAreaKm2) : 0,
         spillwayType: d.spillwayType || 'Concrete Overflow Chute',
-        spillwayCapacityM3s: d.spillwayCapacityM3s ? Number(d.spillwayCapacityM3s) : 500,
+        spillwayCapacityM3s: d.spillwayCapacityM3s ? Number(d.spillwayCapacityM3s) : 0,
         hazardRating: 'significant',
         lastCondition: 'good',
-        nearestTown: d.nearestTown || 'Kano',
+        nearestTown: d.nearestTown || 'N/A',
         ownerOrg: 'Federal Ministry of Water Resources',
         notes: d.notes || undefined,
         version: d.version || 1,
       }));
     }
     return [];
-  }, [serverDams]);
+  }, [serverDams, basinMap]);
 
   // New Dam Form State
   const [formData, setFormData] = React.useState({
     name: '',
     code: '',
     altName: '',
-    basinName: "Hadejia-Jama'are River Basin",
-    completionYear: 2024,
+    basinId: '',
+    purposeId: '',
+    categoryId: '',
+    completionYear: new Date().getFullYear(),
     heightM: 25,
     crestLengthM: 1200,
     reservoirCapacityMcm: 150,
@@ -296,6 +159,13 @@ export function DamsListView() {
     nearestTown: '',
     ownerOrg: 'Federal Ministry of Water Resources',
   });
+
+  // Ensure default basinId is set when basins load
+  React.useEffect(() => {
+    if (basins.length > 0 && !formData.basinId) {
+      setFormData((prev) => ({ ...prev, basinId: basins[0]!.id }));
+    }
+  }, [basins, formData.basinId]);
 
   const filteredDams = React.useMemo(() => {
     return activeDams.filter((item) => {
@@ -322,42 +192,47 @@ export function DamsListView() {
 
   const handleCreateDam = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newDam: DamRecord = {
-      id: `dam-${Date.now()}`,
-      code: formData.code.toUpperCase(),
-      name: formData.name,
-      altName: formData.altName || undefined,
-      basinName: formData.basinName,
-      completionYear: Number(formData.completionYear),
-      heightM: Number(formData.heightM),
-      crestLengthM: Number(formData.crestLengthM),
-      reservoirCapacityMcm: Number(formData.reservoirCapacityMcm),
-      reservoirAreaKm2: Number(formData.reservoirAreaKm2),
-      spillwayType: formData.spillwayType,
-      spillwayCapacityM3s: Number(formData.spillwayCapacityM3s),
-      hazardRating: formData.hazardRating,
-      lastCondition: formData.lastCondition,
-      nearestTown: formData.nearestTown,
-      ownerOrg: formData.ownerOrg,
-      version: 1,
-    };
+    if (!formData.basinId) return;
+
     try {
       await createDam({
-        name: newDam.name,
-        code: newDam.code,
-        basinId: '018f3a5e-0000-7000-8000-000000000001',
-        altName: newDam.altName,
-        heightM: String(newDam.heightM),
-        crestLengthM: String(newDam.crestLengthM),
-        reservoirCapacityMcm: String(newDam.reservoirCapacityMcm),
-        reservoirAreaKm2: String(newDam.reservoirAreaKm2),
-        spillwayType: newDam.spillwayType,
-        spillwayCapacityM3s: String(newDam.spillwayCapacityM3s),
-        nearestTown: newDam.nearestTown,
+        name: formData.name,
+        code: formData.code.toUpperCase(),
+        basinId: formData.basinId,
+        altName: formData.altName || undefined,
+        purposeId: formData.purposeId || undefined,
+        categoryId: formData.categoryId || undefined,
+        completionYear: formData.completionYear ? Number(formData.completionYear) : undefined,
+        heightM: String(formData.heightM),
+        crestLengthM: String(formData.crestLengthM),
+        reservoirCapacityMcm: String(formData.reservoirCapacityMcm),
+        reservoirAreaKm2: String(formData.reservoirAreaKm2),
+        spillwayType: formData.spillwayType,
+        spillwayCapacityM3s: String(formData.spillwayCapacityM3s),
+        nearestTown: formData.nearestTown || undefined,
       });
       setIsCreateModalOpen(false);
+      setFormData({
+        name: '',
+        code: '',
+        altName: '',
+        basinId: basins[0]?.id || '',
+        purposeId: '',
+        categoryId: '',
+        completionYear: new Date().getFullYear(),
+        heightM: 25,
+        crestLengthM: 1200,
+        reservoirCapacityMcm: 150,
+        reservoirAreaKm2: 30,
+        spillwayType: 'Concrete Overflow Chute',
+        spillwayCapacityM3s: 500,
+        hazardRating: 'significant',
+        lastCondition: 'good',
+        nearestTown: '',
+        ownerOrg: 'Federal Ministry of Water Resources',
+      });
     } catch {
-      setIsCreateModalOpen(false);
+      // Handled by query/toast boundary
     }
   };
 
@@ -451,20 +326,16 @@ export function DamsListView() {
           }`}
         >
           <Layers className="w-4 h-4" />
-          Impoundment Reservoirs ({activeReservoirs.length})
+          Reservoirs & Impoundments ({activeReservoirs.length})
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filters and Search Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder={
-              activeTab === 'dams'
-                ? 'Search dams by name, code, nearest town...'
-                : 'Search reservoirs by name, river...'
-            }
+            placeholder={`Search ${activeTab === 'dams' ? 'dams by name, code, basin...' : 'reservoirs by name, river, basin...'}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-11 text-xs"
@@ -474,8 +345,8 @@ export function DamsListView() {
         {activeTab === 'dams' && (
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Select value={hazardFilter} onValueChange={setHazardFilter}>
-              <SelectTrigger className="h-11 min-w-[140px] text-xs">
-                <SelectValue placeholder="Hazard Class" />
+              <SelectTrigger className="h-11 min-w-[150px] text-xs">
+                <SelectValue placeholder="Hazard Rating" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Hazards</SelectItem>
@@ -486,7 +357,7 @@ export function DamsListView() {
             </Select>
 
             <Select value={conditionFilter} onValueChange={setConditionFilter}>
-              <SelectTrigger className="h-11 min-w-[140px] text-xs">
+              <SelectTrigger className="h-11 min-w-[150px] text-xs">
                 <SelectValue placeholder="Condition" />
               </SelectTrigger>
               <SelectContent>
@@ -501,7 +372,7 @@ export function DamsListView() {
         )}
       </div>
 
-      {/* Main Table Content */}
+      {/* Tab Panels */}
       {activeTab === 'dams' ? (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -521,8 +392,30 @@ export function DamsListView() {
               <tbody className="divide-y divide-slate-100">
                 {filteredDams.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
-                      No dams matching search criteria.
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="flex justify-center">
+                        <EmptyState
+                          icon={<Waves className="w-8 h-8 text-teal-600" />}
+                          title="No Dams Registered"
+                          description={
+                            search
+                              ? 'No dam assets matched your search query.'
+                              : 'No dam structures have been registered in this basin yet.'
+                          }
+                          action={
+                            canManage && !search ? (
+                              <Button
+                                size="sm"
+                                className="bg-teal-700 hover:bg-teal-800 text-white min-h-[40px] gap-2 px-4"
+                                onClick={() => setIsCreateModalOpen(true)}
+                              >
+                                <Plus className="w-4 h-4" />
+                                Register First Dam
+                              </Button>
+                            ) : undefined
+                          }
+                        />
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -578,8 +471,18 @@ export function DamsListView() {
               <tbody className="divide-y divide-slate-100">
                 {filteredReservoirs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
-                      No reservoirs matching search criteria.
+                    <td colSpan={7} className="py-12 text-center">
+                      <div className="flex justify-center">
+                        <EmptyState
+                          icon={<Layers className="w-8 h-8 text-teal-600" />}
+                          title="No Reservoirs Recorded"
+                          description={
+                            search
+                              ? 'No reservoirs match your search terms.'
+                              : 'No impoundment reservoirs or storage bodies are catalogued.'
+                          }
+                        />
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -591,9 +494,11 @@ export function DamsListView() {
                       <td className="py-3.5 px-4 font-mono">{res.areaKm2} km²</td>
                       <td className="py-3.5 px-4 font-bold text-teal-800">{res.volumeMcm} MCM</td>
                       <td className="py-3.5 px-4 font-mono">
-                        {res.meanDepthM}m / {res.maxDepthM}m
+                        {res.meanDepthM ?? '-'}m / {res.maxDepthM ?? '-'}m
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-500">{res.sedimentRatio}</td>
+                      <td className="py-3.5 px-4 font-mono text-slate-500">
+                        {res.sedimentRatio ?? '-'}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -638,11 +543,11 @@ export function DamsListView() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400">Spillway Type:</span>{' '}
+                  <span className="text-slate-400">Spillway Configuration:</span>{' '}
                   <span className="font-semibold text-slate-800">{selectedDam.spillwayType}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">Spillway Design Capacity:</span>{' '}
+                  <span className="text-slate-400">Spillway Discharge Cap:</span>{' '}
                   <span className="font-semibold text-slate-800">
                     {selectedDam.spillwayCapacityM3s.toLocaleString()} m³/s
                   </span>
@@ -655,7 +560,7 @@ export function DamsListView() {
 
               <div className="space-y-3 bg-slate-50 p-3.5 rounded-lg border border-slate-100">
                 <div className="font-bold text-slate-800 text-[13px] border-b border-slate-200 pb-1">
-                  Reservoir & Governance
+                  Reservoir & Basin Context
                 </div>
                 <div>
                   <span className="text-slate-400">Basin Catchment:</span>{' '}
@@ -664,12 +569,12 @@ export function DamsListView() {
                 <div>
                   <span className="text-slate-400">Reservoir Name:</span>{' '}
                   <span className="font-semibold text-slate-800">
-                    {selectedDam.reservoirName || 'N/A'}
+                    {selectedDam.reservoirName || 'Direct Impoundment'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400">Total Storage:</span>{' '}
-                  <span className="font-semibold text-teal-800">
+                  <span className="text-slate-400">Gross Capacity:</span>{' '}
+                  <span className="font-semibold text-teal-800 font-mono">
                     {selectedDam.reservoirCapacityMcm.toLocaleString()} MCM
                   </span>
                 </div>
@@ -680,29 +585,20 @@ export function DamsListView() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400">Location / Nearest Town:</span>{' '}
+                  <span className="text-slate-400">Nearest Municipality:</span>{' '}
                   <span className="font-semibold text-slate-800">{selectedDam.nearestTown}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">Owner Authority:</span>{' '}
-                  <span className="font-semibold text-slate-800">{selectedDam.ownerOrg}</span>
                 </div>
               </div>
             </div>
 
-            {selectedDam.notes && (
-              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900">
-                <strong>Operational Notes:</strong> {selectedDam.notes}
-              </div>
-            )}
-
-            <DialogFooter>
+            <DialogFooter className="pt-2">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setSelectedDam(null)}
                 className="min-h-[44px] text-xs"
               >
-                Close Inspector
+                Close Asset Details
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -711,10 +607,10 @@ export function DamsListView() {
 
       {/* Create Dam Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900">
-              Register Dam Infrastructure Asset
+              Register New Dam Asset
             </DialogTitle>
           </DialogHeader>
 
@@ -746,18 +642,18 @@ export function DamsListView() {
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">Basin Unit *</label>
                 <Select
-                  value={formData.basinName}
-                  onValueChange={(val) => setFormData({ ...formData, basinName: val })}
+                  value={formData.basinId}
+                  onValueChange={(val) => setFormData({ ...formData, basinId: val })}
                 >
                   <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select Basin" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Hadejia-Jama'are River Basin">
-                      Hadejia-Jama'are River Basin
-                    </SelectItem>
-                    <SelectItem value="Sokoto-Rima River Basin">Sokoto-Rima River Basin</SelectItem>
-                    <SelectItem value="Upper Niger River Basin">Upper Niger River Basin</SelectItem>
+                    {basins.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name} ({b.code})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -771,6 +667,45 @@ export function DamsListView() {
                   }
                   className="h-10 text-xs"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1">Dam Purpose</label>
+                <Select
+                  value={formData.purposeId}
+                  onValueChange={(val) => setFormData({ ...formData, purposeId: val })}
+                >
+                  <SelectTrigger className="h-10 text-xs">
+                    <SelectValue placeholder="Select Purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {damPurposes.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1">Dam Category</label>
+                <Select
+                  value={formData.categoryId}
+                  onValueChange={(val) => setFormData({ ...formData, categoryId: val })}
+                >
+                  <SelectTrigger className="h-10 text-xs">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {damCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -810,31 +745,20 @@ export function DamsListView() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-slate-600 font-semibold mb-1">
-                  Hazard Classification
-                </label>
-                <Select
-                  value={formData.hazardRating}
-                  onValueChange={(val: 'high' | 'significant' | 'low') =>
-                    setFormData({ ...formData, hazardRating: val })
-                  }
-                >
-                  <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high">High Hazard</SelectItem>
-                    <SelectItem value="significant">Significant Hazard</SelectItem>
-                    <SelectItem value="low">Low Hazard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <label className="block text-slate-600 font-semibold mb-1">Nearest Town</label>
                 <Input
                   placeholder="e.g. Wurno, Sokoto State"
                   value={formData.nearestTown}
                   onChange={(e) => setFormData({ ...formData, nearestTown: e.target.value })}
+                  className="h-10 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 font-semibold mb-1">Spillway Type</label>
+                <Input
+                  placeholder="e.g. Ogee Crest"
+                  value={formData.spillwayType}
+                  onChange={(e) => setFormData({ ...formData, spillwayType: e.target.value })}
                   className="h-10 text-xs"
                 />
               </div>
@@ -851,9 +775,10 @@ export function DamsListView() {
               </Button>
               <Button
                 type="submit"
+                disabled={isCreating || !formData.basinId}
                 className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] text-xs"
               >
-                Save Dam Asset
+                {isCreating ? 'Saving...' : 'Save Dam Asset'}
               </Button>
             </DialogFooter>
           </form>

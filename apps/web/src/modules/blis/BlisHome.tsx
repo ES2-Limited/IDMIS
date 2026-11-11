@@ -10,16 +10,25 @@ import {
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
+import { useDams, useStations, useBasins, useDamInspections } from './hooks';
 
 export function BlisHome() {
   const { currentScope } = useScope();
+
+  const { basins = [] } = useBasins();
+  const { dams = [] } = useDams({ limit: 100 });
+  const { stations = [] } = useStations({ limit: 100 });
+  const { inspections = [] } = useDamInspections({ page: 1, limit: 100 });
+
+  const badgeStatus: 'syncing' | 'saved_on_device' =
+    stations.length > 0 ? 'syncing' : 'saved_on_device';
 
   const blisSections = [
     {
       title: 'Interactive Map Workspace',
       description:
         'Vector tiles for river basins, dams, irrigation scheme perimeters, and canal network branches.',
-      stats: '12 Major Basins',
+      stats: `${basins.length} Major ${basins.length === 1 ? 'Basin' : 'Basins'}`,
       statLabel: 'Vector Tiles Active',
       icon: Layers,
       badge: 'Active Network',
@@ -32,17 +41,17 @@ export function BlisHome() {
         'Offline vector tile cache',
       ],
       linkText: 'Launch GIS Map',
-      to: '/blis',
+      to: '/blis/map',
     },
     {
       title: 'Hydromet Time Series & Telemetry',
       description:
         'River discharge gauges, automated weather stations, rainfall metrics, and reservoir storage.',
-      stats: '142 Gauges',
-      statLabel: '98.2% Telemetry Uptime',
+      stats: `${stations.length} Registered Gauges`,
+      statLabel: 'Telemetry Network',
       icon: Waves,
-      badge: 'Live Feeds',
-      badgeStatus: 'syncing' as const,
+      badge: stations.length > 0 ? 'Live Feeds' : 'Pending Deployment',
+      badgeStatus,
       color: 'blue',
       features: [
         'ECharts hydrograph trends',
@@ -50,18 +59,18 @@ export function BlisHome() {
         'Low flow alerts',
         'Reservoir storage curves',
       ],
-      linkText: 'Inspect Hydromet Data',
-      to: '/blis',
+      linkText: 'Inspect Hydromet Stations',
+      to: '/blis/stations',
     },
     {
       title: 'Dam Inspections & Structural Safety',
       description:
         'Engineering dam surveillance, piezometer seepage monitoring, and emergency spillway evaluations.',
-      stats: '8 National Dams',
-      statLabel: '0 Critical Alerts',
+      stats: `${dams.length} Monitored Dams`,
+      statLabel: `${inspections.length} Audits Logged`,
       icon: AlertOctagon,
-      badge: 'Safety First',
-      badgeStatus: 'saved_on_device' as const,
+      badge: 'Safety Surveillance',
+      badgeStatus: 'approved' as const,
       color: 'amber',
       features: [
         'Field inspection checklists',
@@ -70,15 +79,31 @@ export function BlisHome() {
         'Surveillance schedule',
       ],
       linkText: 'Review Dam Safety',
-      to: '/blis',
+      to: '/blis/inspections',
     },
   ];
 
   const quickStats = [
-    { label: 'Hydromet Stations', value: '142 Active', sub: '98.2% uptime' },
-    { label: 'Reservoir Capacity', value: '84.6%', sub: 'Safe flood margin' },
-    { label: 'Monitored Basins', value: '12 Basins', sub: 'Hadejia-Jama’are, Sokoto...' },
-    { label: 'Dam Surveillance', value: '100% Up to Date', sub: 'Q4 completed' },
+    {
+      label: 'Hydromet Stations',
+      value: `${stations.length} Active`,
+      sub: stations.length > 0 ? 'Operational telemetry' : 'No telemetry online',
+    },
+    {
+      label: 'Registered Dams',
+      value: `${dams.length} Dams`,
+      sub: `${dams.length} structures tracked`,
+    },
+    {
+      label: 'Monitored Basins',
+      value: `${basins.length} ${basins.length === 1 ? 'Basin' : 'Basins'}`,
+      sub: basins.length > 0 ? basins.map((b) => b.code).join(', ') : 'No basins',
+    },
+    {
+      label: 'Safety Audits',
+      value: `${inspections.length} Audits`,
+      sub: inspections.length > 0 ? 'Audits up to date' : 'No audits logged',
+    },
   ];
 
   return (
@@ -107,15 +132,23 @@ export function BlisHome() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
+              asChild
               variant="outline"
               className="bg-white/20 hover:bg-white/30 text-white font-bold border border-white/40 shadow-xs backdrop-blur-sm text-xs cursor-pointer"
             >
-              <Activity className="h-3.5 w-3.5 mr-1.5 text-sky-300" />
-              Live Telemetry
+              <Link to="/blis/stations">
+                <Activity className="h-3.5 w-3.5 mr-1.5 text-sky-300" />
+                Live Telemetry
+              </Link>
             </Button>
-            <Button className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md cursor-pointer">
-              <LineChart className="h-3.5 w-3.5 mr-1.5" />
-              Hydrographs
+            <Button
+              asChild
+              className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md cursor-pointer"
+            >
+              <Link to="/blis/dams">
+                <LineChart className="h-3.5 w-3.5 mr-1.5" />
+                Dams & Reservoirs
+              </Link>
             </Button>
           </div>
         </div>

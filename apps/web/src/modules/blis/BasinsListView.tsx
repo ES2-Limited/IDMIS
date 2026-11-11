@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  EmptyState,
 } from '@idmis/ui';
 import { useScope } from '../../shell/ScopeContext';
 import { useBasins } from './hooks';
@@ -64,167 +65,6 @@ export interface WaterUsePriorityRecord {
   monitoringRule: string;
 }
 
-export const mockBasins: BasinRecord[] = [
-  {
-    id: '018f3a70-0004-7000-8000-000000000401',
-    code: 'BAS-HJB',
-    name: "Hadejia-Jama'are River Basin",
-    altName: 'Lake Chad Sub-Basin Nigeria',
-    hydrologicalUnit: 'Hydrological Area VIII (Chad Basin)',
-    mainRiver: "Hadejia & Jama'are Rivers",
-    rbdaName: "Hadejia-Jama'are River Basin Development Authority (HJRBDA)",
-    areaKm2: 84000,
-    drainageDensity: '0.42 km/km²',
-    streamCount: 412,
-    reliefM: 920,
-    version: 1,
-    morphometryHistory: [
-      {
-        year: 2024,
-        streamLengthTotalKm: 35280,
-        avgSlopePct: 2.1,
-        highestPointM: 1240,
-        lowestPointM: 320,
-      },
-      {
-        year: 2018,
-        streamLengthTotalKm: 35120,
-        avgSlopePct: 2.2,
-        highestPointM: 1240,
-        lowestPointM: 320,
-      },
-    ],
-  },
-  {
-    id: '018f3a70-0004-7000-8000-000000000402',
-    code: 'BAS-SRB',
-    name: 'Sokoto-Rima River Basin',
-    altName: 'North-Western Drainage Basin',
-    hydrologicalUnit: 'Hydrological Area I (Niger North)',
-    mainRiver: 'Sokoto & Rima Rivers',
-    rbdaName: 'Sokoto-Rima River Basin Development Authority (SRRBDA)',
-    areaKm2: 131600,
-    drainageDensity: '0.36 km/km²',
-    streamCount: 524,
-    reliefM: 710,
-    version: 1,
-    morphometryHistory: [
-      {
-        year: 2023,
-        streamLengthTotalKm: 47376,
-        avgSlopePct: 1.8,
-        highestPointM: 960,
-        lowestPointM: 250,
-      },
-    ],
-  },
-  {
-    id: '018f3a70-0004-7000-8000-000000000403',
-    code: 'BAS-UNB',
-    name: 'Upper Niger River Basin',
-    altName: 'Kainji Catchment Basin',
-    hydrologicalUnit: 'Hydrological Area II (Niger Central)',
-    mainRiver: 'River Niger / Kaduna River',
-    rbdaName: 'Upper Niger River Basin Development Authority (UNRBDA)',
-    areaKm2: 154000,
-    drainageDensity: '0.51 km/km²',
-    streamCount: 880,
-    reliefM: 1150,
-    version: 1,
-    morphometryHistory: [
-      {
-        year: 2022,
-        streamLengthTotalKm: 78540,
-        avgSlopePct: 3.4,
-        highestPointM: 1450,
-        lowestPointM: 300,
-      },
-    ],
-  },
-];
-
-export const mockStakeholders: StakeholderRecord[] = [
-  {
-    id: 'stk-1',
-    name: 'Kano State Water Board',
-    category: 'Government Agency',
-    contactPerson: 'Engr. Garba Sani',
-    phone: '+234 803 555 1201',
-    email: 'info@kanowater.ng',
-    basinName: "Hadejia-Jama'are River Basin",
-  },
-  {
-    id: 'stk-2',
-    name: 'KRIS WUA Apex Federation',
-    category: 'WUA Federation',
-    contactPerson: 'Alhaji Bashir Umar',
-    phone: '+234 802 333 4410',
-    email: 'kris.wua.apex@idmis.gov.ng',
-    basinName: "Hadejia-Jama'are River Basin",
-  },
-  {
-    id: 'stk-3',
-    name: 'Hadejia Wetlands Conservation Project',
-    category: 'Community NGO',
-    contactPerson: 'Dr. Fatima Mustapha',
-    phone: '+234 806 888 9012',
-    email: 'wetlands@conservation.ng',
-    basinName: "Hadejia-Jama'are River Basin",
-  },
-  {
-    id: 'stk-4',
-    name: 'Bakolori Water Users Association',
-    category: 'WUA Federation',
-    contactPerson: 'Mallam Bello Mafara',
-    phone: '+234 803 777 2201',
-    email: 'bakolori.wua@idmis.gov.ng',
-    basinName: 'Sokoto-Rima River Basin',
-  },
-];
-
-export const mockWaterPriorities: WaterUsePriorityRecord[] = [
-  {
-    id: 'wup-1',
-    basinName: "Hadejia-Jama'are River Basin",
-    sector: 'Domestic Municipal Supply',
-    priorityRank: 1,
-    allocationPct: 35,
-    monitoringRule: 'Guaranteed 24/7 uncurtailed baseline intake for Greater Kano metropolis.',
-  },
-  {
-    id: 'wup-2',
-    basinName: "Hadejia-Jama'are River Basin",
-    sector: 'Irrigated Agriculture',
-    priorityRank: 2,
-    allocationPct: 45,
-    monitoringRule: 'Scheduled rotational gravity supply for KRIS Phase I & II blocks.',
-  },
-  {
-    id: 'wup-3',
-    basinName: "Hadejia-Jama'are River Basin",
-    sector: 'Environmental Wetlands Flow',
-    priorityRank: 3,
-    allocationPct: 20,
-    monitoringRule: 'Minimum mandated 18 m³/s ecological reserve into Hadejia-Nguru wetlands.',
-  },
-  {
-    id: 'wup-4',
-    basinName: 'Sokoto-Rima River Basin',
-    sector: 'Irrigated Agriculture',
-    priorityRank: 1,
-    allocationPct: 55,
-    monitoringRule: 'Dry season command area delivery to Bakolori and Wurno schemes.',
-  },
-  {
-    id: 'wup-5',
-    basinName: 'Sokoto-Rima River Basin',
-    sector: 'Domestic Municipal Supply',
-    priorityRank: 2,
-    allocationPct: 30,
-    monitoringRule: 'Sokoto urban water supply intake security.',
-  },
-];
-
 export function BasinsListView() {
   const { currentScope } = useScope();
   const [activeTab, setActiveTab] = React.useState<'basins' | 'priorities' | 'stakeholders'>(
@@ -245,11 +85,11 @@ export function BasinsListView() {
         altName: b.altName || undefined,
         hydrologicalUnit: b.hydrologicalUnit || 'Hydrological Unit Area',
         mainRiver: b.mainRiver || b.name,
-        rbdaName: b.rbdaId ? `RBDA (${b.rbdaId})` : 'National River Basin Authority',
-        areaKm2: 84000,
-        drainageDensity: '0.42 km/km²',
-        streamCount: 412,
-        reliefM: 920,
+        rbdaName: b.rbdaId ? `RBDA (${b.rbdaId.slice(-4)})` : 'National River Basin Authority',
+        areaKm2: 0,
+        drainageDensity: 'N/A',
+        streamCount: 0,
+        reliefM: 0,
         version: b.version,
         morphometryHistory: [],
       }));
@@ -267,16 +107,6 @@ export function BasinsListView() {
       );
     });
   }, [basins, search]);
-
-  const filteredStakeholders = React.useMemo(() => {
-    return mockStakeholders.filter((item) => {
-      return (
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.contactPerson.toLowerCase().includes(search.toLowerCase()) ||
-        item.category.toLowerCase().includes(search.toLowerCase())
-      );
-    });
-  }, [search]);
 
   return (
     <div className="space-y-6">
@@ -338,7 +168,7 @@ export function BasinsListView() {
           }`}
         >
           <Droplets className="w-4 h-4" />
-          Water-Use Allocations ({mockWaterPriorities.length})
+          Water-Use Allocations (0)
         </button>
         <button
           type="button"
@@ -350,7 +180,7 @@ export function BasinsListView() {
           }`}
         >
           <Users className="w-4 h-4" />
-          Basin Stakeholders ({mockStakeholders.length})
+          Basin Stakeholders (0)
         </button>
       </div>
 
@@ -385,33 +215,55 @@ export function BasinsListView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredBasins.map((basin) => (
-                  <tr key={basin.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-900 text-sm">{basin.name}</div>
-                      <div className="text-slate-400 font-mono text-[11px]">{basin.code}</div>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800">{basin.mainRiver}</td>
-                    <td className="py-3.5 px-4 font-bold text-teal-800">
-                      {basin.areaKm2.toLocaleString()} km²
-                    </td>
-                    <td className="py-3.5 px-4 font-mono">{basin.drainageDensity}</td>
-                    <td className="py-3.5 px-4 font-mono">{basin.streamCount} streams</td>
-                    <td className="py-3.5 px-4 font-mono">{basin.reliefM} meters</td>
-                    <td className="py-3.5 px-4 text-slate-600">{basin.rbdaName}</td>
-                    <td className="py-3.5 px-4 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedBasin(basin)}
-                        className="min-h-[38px] text-xs gap-1 hover:text-teal-700"
-                      >
-                        Morphometry
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </Button>
+                {filteredBasins.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="flex justify-center">
+                        <EmptyState
+                          icon={<Compass className="w-8 h-8 text-teal-600" />}
+                          title="No Basins Registered"
+                          description={
+                            search
+                              ? 'No basins match your search criteria.'
+                              : 'No river basin hydromorphometry records found in this scope.'
+                          }
+                        />
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredBasins.map((basin) => (
+                    <tr key={basin.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-900 text-sm">{basin.name}</div>
+                        <div className="text-slate-400 font-mono text-[11px]">{basin.code}</div>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-slate-800">{basin.mainRiver}</td>
+                      <td className="py-3.5 px-4 font-bold text-teal-800">
+                        {basin.areaKm2 ? `${basin.areaKm2.toLocaleString()} km²` : '-'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono">{basin.drainageDensity}</td>
+                      <td className="py-3.5 px-4 font-mono">
+                        {basin.streamCount ? `${basin.streamCount} streams` : '-'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono">
+                        {basin.reliefM ? `${basin.reliefM} meters` : '-'}
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600">{basin.rbdaName}</td>
+                      <td className="py-3.5 px-4 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedBasin(basin)}
+                          className="min-h-[38px] text-xs gap-1 hover:text-teal-700"
+                        >
+                          Morphometry
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -432,19 +284,17 @@ export function BasinsListView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockWaterPriorities.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <Badge className="bg-teal-100 text-teal-800 font-bold">
-                        Tier #{item.priorityRank}
-                      </Badge>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{item.sector}</td>
-                    <td className="py-3.5 px-4 text-slate-600">{item.basinName}</td>
-                    <td className="py-3.5 px-4 font-bold text-teal-800">{item.allocationPct}%</td>
-                    <td className="py-3.5 px-4 text-slate-600">{item.monitoringRule}</td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={5} className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <EmptyState
+                        icon={<Droplets className="w-8 h-8 text-teal-600" />}
+                        title="No Water Allocations Configured"
+                        description="No water-use allocation priorities have been defined for this river basin."
+                      />
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -466,18 +316,17 @@ export function BasinsListView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredStakeholders.map((stk) => (
-                  <tr key={stk.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{stk.name}</td>
-                    <td className="py-3.5 px-4">
-                      <Badge className="bg-slate-100 text-slate-700">{stk.category}</Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600">{stk.basinName}</td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800">{stk.contactPerson}</td>
-                    <td className="py-3.5 px-4 font-mono text-slate-600">{stk.phone}</td>
-                    <td className="py-3.5 px-4 text-teal-700 font-medium">{stk.email}</td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <EmptyState
+                        icon={<Users className="w-8 h-8 text-teal-600" />}
+                        title="No Stakeholders Registered"
+                        description="No community water user associations or basin stakeholders are registered yet."
+                      />
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -505,7 +354,7 @@ export function BasinsListView() {
                 <div>
                   <span className="text-slate-400 block">Total Drainage Area:</span>
                   <span className="font-semibold text-teal-800 text-sm">
-                    {selectedBasin.areaKm2.toLocaleString()} km²
+                    {selectedBasin.areaKm2 ? `${selectedBasin.areaKm2.toLocaleString()} km²` : '-'}
                   </span>
                 </div>
                 <div>
@@ -517,13 +366,13 @@ export function BasinsListView() {
                 <div>
                   <span className="text-slate-400 block">Total Stream Count:</span>
                   <span className="font-semibold text-slate-800">
-                    {selectedBasin.streamCount} streams
+                    {selectedBasin.streamCount ? `${selectedBasin.streamCount} streams` : '-'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Basin Relief:</span>
                   <span className="font-semibold text-slate-800">
-                    {selectedBasin.reliefM} meters
+                    {selectedBasin.reliefM ? `${selectedBasin.reliefM} meters` : '-'}
                   </span>
                 </div>
               </div>
@@ -533,30 +382,36 @@ export function BasinsListView() {
                   Morphometric Measurement Records
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {selectedBasin.morphometryHistory.map((rec) => (
-                    <div key={rec.year} className="p-3 grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-slate-400">Measurement Year:</span>{' '}
-                        <span className="font-bold text-slate-900">{rec.year}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Total Stream Length:</span>{' '}
-                        <span className="font-semibold text-slate-800">
-                          {rec.streamLengthTotalKm.toLocaleString()} km
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Average Slope:</span>{' '}
-                        <span className="font-semibold text-slate-800">{rec.avgSlopePct}%</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Elevation Span:</span>{' '}
-                        <span className="font-semibold text-slate-800">
-                          {rec.lowestPointM}m – {rec.highestPointM}m
-                        </span>
-                      </div>
+                  {selectedBasin.morphometryHistory.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-xs">
+                      No historical morphometry survey measurements logged.
                     </div>
-                  ))}
+                  ) : (
+                    selectedBasin.morphometryHistory.map((rec) => (
+                      <div key={rec.year} className="p-3 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-400">Measurement Year:</span>{' '}
+                          <span className="font-bold text-slate-900">{rec.year}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Total Stream Length:</span>{' '}
+                          <span className="font-semibold text-slate-800">
+                            {rec.streamLengthTotalKm.toLocaleString()} km
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Average Slope:</span>{' '}
+                          <span className="font-semibold text-slate-800">{rec.avgSlopePct}%</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Elevation Span:</span>{' '}
+                          <span className="font-semibold text-slate-800">
+                            {rec.lowestPointM}m – {rec.highestPointM}m
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
