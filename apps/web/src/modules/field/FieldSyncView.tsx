@@ -9,6 +9,7 @@ import {
   Lock,
   AlertTriangle,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
 import { localDb } from '@idmis/sync';
@@ -51,6 +52,24 @@ export function FieldSyncView() {
   React.useEffect(() => {
     refreshDbStats();
   }, [refreshDbStats, pendingOpsCount, syncState]);
+
+  const handleClearInvalidOps = async () => {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const allOps = await localDb.outbox.toArray();
+    const invalidOps = allOps.filter(
+      (op) => !uuidRegex.test(op.recordId) || !uuidRegex.test(op.opId),
+    );
+    if (invalidOps.length > 0) {
+      await Promise.all(invalidOps.map((op) => localDb.outbox.delete(op.opId)));
+    }
+    await refreshDbStats();
+  };
+
+  const handleClearAllOutbox = async () => {
+    await localDb.outbox.clear();
+    await refreshDbStats();
+  };
 
   const isSyncing = syncState === 'pushing' || syncState === 'pulling';
 
@@ -174,6 +193,66 @@ export function FieldSyncView() {
           </span>
           <span className="text-[10px] text-purple-700 font-semibold">Compressed</span>
         </div>
+      </div>
+
+      {/* Outbox Maintenance Card (if ops exist) */}
+      {dbStats.outboxCount > 0 && (
+        <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+              <span>Outbox Maintenance</span>
+              <Trash2 className="h-4 w-4 text-slate-400" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-slate-600">
+              There are <span className="font-bold text-slate-900">{dbStats.outboxCount}</span>{' '}
+              mutations currently waiting in your local device queue.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearInvalidOps}
+                className="text-xs h-8 border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Purge Invalid Legacy Ops
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearAllOutbox}
+                className="text-xs h-8 border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+              >
+                Clear All Outbox Ops
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Online / Offline Direct Transmission Info */}
+      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Transmission Behavior
+        </h3>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          {isOnline ? (
+            <>
+              <strong className="text-emerald-700">Direct Online Transmission Active: </strong>
+              Because you are connected to the internet, records are submitted directly to the
+              server database and saved locally with clean status (not queued). The outbox is only
+              used when you are disconnected or offline.
+            </>
+          ) : (
+            <>
+              <strong className="text-amber-700">Offline Outbox Storage Active: </strong>
+              You are currently disconnected. All captured field records are stored safely in your
+              device&apos;s IndexedDB outbox with Monotonic UUIDv7 mutations and will sync
+              automatically once your connection returns.
+            </>
+          )}
+        </p>
       </div>
 
       {/* Offline Storage & Allowance Card */}

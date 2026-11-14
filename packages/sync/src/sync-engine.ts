@@ -58,8 +58,26 @@ export class SyncEngine {
    * Retries preserve the exact same opId for idempotency.
    */
   public async push(): Promise<SyncPushResponse | null> {
-    const ops = await this.store.getPendingOps();
+    const rawOps = await this.store.getPendingOps();
+    if (rawOps.length === 0) {
+      return null;
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const ops: typeof rawOps = [];
+
+    // Sanitize stale legacy mutations with non-UUID record IDs
+    for (const op of rawOps) {
+      if (!uuidRegex.test(op.recordId) || !uuidRegex.test(op.opId)) {
+        console.warn(`Purging legacy invalid outbox op ${op.opId} (recordId: ${op.recordId})`);
+        await this.store.removeOutboxOp(op.opId);
+      } else {
+        ops.push(op);
+      }
+    }
+
     if (ops.length === 0) {
+      this.setState('idle');
       return null;
     }
 

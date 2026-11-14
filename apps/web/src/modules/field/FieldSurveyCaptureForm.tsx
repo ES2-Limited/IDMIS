@@ -21,7 +21,18 @@ import {
 } from '@idmis/contracts';
 import { getApiClient } from '@idmis/api-client';
 import { useEffectiveSchemeId } from '../core/hooks';
-import { useSurveys } from '../me/hooks';
+import { useSurveys, useSurvey } from '../me/hooks';
+
+function extractQuestionChoices(options: unknown): string[] {
+  if (!options) return [];
+  if (Array.isArray(options)) return options.map(String);
+  if (typeof options === 'object') {
+    const rec = options as Record<string, unknown>;
+    if (Array.isArray(rec.choices)) return rec.choices.map(String);
+    if (Array.isArray(rec.options)) return rec.options.map(String);
+  }
+  return [];
+}
 
 export function FieldSurveyCaptureForm() {
   const navigate = useNavigate();
@@ -55,11 +66,7 @@ export function FieldSurveyCaptureForm() {
   const [respondentName, setRespondentName] = React.useState('Mallam Bello Kura');
   const [village, setVillage] = React.useState('Dan Hassan');
   const [gpsCoordinates, setGpsCoordinates] = React.useState('11.7584° N, 8.4289° E');
-  const [answers, setAnswers] = React.useState<Record<string, string>>({
-    HH_SIZE: '6',
-    PRIMARY_CROP: 'Rice',
-    WATER_SATISFACTION: 'Satisfied',
-  });
+  const [answers, setAnswers] = React.useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successId, setSuccessId] = React.useState<string | null>(null);
 
@@ -71,8 +78,37 @@ export function FieldSurveyCaptureForm() {
 
   const activeSurvey = surveys.find((s) => s.id === selectedSurveyId) ?? surveys[0];
 
-  const handleAnswerChange = (code: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [code]: value }));
+  // Dynamic survey questions from API
+  const { questions = [], isLoading: loadingQuestions } = useSurvey(selectedSurveyId);
+
+  const sortedQuestions = React.useMemo(() => {
+    return [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [questions]);
+
+  // Pre-fill default values when questions change if not already set
+  React.useEffect(() => {
+    if (sortedQuestions.length > 0) {
+      setAnswers((prev) => {
+        const next = { ...prev };
+        for (const q of sortedQuestions) {
+          if (next[q.id] === undefined) {
+            const choices = extractQuestionChoices(q.options);
+            if (q.answerType === 'single' && choices.length > 0) {
+              next[q.id] = choices[0];
+            } else if (q.answerType === 'number') {
+              next[q.id] = '1';
+            } else {
+              next[q.id] = '';
+            }
+          }
+        }
+        return next;
+      });
+    }
+  }, [sortedQuestions]);
+
+  const handleAnswerChange = (questionId: string, value: any) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,14 +118,59 @@ export function FieldSurveyCaptureForm() {
       return;
     }
 
+    if (sortedQuestions.length === 0) {
+      toastError(
+        'Empty Survey Template',
+        'This survey instrument has no questions configured yet. Please choose another survey.',
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const answersArray: CreateSurveyAnswerInput[] = Object.entries(answers).map(
-        ([code, value]) => ({
-          questionCode: code,
-          value: code === 'HH_SIZE' ? Number(value) || 0 : value,
-        }),
-      );
+      const answersArray: CreateSurveyAnswerInput[] = [];
+
+      for (const q of sortedQuestions) {
+        const rawVal = answers[q.id];
+        const isMissing =
+          rawVal === undefined ||
+          rawVal === null ||
+          (typeof rawVal === 'string' && rawVal.trim() === '') ||
+          (Array.isArray(rawVal) && rawVal.length === 0);
+
+        if (q.isRequired && isMissing) {
+          toastError('Required Question', `Please answer question: "${q.text}"`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (isMissing) continue;
+
+        let formattedVal: unknown = rawVal;
+        if (q.answerType === 'number') {
+          const parsed = Number(rawVal);
+          if (isNaN(parsed)) {
+            toastError('Invalid Number', `Question "${q.text}" must be a valid number.`);
+            setIsSubmitting(false);
+            return;
+          }
+          formattedVal = parsed;
+        } else if (q.answerType === 'gps') {
+          if (typeof rawVal === 'string') {
+            const parts = rawVal.split(',').map((s) => parseFloat(s.trim()));
+            if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              // Service expects [lon, lat]
+              formattedVal = [parts[1], parts[0]];
+            }
+          }
+        }
+
+        answersArray.push({
+          questionId: q.id,
+          questionCode: q.code,
+          value: formattedVal,
+        });
+      }
 
       const payload: CreateSurveyResponseInput = {
         surveyId: selectedSurveyId,
@@ -364,65 +445,100 @@ export function FieldSurveyCaptureForm() {
               3. Interview Questionnaire
             </h3>
             <span className="text-[11px] text-teal-700 font-semibold">
-              3 Verified Questions
+              {loadingQuestions
+                ? 'Loading questions...'
+                : `${sortedQuestions.length} Questions Configured`}
             </span>
           </div>
 
-          <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-              <label className="block text-xs font-semibold text-slate-800">
-                1. Total number of family members in household? *
-              </label>
-              <Input
-                type="number"
-                min={1}
-                value={answers.HH_SIZE || '6'}
-                onChange={(e) => handleAnswerChange('HH_SIZE', e.target.value)}
-                className="h-9 text-xs bg-white"
-              />
+          {loadingQuestions ? (
+            <div className="p-4 text-center text-xs text-slate-500">
+              Loading questionnaire questions...
             </div>
+          ) : sortedQuestions.length === 0 ? (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+              <p className="font-bold">⚠️ No Questions Found for this Survey</p>
+              <p className="text-slate-600">
+                This survey template currently has no questions configured. Please select another
+                survey instrument with active questions or configure questions in M&E Survey
+                Management.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sortedQuestions.map((q, idx) => {
+                const choices = extractQuestionChoices(q.options);
+                return (
+                  <div key={q.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <label className="block text-xs font-semibold text-slate-800">
+                        {idx + 1}. {q.text} {q.isRequired && <span className="text-red-500">*</span>}
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                        [{q.code}]
+                      </span>
+                    </div>
 
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-              <label className="block text-xs font-semibold text-slate-800">
-                2. What was your primary irrigated commercial crop this season? *
-              </label>
-              <Select
-                value={answers.PRIMARY_CROP || 'Rice'}
-                onValueChange={(val) => handleAnswerChange('PRIMARY_CROP', val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Rice">Lowland Rice</SelectItem>
-                  <SelectItem value="Maize">Hybrid Maize</SelectItem>
-                  <SelectItem value="Tomato">Dry Season Tomato</SelectItem>
-                  <SelectItem value="Wheat">Irrigated Wheat</SelectItem>
-                  <SelectItem value="Onion">Commercial Onion</SelectItem>
-                </SelectContent>
-              </Select>
+                    {q.answerType === 'single' ? (
+                      choices.length > 0 ? (
+                        <Select
+                          value={answers[q.id] || ''}
+                          onValueChange={(val) => handleAnswerChange(q.id, val)}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-white">
+                            <SelectValue placeholder="Select an option" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {choices.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={answers[q.id] || ''}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                          className="h-9 text-xs bg-white"
+                          placeholder="Enter your answer"
+                        />
+                      )
+                    ) : q.answerType === 'number' ? (
+                      <Input
+                        type="number"
+                        value={answers[q.id] ?? ''}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="h-9 text-xs bg-white"
+                        placeholder="Enter numeric value"
+                      />
+                    ) : q.answerType === 'date' ? (
+                      <Input
+                        type="date"
+                        value={answers[q.id] || ''}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="h-9 text-xs bg-white"
+                      />
+                    ) : q.answerType === 'gps' ? (
+                      <Input
+                        value={answers[q.id] || ''}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="h-9 text-xs bg-white"
+                        placeholder="e.g. 11.7584, 8.4289 (Lat, Lon)"
+                      />
+                    ) : (
+                      <Input
+                        value={answers[q.id] || ''}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="h-9 text-xs bg-white"
+                        placeholder="Enter text response"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-              <label className="block text-xs font-semibold text-slate-800">
-                3. How satisfied are you with water delivery reliability? *
-              </label>
-              <Select
-                value={answers.WATER_SATISFACTION || 'Satisfied'}
-                onValueChange={(val) => handleAnswerChange('WATER_SATISFACTION', val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Very Satisfied">Very Satisfied</SelectItem>
-                  <SelectItem value="Satisfied">Satisfied</SelectItem>
-                  <SelectItem value="Neutral">Neutral</SelectItem>
-                  <SelectItem value="Dissatisfied">Dissatisfied</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -438,11 +554,15 @@ export function FieldSurveyCaptureForm() {
 
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || sortedQuestions.length === 0}
             className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] px-6 text-xs font-bold"
           >
             <Send className="w-4 h-4 mr-1.5" />
-            {isSubmitting ? 'Saving...' : isOnline ? 'Submit & Sync Survey' : 'Save Response Offline'}
+            {isSubmitting
+              ? 'Saving...'
+              : isOnline
+                ? 'Submit & Sync Survey'
+                : 'Save Response Offline'}
           </Button>
         </div>
       </form>

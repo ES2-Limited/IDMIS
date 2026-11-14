@@ -70,6 +70,8 @@ import type {
   DashboardResponse,
   CreateSurveyResponseInput,
   SurveyResponse,
+  Survey,
+  SurveyQuestion,
 } from '@idmis/contracts';
 
 export interface ApiClientOptions {
@@ -565,6 +567,10 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  }
+
+  public async getSurvey(id: string): Promise<Survey & { questions: SurveyQuestion[] }> {
+    return this.request<Survey & { questions: SurveyQuestion[] }>(`/me/surveys/${id}`);
   }
 
   public async submitSurveyResponse(body: CreateSurveyResponseInput): Promise<SurveyResponse> {

@@ -48,12 +48,14 @@ describe('SyncEngine (FE-1.4)', () => {
   });
 
   it('pushes pending ops and marks clean on applied outcome', async () => {
+    const opId = '018f3a5e-0000-7000-8000-000000000001';
+    const recordId = '018f3a5e-0000-7000-8000-000000000002';
     mockStore.getPendingOps = vi.fn().mockResolvedValue([
       {
-        opId: 'op-1',
+        opId,
         entity: 'farmer',
         action: 'create',
-        recordId: 'rec-1',
+        recordId,
         baseVersion: 1,
         data: { name: 'Aliyu' },
         createdAt: '2026-11-03T12:00:00Z',
@@ -64,9 +66,9 @@ describe('SyncEngine (FE-1.4)', () => {
     mockClient.post = vi.fn().mockResolvedValue({
       results: [
         {
-          opId: 'op-1',
+          opId,
           entity: 'farmer',
-          recordId: 'rec-1',
+          recordId,
           outcome: 'applied',
           newVersion: 2,
         },
@@ -76,8 +78,29 @@ describe('SyncEngine (FE-1.4)', () => {
 
     const res = await engine.push();
     expect(res).toBeDefined();
-    expect(mockStore.markRecordClean).toHaveBeenCalledWith('farmer', 'rec-1', 2);
-    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith('op-1');
+    expect(mockStore.markRecordClean).toHaveBeenCalledWith('farmer', recordId, 2);
+    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith(opId);
+    expect(engine.getState()).toBe('idle');
+  });
+
+  it('purges legacy invalid ops with non-UUID identifiers', async () => {
+    mockStore.getPendingOps = vi.fn().mockResolvedValue([
+      {
+        opId: 'legacy-op-not-uuid',
+        entity: 'farmer',
+        action: 'create',
+        recordId: 'legacy-rec-not-uuid',
+        baseVersion: 1,
+        data: { name: 'Test' },
+        createdAt: '2026-11-03T12:00:00Z',
+        attempts: 0,
+      },
+    ]);
+
+    const res = await engine.push();
+    expect(res).toBeNull();
+    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith('legacy-op-not-uuid');
+    expect(mockClient.post).not.toHaveBeenCalled();
     expect(engine.getState()).toBe('idle');
   });
 
