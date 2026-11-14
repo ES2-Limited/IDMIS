@@ -16,12 +16,17 @@ import { localDb } from '@idmis/sync';
 import { useSync } from '../../sync';
 
 export function FieldSyncView() {
-  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt } = useSync();
+  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt, store } = useSync();
   const [dbStats, setDbStats] = React.useState({
     recordsCount: 0,
     outboxCount: 0,
     photosCount: 0,
   });
+
+  const [storageEstimate, setStorageEstimate] = React.useState<string>('Estimating...');
+  const [cachedEntitiesSummary, setCachedEntitiesSummary] = React.useState<string>('Checking...');
+  const [allowanceDays, setAllowanceDays] = React.useState<number>(14);
+  const [showDiagnostics, setShowDiagnostics] = React.useState<boolean>(false);
 
   const [isOnline, setIsOnline] = React.useState(
     typeof window !== 'undefined' ? window.navigator.onLine : true,
@@ -38,16 +43,65 @@ export function FieldSyncView() {
     };
   }, []);
 
+  const refreshStorageEstimate = React.useCallback(async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        const usageMb = ((est.usage || 0) / (1024 * 1024)).toFixed(1);
+        const quotaMb = ((est.quota || 0) / (1024 * 1024)).toFixed(0);
+        if (Number(quotaMb) > 1024) {
+          const quotaGb = (Number(quotaMb) / 1024).toFixed(1);
+          setStorageEstimate(`${usageMb} MB / ${quotaGb} GB`);
+        } else {
+          setStorageEstimate(`${usageMb} MB / ${quotaMb} MB`);
+        }
+      } else {
+        setStorageEstimate('Browser storage active');
+      }
+
+      const allRecords = await localDb.records.toArray();
+      const entityCounts = new Map<string, number>();
+      for (const r of allRecords) {
+        entityCounts.set(r.entity, (entityCounts.get(r.entity) || 0) + 1);
+      }
+      if (entityCounts.size > 0) {
+        const topEntities = Array.from(entityCounts.entries())
+          .slice(0, 3)
+          .map(([k, v]) => `${v} ${k}s`)
+          .join(' · ');
+        setCachedEntitiesSummary(`${allRecords.length} records (${topEntities})`);
+      } else {
+        setCachedEntitiesSummary('0 records cached');
+      }
+
+      // Read offline allowance grant
+      const grant = await store.getOfflineGrant();
+      if (grant) {
+        const days = Math.max(
+          0,
+          Math.ceil((new Date(grant).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        );
+        setAllowanceDays(days);
+      } else {
+        setAllowanceDays(14);
+      }
+    } catch {
+      setStorageEstimate('IndexedDB offline store');
+      setCachedEntitiesSummary('Local data store active');
+    }
+  }, [store]);
+
   const refreshDbStats = React.useCallback(async () => {
     try {
       const recordsCount = await localDb.records.count();
       const outboxCount = await localDb.outbox.count();
       const photosCount = await localDb.photoQueue.count();
       setDbStats({ recordsCount, outboxCount, photosCount });
+      await refreshStorageEstimate();
     } catch {
       // ignore
     }
-  }, []);
+  }, [refreshStorageEstimate]);
 
   React.useEffect(() => {
     refreshDbStats();
@@ -195,41 +249,51 @@ export function FieldSyncView() {
         </div>
       </div>
 
-      {/* Outbox Maintenance Card (if ops exist) */}
-      {dbStats.outboxCount > 0 && (
-        <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-              <span>Outbox Maintenance</span>
-              <Trash2 className="h-4 w-4 text-slate-400" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-slate-600">
-              There are <span className="font-bold text-slate-900">{dbStats.outboxCount}</span>{' '}
-              mutations currently waiting in your local device queue.
+      {/* Offline Storage & Allowance Card (Dynamic) */}
+      <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+            <span>Offline Security & Allowance</span>
+            <Lock className="h-4 w-4 text-slate-400" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3.5">
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="flex items-center gap-2 text-slate-600">
+              <Calendar className="h-4 w-4 text-teal-600" />
+              Offline Allowance
+            </span>
+            <span className="font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg">
+              {allowanceDays} Days Remaining
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="flex items-center gap-2 text-slate-600">
+              <HardDrive className="h-4 w-4 text-blue-600" />
+              Local Storage Usage
+            </span>
+            <span className="font-semibold text-slate-800">{storageEstimate}</span>
+          </div>
+
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="flex items-center gap-2 text-slate-600">
+              <Database className="h-4 w-4 text-purple-600" />
+              Cached Reference Records
+            </span>
+            <span className="font-semibold text-slate-800 text-right">{cachedEntitiesSummary}</span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-teal-700 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              IDMIS offline grants allow disconnected recording for up to 14 consecutive days.
+              Connecting to internet automatically pushes pending outbox batches in Monotonic UUIDv7
+              order.
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearInvalidOps}
-                className="text-xs h-8 border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                Purge Invalid Legacy Ops
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearAllOutbox}
-                className="text-xs h-8 border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
-              >
-                Clear All Outbox Ops
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Online / Offline Direct Transmission Info */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
@@ -255,51 +319,47 @@ export function FieldSyncView() {
         </p>
       </div>
 
-      {/* Offline Storage & Allowance Card */}
-      <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-white">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>Offline Security & Allowance</span>
-            <Lock className="h-4 w-4 text-slate-400" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3.5">
-          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
-            <span className="flex items-center gap-2 text-slate-600">
-              <Calendar className="h-4 w-4 text-teal-600" />
-              Offline Allowance
-            </span>
-            <span className="font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg">
-              14 Days Remaining
-            </span>
-          </div>
+      {/* Optional Advanced Diagnostics (Collapsible) */}
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={() => setShowDiagnostics((prev) => !prev)}
+          className="text-[11px] text-slate-400 hover:text-slate-600 underline font-medium cursor-pointer"
+        >
+          {showDiagnostics ? '▲ Hide Diagnostic Tools' : '▼ Advanced Diagnostic Tools (Troubleshooting)'}
+        </button>
 
-          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
-            <span className="flex items-center gap-2 text-slate-600">
-              <HardDrive className="h-4 w-4 text-blue-600" />
-              Local Storage Usage
-            </span>
-            <span className="font-semibold text-slate-800">4.2 MB / 500 MB</span>
-          </div>
-
-          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
-            <span className="flex items-center gap-2 text-slate-600">
-              <Database className="h-4 w-4 text-purple-600" />
-              Cached Reference Schemas
-            </span>
-            <span className="font-semibold text-slate-800">12 Schemes · 45 WUAs</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-teal-700 shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              IDMIS offline grants allow disconnected recording for up to 14 consecutive days.
-              Connecting to internet automatically pushes pending outbox batches in Monotonic UUIDv7
-              order.
+        {showDiagnostics && (
+          <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-slate-50 mt-2 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Device Outbox Queue Maintenance</span>
+              <Trash2 className="h-4 w-4 text-slate-400" />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Regular users do not need to purge their outbox during normal workflows. These actions
+              are for administrative troubleshooting and test data resets.
             </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearInvalidOps}
+                className="text-xs h-8 border-slate-300 text-slate-700 hover:bg-white cursor-pointer"
+              >
+                Purge Invalid Legacy Ops
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearAllOutbox}
+                className="text-xs h-8 border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+              >
+                Clear All Outbox Ops
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

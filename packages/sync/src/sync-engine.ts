@@ -140,21 +140,21 @@ export class SyncEngine {
       const endpoint = `/slis/sync/pull${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await this.apiClient.get<SyncPullResponse>(endpoint);
 
-      // Apply changes to local store
+      // Apply changes to local store cleanly without re-queuing into outbox
       for (const item of response.items) {
         if (item.op === 'delete' || item.deleted) {
           const existing = await this.store.getRecord(item.entity, item.recordId);
           if (existing && existing.status !== 'dirty') {
-            await this.store.commitDelete(item.entity, item.recordId);
+            await this.store.deleteLocalRecord(item.entity, item.recordId);
           }
         } else if (item.data) {
           const existing = await this.store.getRecord(item.entity, item.recordId);
           if (!existing || existing.status === 'clean') {
-            await this.store.commitInsert(item.entity, item.recordId, item.data, {
+            await this.store.cacheCleanRecord(item.entity, item.recordId, item.data, {
               schemeId: item.schemeId,
               stateId: item.stateId,
+              version: item.seq,
             });
-            await this.store.markRecordClean(item.entity, item.recordId, item.seq);
           }
         }
       }

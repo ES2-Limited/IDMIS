@@ -365,7 +365,7 @@ export function FeeCollectionFieldForm() {
                 <Input
                   type="number"
                   min={1}
-                  step={500}
+                  step="any"
                   value={amountNgn}
                   onChange={(e) => setAmountNgn(Number(e.target.value))}
                 />

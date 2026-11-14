@@ -170,6 +170,10 @@ export class LocalStore {
     return op;
   }
 
+  public async deleteLocalRecord(entity: string, recordId: string): Promise<void> {
+    await this.db.records.delete(`${entity}:${recordId}`);
+  }
+
   public async getPendingOps(): Promise<OutboxOp[]> {
     return this.db.outbox.orderBy('createdAt').toArray();
   }

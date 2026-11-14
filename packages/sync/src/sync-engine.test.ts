@@ -15,6 +15,9 @@ describe('SyncEngine (FE-1.4)', () => {
       removeOutboxOp: vi.fn().mockResolvedValue(undefined),
       getCursor: vi.fn().mockResolvedValue(undefined),
       setCursor: vi.fn().mockResolvedValue(undefined),
+      cacheCleanRecord: vi.fn().mockResolvedValue({} as any),
+      deleteLocalRecord: vi.fn().mockResolvedValue(undefined),
+      getRecord: vi.fn().mockResolvedValue(null),
     };
 
     mockClient = {
@@ -107,14 +110,28 @@ describe('SyncEngine (FE-1.4)', () => {
   it('pulls server changes and updates safe cursor', async () => {
     mockStore.getCursor = vi.fn().mockResolvedValue('50:12');
     mockClient.get = vi.fn().mockResolvedValue({
-      items: [],
+      items: [
+        {
+          entity: 'farmer',
+          recordId: '018f3a5e-0000-7000-8000-000000000099',
+          seq: 51,
+          data: { name: 'Musa' },
+        },
+      ],
       nextCursor: '52:18',
       hasMore: false,
     });
 
     const res = await engine.pull('national');
     expect(res.nextCursor).toBe('52:18');
-    expect(mockClient.get).toHaveBeenCalledWith('/slis/sync/pull?cursor=50%3A12');
     expect(mockStore.setCursor).toHaveBeenCalledWith('52:18', 'national');
+    expect(mockStore.cacheCleanRecord).toHaveBeenCalledWith(
+      'farmer',
+      '018f3a5e-0000-7000-8000-000000000099',
+      { name: 'Musa' },
+      expect.objectContaining({ version: 51 }),
+    );
+    expect(mockClient.get).toHaveBeenCalledWith('/slis/sync/pull?cursor=50%3A12');
+    expect(engine.getState()).toBe('idle');
   });
 });
