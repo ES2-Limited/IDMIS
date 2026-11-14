@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { MapPin, Play, Square, Undo2, Trash2, Crosshair, User } from 'lucide-react';
+import { MapPin, Play, Square, Undo2, Trash2, Crosshair, User, Wifi, WifiOff } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -17,8 +17,10 @@ import {
 } from '@idmis/ui';
 import { CreatePlotInputSchema, type CreatePlotInput, type ServiceType } from '@idmis/contracts';
 import { generateUuidV7, localDb, LocalStore } from '@idmis/sync';
+import { getApiClient } from '@idmis/api-client';
 import { useScope } from '../../../shell/ScopeContext';
 import { calculatePolygonAreaHa, createGeoJsonPolygon } from './spatial-utils';
+import { useEffectiveSchemeId, useOrganisations } from '../../core/hooks';
 
 export function PlotMappingView() {
   const navigate = useNavigate();
@@ -26,15 +28,45 @@ export function PlotMappingView() {
   const { success, warning, error: toastError } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
 
+  const [isOnline, setIsOnline] = React.useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Live Scheme Resolution
+  const { schemeId, schemeName, schemes, setSchemeId } = useEffectiveSchemeId(currentScope.id);
+
+  // Live Sectors for active scheme
+  const { organisations: sectorOrgs = [], isLoading: loadingSectors } = useOrganisations({
+    type: 'sector',
+    parentId: schemeId,
+  });
+
   // Form State
   const [plotCode, setPlotCode] = React.useState(
-    () => `PLT-KRIS-${Math.floor(1000 + Math.random() * 9000)}`,
+    () => `PLOT-KRIS-${Math.floor(1000 + Math.random() * 9000)}`,
   );
   const [serviceType, setServiceType] = React.useState<ServiceType>('improved');
   const [cropType, setCropType] = React.useState('Rice (Lowland)');
-  const [season, setSeason] = React.useState('2026 Wet Season');
-  const [farmerCode, setFarmerCode] = React.useState('NG-KRIS-982143');
-  const [sectorId, setSectorId] = React.useState('018f3a70-0004-7000-8000-000000000001');
+  const [season, setSeason] = React.useState('2026 Dry Season');
+  const [farmerCode, setFarmerCode] = React.useState('FARM-KRIS-0001');
+  const [sectorId, setSectorId] = React.useState('');
+
+  React.useEffect(() => {
+    if (sectorOrgs.length > 0 && !sectorId) {
+      setSectorId(sectorOrgs[0]!.id);
+    }
+  }, [sectorOrgs, sectorId]);
 
   // GPS Stream & Boundary State
   const [isWalking, setIsWalking] = React.useState(false);
@@ -65,24 +97,21 @@ export function PlotMappingView() {
     setIsWalking(true);
     const id = navigator.geolocation.watchPosition(
       (pos) => {
-        const lon = parseFloat(pos.coords.longitude.toFixed(6));
+        const lng = parseFloat(pos.coords.longitude.toFixed(6));
         const lat = parseFloat(pos.coords.latitude.toFixed(6));
         setGpsAccuracy(parseFloat(pos.coords.accuracy.toFixed(1)));
-        setCoordinates((prev) => [...prev, [lon, lat]]);
+        setCoordinates((prev) => [...prev, [lng, lat]]);
       },
       (err) => {
-        console.warn('GPS Stream warning:', err.message);
+        console.error('GPS Watch error:', err);
+        toastError('GPS Error', err.message);
+        setIsWalking(false);
       },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 10000,
-      },
+      { enableHighAccuracy: true, maximumAge: 1000 },
     );
     setWatchId(id);
   };
 
-  // Stop walking
   const stopWalking = () => {
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
@@ -91,22 +120,22 @@ export function PlotMappingView() {
     setIsWalking(false);
   };
 
-  // Drop current manual point
-  const handleDropPoint = () => {
-    if (!navigator.geolocation) return;
+  const handleManualDropPoint = () => {
+    if (!navigator.geolocation) {
+      toastError('GPS Error', 'Geolocation not supported.');
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lon = parseFloat(pos.coords.longitude.toFixed(6));
+        const lng = parseFloat(pos.coords.longitude.toFixed(6));
         const lat = parseFloat(pos.coords.latitude.toFixed(6));
         setGpsAccuracy(parseFloat(pos.coords.accuracy.toFixed(1)));
-        setCoordinates((prev) => [...prev, [lon, lat]]);
+        setCoordinates((prev) => [...prev, [lng, lat]]);
+        success('Point Added', `Vertex at ${lat}°N, ${lng}°E`);
       },
-      () => {
-        // Mock fallback point in test/desktop browser environment
-        setCoordinates((prev) => {
-          const last = prev[prev.length - 1] || [8.4289, 11.7584];
-          return [...prev, [parseFloat((last[0] + 0.0008).toFixed(6)), last[1]]];
-        });
+      (err) => {
+        toastError('GPS Error', err.message);
       },
       { enableHighAccuracy: true },
     );
@@ -122,13 +151,18 @@ export function PlotMappingView() {
     }
   };
 
-  // Submit Plot to Offline Dexie Outbox
+  // Submit Plot to Offline Dexie Outbox / Direct API
   const handleSubmit = async () => {
     if (coordinates.length < 3) {
       warning(
         'Incomplete Boundary',
         'A valid plot parcel requires at least 3 GPS boundary vertices.',
       );
+      return;
+    }
+
+    if (!sectorId) {
+      toastError('Sector Required', 'Please select a distributary sector for this plot.');
       return;
     }
 
@@ -139,7 +173,7 @@ export function PlotMappingView() {
 
       const payload: CreatePlotInput = {
         id: plotId,
-        schemeId: currentScope.id || '018f3a70-0003-7000-8000-000000000001',
+        schemeId,
         sectorId,
         plotCode,
         serviceType,
@@ -150,19 +184,57 @@ export function PlotMappingView() {
       // Contract validation check
       CreatePlotInputSchema.parse(payload);
 
-      // Commit to Dexie outbox
-      await store.commitInsert('plot', plotId, {
-        ...payload,
-        cropType,
-        season,
-        allocatedFarmerCode: farmerCode,
-        areaHa: calculatedAreaHa,
-      });
+      let syncedOnline = false;
 
-      success(
-        'Parcel Saved to Device',
-        `Plot ${plotCode} (${calculatedAreaHa.toFixed(2)} Ha) queued for offline sync.`,
-      );
+      // Online attempt first
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const client = getApiClient();
+          await client.createPlot(payload);
+          syncedOnline = true;
+        } catch (serverErr) {
+          console.warn('Direct plot creation failed; falling back to offline outbox:', serverErr);
+        }
+      }
+
+      if (syncedOnline) {
+        // Cache cleanly in local storage (zero pending outbox ops)
+        await store.cacheCleanRecord(
+          'plot',
+          plotId,
+          {
+            ...payload,
+            cropType,
+            season,
+            allocatedFarmerCode: farmerCode,
+            areaHa: calculatedAreaHa,
+          },
+          { schemeId },
+        );
+        success(
+          'Plot Saved & Synced',
+          `Plot ${plotCode} (${calculatedAreaHa.toFixed(2)} Ha) created on server.`,
+        );
+      } else {
+        // Commit to Dexie outbox
+        await store.commitInsert(
+          'plot',
+          plotId,
+          {
+            ...payload,
+            cropType,
+            season,
+            allocatedFarmerCode: farmerCode,
+            areaHa: calculatedAreaHa,
+          },
+          { schemeId },
+        );
+        warning(
+          'Plot Saved Offline',
+          `Plot ${plotCode} (${calculatedAreaHa.toFixed(2)} Ha) queued for offline sync.`,
+        );
+      }
+
       navigate({ to: '/field/records' });
     } catch (err) {
       console.error('Plot mapping error:', err);
@@ -177,31 +249,41 @@ export function PlotMappingView() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-extrabold text-slate-900">Plot Mapping & Survey</h2>
+          <h2 className="text-lg font-extrabold text-slate-900">Plot Mapping & Cadastral Survey</h2>
           <p className="text-xs text-slate-500">
             Walk perimeter boundary or drop points to compute parcel area.
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className="border-emerald-300 text-emerald-800 bg-emerald-50 text-xs"
-        >
-          Offline GIS
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs flex items-center gap-1"
+            >
+              <Wifi className="h-3 w-3" /> Online
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="bg-amber-50 text-amber-800 border-amber-300 text-xs flex items-center gap-1"
+            >
+              <WifiOff className="h-3 w-3" /> Offline Outbox Active
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Live Map / Boundary Simulation Canvas */}
       <Card className="rounded-2xl border-slate-200 overflow-hidden shadow-sm bg-slate-900 text-white relative">
         <div className="h-64 sm:h-72 w-full bg-slate-950 relative flex items-center justify-center p-4">
-          {/* Subtle grid backdrop representing irrigation command parcel */}
           <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:16px_16px]" />
 
           {/* SVG Map Polygon Visualizer */}
           <svg className="w-full h-full max-w-sm max-h-56">
             <defs>
               <linearGradient id="plot-fill" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.4" />
-                <stop offset="100%" stop-color="#042f2e" stop-opacity="0.6" />
+                <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#042f2e" stopOpacity="0.6" />
               </linearGradient>
             </defs>
 
@@ -209,7 +291,6 @@ export function PlotMappingView() {
               <polygon
                 points={coordinates
                   .map((c, idx) => {
-                    // Normalize coords for SVG canvas display
                     const x = 50 + ((idx * 80) % 240);
                     const y = 40 + (idx === 1 ? 120 : idx === 2 ? 140 : 20);
                     return `${x},${y}`;
@@ -248,55 +329,46 @@ export function PlotMappingView() {
             </div>
           </div>
 
-          <div className="absolute top-3 right-3 bg-teal-950/90 backdrop-blur-md border border-teal-500/40 rounded-xl p-2.5 text-xs text-right">
-            <span className="text-[10px] uppercase font-bold text-teal-300 block">
-              Computed Parcel Area
-            </span>
-            <span className="text-lg font-black text-white">{calculatedAreaHa.toFixed(2)} Ha</span>
-          </div>
-
-          {/* Walking Indicator Banner */}
-          {isWalking && (
-            <div className="absolute bottom-3 inset-x-3 bg-emerald-900/90 border border-emerald-500/60 text-white rounded-xl py-1.5 px-3 flex items-center justify-between text-xs animate-pulse">
-              <span className="font-bold flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                Live Boundary Walk Active...
-              </span>
-              <span className="text-[11px] text-emerald-200">Keep walking parcel edge</span>
+          <div className="absolute top-3 right-3 bg-slate-900/85 backdrop-blur-md border border-slate-700/60 rounded-xl p-2.5 text-right text-xs">
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Enclosed Area
             </div>
-          )}
+            <div className="text-base font-extrabold text-teal-300 font-mono">
+              {calculatedAreaHa.toFixed(3)} ha
+            </div>
+          </div>
         </div>
 
-        {/* GPS Control Bar */}
-        <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-2">
+        {/* Survey Action Toolbar */}
+        <div className="p-3 bg-slate-900/95 border-t border-slate-800 flex items-center justify-between gap-2">
           {!isWalking ? (
             <Button
               size="sm"
               onClick={startWalking}
-              className="bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold h-8 px-3 rounded-xl flex items-center gap-1.5 shadow-sm"
+              className="bg-teal-600 hover:bg-teal-500 text-white text-xs h-8 px-3 rounded-xl shadow-sm"
             >
-              <Play className="h-3.5 w-3.5 fill-current" />
+              <Play className="h-3.5 w-3.5 mr-1" />
               Walk Boundary
             </Button>
           ) : (
             <Button
               size="sm"
               onClick={stopWalking}
-              className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold h-8 px-3 rounded-xl flex items-center gap-1.5 shadow-sm"
+              className="bg-amber-600 hover:bg-amber-500 text-white text-xs h-8 px-3 rounded-xl shadow-sm"
             >
-              <Square className="h-3.5 w-3.5 fill-current" />
-              Stop Recording
+              <Square className="h-3.5 w-3.5 mr-1" />
+              Stop Walking
             </Button>
           )}
 
           <Button
             size="sm"
             variant="outline"
-            onClick={handleDropPoint}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800 text-xs h-8 px-2.5 rounded-xl"
+            onClick={handleManualDropPoint}
+            className="border-slate-700 text-slate-200 hover:bg-slate-800 text-xs h-8 px-3 rounded-xl"
           >
             <MapPin className="h-3.5 w-3.5 mr-1 text-teal-400" />
-            Drop Point
+            Drop Vertex
           </Button>
 
           <Button
@@ -334,32 +406,70 @@ export function PlotMappingView() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Parcel / Plot Code *</label>
-              <Input value={plotCode} onChange={(e) => setPlotCode(e.target.value)} />
+              <label className="text-xs font-semibold text-slate-700">Scheme</label>
+              {schemes.length > 1 ? (
+                <Select
+                  value={schemeId}
+                  onValueChange={(val) => {
+                    setSchemeId(val);
+                    setSectorId('');
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Scheme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schemes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={schemeName}
+                  disabled
+                  className="bg-slate-50 text-slate-700 font-medium"
+                />
+              )}
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">Distributary Sector</label>
-              <Select value={sectorId} onValueChange={setSectorId}>
+              <Select
+                value={sectorId}
+                onValueChange={setSectorId}
+                disabled={sectorOrgs.length === 0}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Sector" />
+                  <SelectValue
+                    placeholder={
+                      loadingSectors
+                        ? 'Loading sectors...'
+                        : sectorOrgs.length === 0
+                          ? 'No sectors available'
+                          : 'Select Sector'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="018f3a70-0004-7000-8000-000000000001">
-                    Sector B4 (Western Main)
-                  </SelectItem>
-                  <SelectItem value="018f3a70-0004-7000-8000-000000000002">
-                    Sector A2 (Kura Lateral)
-                  </SelectItem>
-                  <SelectItem value="018f3a70-0004-7000-8000-000000000003">
-                    Sector C1 (Eastern Branch)
-                  </SelectItem>
+                  {sectorOrgs.map((sec) => (
+                    <SelectItem key={sec.id} value={sec.id}>
+                      {sec.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Parcel / Plot Code *</label>
+              <Input value={plotCode} onChange={(e) => setPlotCode(e.target.value)} />
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">Irrigation Service</label>
               <Select
@@ -376,7 +486,9 @@ export function PlotMappingView() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">Current Crop</label>
               <Input value={cropType} onChange={(e) => setCropType(e.target.value)} />
@@ -394,7 +506,7 @@ export function PlotMappingView() {
               Allocated Farmer Code / National ID
             </label>
             <Input
-              placeholder="e.g. NG-KRIS-982143"
+              placeholder="e.g. FARM-KRIS-0001"
               value={farmerCode}
               onChange={(e) => setFarmerCode(e.target.value)}
             />
@@ -413,7 +525,7 @@ export function PlotMappingView() {
             disabled={isSaving}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-md"
           >
-            {isSaving ? 'Saving Parcel...' : 'Save Plot on Device'}
+            {isSaving ? 'Saving...' : isOnline ? 'Submit & Sync Plot' : 'Save Plot on Device'}
           </Button>
         </CardFooter>
       </Card>

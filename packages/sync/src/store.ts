@@ -72,6 +72,33 @@ export class LocalStore {
   }
 
   /**
+   * Directly stores or updates a locally cached record marked as 'clean' (already synced online).
+   * Does NOT queue any outbox operation.
+   */
+  public async cacheCleanRecord(
+    entity: string,
+    recordId: string,
+    payload: Record<string, unknown>,
+    options?: { schemeId?: string | null; stateId?: string | null; version?: number },
+  ): Promise<LocalRecord> {
+    const now = new Date().toISOString();
+    const record: LocalRecord = {
+      id: `${entity}:${recordId}`,
+      entity,
+      recordId,
+      schemeId: options?.schemeId,
+      stateId: options?.stateId,
+      data: payload,
+      version: options?.version ?? 1,
+      status: 'clean',
+      updatedAt: now,
+    };
+
+    await this.db.records.put(record);
+    return record;
+  }
+
+  /**
    * Commits a local update mutation and queues an outbox op atomically.
    */
   public async commitUpdate(
@@ -141,6 +168,10 @@ export class LocalStore {
     });
 
     return op;
+  }
+
+  public async deleteLocalRecord(entity: string, recordId: string): Promise<void> {
+    await this.db.records.delete(`${entity}:${recordId}`);
   }
 
   public async getPendingOps(): Promise<OutboxOp[]> {

@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { SyncEngine, type SyncState, localDb, LocalStore } from '@idmis/sync';
 import { useAuth } from '../auth';
 import { useScope } from '../shell/ScopeContext';
+import { getOrCreateDeviceInfo, ensureDeviceRegistered } from './device';
 
 export interface SyncContextValue {
   syncState: SyncState;
@@ -15,17 +17,27 @@ export interface SyncContextValue {
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
-  const { client, isAuthenticated } = useAuth();
+  const { client, isAuthenticated, user } = useAuth();
   const { currentScope } = useScope();
+  const queryClient = useQueryClient();
 
   const store = useMemo(() => new LocalStore(localDb), []);
+  const { deviceId } = useMemo(() => getOrCreateDeviceInfo(), []);
+
   const engine = useMemo(() => {
     return new SyncEngine({
       apiClient: client,
       store,
-      deviceId: 'web-pwa-client',
+      deviceId,
     });
-  }, [client, store]);
+  }, [client, store, deviceId]);
+
+  // Ensure device is registered with backend once user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      ensureDeviceRegistered(user.id);
+    }
+  }, [isAuthenticated, user?.id]);
 
   const [syncState, setSyncState] = useState<SyncState>(engine.getState());
   const [pendingOpsCount, setPendingOpsCount] = useState<number>(0);
@@ -47,16 +59,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const triggerSync = useCallback(async () => {
     if (!isAuthenticated) return;
-    try {
-      const scopeKey = currentScope.type === 'national' ? 'national' : currentScope.id;
-      await engine.sync(scopeKey);
-      setLastSyncedAt(new Date());
-      const ops = await store.getPendingOps();
-      setPendingOpsCount(ops.length);
-    } catch {
-      // syncState will reflect 'error'
-    }
-  }, [engine, store, isAuthenticated, currentScope]);
+    const scopeKey = currentScope.type === 'national' ? 'national' : currentScope.id;
+    await engine.sync(scopeKey);
+    setLastSyncedAt(new Date());
+    const ops = await store.getPendingOps();
+    setPendingOpsCount(ops.length);
+    // Invalidate active query caches so screens update reactively without browser reload
+    await queryClient.invalidateQueries();
+  }, [engine, store, isAuthenticated, currentScope, queryClient]);
 
   // Listen for online/offline events
   useEffect(() => {

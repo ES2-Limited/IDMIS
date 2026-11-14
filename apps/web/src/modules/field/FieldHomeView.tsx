@@ -9,18 +9,49 @@ import {
   RefreshCw,
   CheckCircle2,
   Clock,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import { useSync } from '../../sync';
 import { useFieldMode } from '../../shell/FieldModeContext';
+import { useScope } from '../../shell/ScopeContext';
 
 export function FieldHomeView() {
-  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt } = useSync();
+  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt, store } = useSync();
   const { toggleFieldModeOverride } = useFieldMode();
+  const { currentScope, setScope, availableScopes = [] } = useScope();
+  const [allowanceDays, setAllowanceDays] = React.useState<number>(14);
 
   const [isOnline, setIsOnline] = React.useState(
     typeof window !== 'undefined' ? window.navigator.onLine : true,
   );
+
+  React.useEffect(() => {
+    store.getOfflineGrant().then((grant) => {
+      if (grant) {
+        const days = Math.max(
+          0,
+          Math.ceil((new Date(grant).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        );
+        setAllowanceDays(days);
+      } else {
+        setAllowanceDays(14);
+      }
+    });
+  }, [store]);
 
   React.useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -114,7 +145,15 @@ export function FieldHomeView() {
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Fast Data Capture
           </h3>
-          <span className="text-[11px] text-teal-700 font-medium">Offline Ready</span>
+          {isOnline ? (
+            <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+              <Wifi className="h-3 w-3" /> Online Connected
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
+              <WifiOff className="h-3 w-3" /> Offline Outbox Ready
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -149,7 +188,7 @@ export function FieldHomeView() {
           </Link>
 
           <Link
-            to="/slis"
+            to="/field/capture/water"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 w-fit group-hover:scale-105 transition-transform">
@@ -164,7 +203,7 @@ export function FieldHomeView() {
           </Link>
 
           <Link
-            to="/slis"
+            to="/field/capture/fee"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 w-fit group-hover:scale-105 transition-transform">
@@ -191,13 +230,34 @@ export function FieldHomeView() {
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
             <span className="text-slate-500">Offline Storage Allowance</span>
-            <span className="font-semibold text-slate-800">14 Days Remaining</span>
+            <span className="font-semibold text-slate-800">{allowanceDays} Days Remaining</span>
           </div>
-          <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
-            <span className="text-slate-500">Active Scheme Scope</span>
-            <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
-              Kano River (KRIS)
-            </span>
+          <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 gap-2">
+            <span className="text-slate-500 shrink-0">Active Scope</span>
+            {availableScopes.length > 1 ? (
+              <Select
+                value={currentScope.id}
+                onValueChange={(val) => {
+                  const target = availableScopes.find((s) => s.id === val);
+                  if (target) setScope(target);
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs font-semibold max-w-[240px] bg-teal-50/60 border-teal-200 text-teal-900">
+                  <SelectValue placeholder={currentScope.name} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableScopes.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-xs">
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
+                {currentScope.name}
+              </span>
+            )}
           </div>
 
           <div className="pt-2 flex items-center justify-between">

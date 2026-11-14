@@ -33,29 +33,45 @@ export function useGeography() {
 export function useLgas(stateId?: string) {
   const { isAuthenticated } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [...GEOGRAPHY_LGAS_KEY, stateId],
     queryFn: async () => {
       if (!stateId) return [] as LgaResponse[];
       const client = getApiClient();
-      return client.getLgas({ stateId, limit: 100 });
+      const res = await client.getLgas({ stateId, limit: 100 });
+      return Array.isArray(res) ? (res as LgaResponse[]) : (res.items ?? []);
     },
     enabled: isAuthenticated && Boolean(stateId),
     staleTime: 1000 * 60 * 60,
   });
+
+  return {
+    lgas: (query.data ?? []) as LgaResponse[],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }
 
 export function useWards(lgaId?: string) {
   const { isAuthenticated } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [...GEOGRAPHY_WARDS_KEY, lgaId],
     queryFn: async () => {
       if (!lgaId) return [] as WardResponse[];
       const client = getApiClient();
-      return client.getWards({ lgaId, limit: 100 });
+      const res = await client.getWards({ lgaId, limit: 100 });
+      return Array.isArray(res) ? (res as WardResponse[]) : (res.items ?? []);
     },
     enabled: isAuthenticated && Boolean(lgaId),
     staleTime: 1000 * 60 * 60,
   });
+
+  return {
+    wards: (query.data ?? []) as WardResponse[],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

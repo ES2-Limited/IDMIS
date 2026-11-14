@@ -7,6 +7,7 @@ import type {
   CreateMatchingGrantInput,
   TechAdoption,
   Survey,
+  SurveyQuestion,
   CreateSurveyInput,
 } from '@idmis/contracts';
 import { useAuth } from '../../../auth';
@@ -180,5 +181,28 @@ export function useSurveys(schemeId?: string) {
     refetch: surveysQuery.refetch,
     createSurvey: createSurveyMutation.mutateAsync,
     isCreating: createSurveyMutation.isPending,
+  };
+}
+
+export function useSurvey(surveyId?: string) {
+  const { isAuthenticated } = useAuth();
+
+  const surveyQuery = useQuery({
+    queryKey: [...ME_SURVEYS_KEY, 'detail', surveyId],
+    queryFn: async () => {
+      if (!surveyId) return null;
+      const client = getApiClient();
+      return client.getSurvey(surveyId);
+    },
+    enabled: isAuthenticated && Boolean(surveyId),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    survey: surveyQuery.data ?? null,
+    questions: (surveyQuery.data?.questions ?? []) as SurveyQuestion[],
+    isLoading: surveyQuery.isLoading,
+    error: surveyQuery.error,
+    refetch: surveyQuery.refetch,
   };
 }

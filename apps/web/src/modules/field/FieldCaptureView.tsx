@@ -9,10 +9,27 @@ import {
   Sprout,
   ClipboardList,
   ShieldAlert,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Card, CardContent, Badge } from '@idmis/ui';
 
 export function FieldCaptureView() {
+  const [isOnline, setIsOnline] = React.useState(
+    typeof window !== 'undefined' ? window.navigator.onLine : true,
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const captureForms = [
     {
       id: 'farmer',
@@ -93,11 +110,23 @@ export function FieldCaptureView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900">New Field Record</h2>
-          <p className="text-xs text-slate-500">Select a field workflow to capture data offline.</p>
+          <p className="text-xs text-slate-500">Select a field workflow to record data.</p>
         </div>
-        <Badge variant="outline" className="text-teal-700 bg-teal-50 border-teal-200 text-xs">
-          Offline Enabled
-        </Badge>
+        {isOnline ? (
+          <Badge
+            variant="outline"
+            className="text-emerald-700 bg-emerald-50 border-emerald-300 text-xs flex items-center gap-1"
+          >
+            <Wifi className="h-3 w-3" /> Online Connected
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="text-amber-800 bg-amber-50 border-amber-300 text-xs flex items-center gap-1"
+          >
+            <WifiOff className="h-3 w-3" /> Offline Storage Active
+          </Badge>
+        )}
       </div>
 
       <div className="space-y-3">

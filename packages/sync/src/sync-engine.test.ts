@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SyncEngine } from './sync-engine';
 import { LocalStore } from './store';
+import { LocalRecord } from './db';
 import { ApiClient } from '@idmis/api-client';
 
 describe('SyncEngine (FE-1.4)', () => {
@@ -15,6 +16,17 @@ describe('SyncEngine (FE-1.4)', () => {
       removeOutboxOp: vi.fn().mockResolvedValue(undefined),
       getCursor: vi.fn().mockResolvedValue(undefined),
       setCursor: vi.fn().mockResolvedValue(undefined),
+      cacheCleanRecord: vi.fn().mockResolvedValue({
+        id: 'test',
+        entity: 'test',
+        recordId: '1',
+        data: {},
+        version: 1,
+        status: 'clean',
+        updatedAt: '2026-01-01T00:00:00Z',
+      } as LocalRecord),
+      deleteLocalRecord: vi.fn().mockResolvedValue(undefined),
+      getRecord: vi.fn().mockResolvedValue(null),
     };
 
     mockClient = {
@@ -48,12 +60,14 @@ describe('SyncEngine (FE-1.4)', () => {
   });
 
   it('pushes pending ops and marks clean on applied outcome', async () => {
+    const opId = '018f3a5e-0000-7000-8000-000000000001';
+    const recordId = '018f3a5e-0000-7000-8000-000000000002';
     mockStore.getPendingOps = vi.fn().mockResolvedValue([
       {
-        opId: 'op-1',
+        opId,
         entity: 'farmer',
         action: 'create',
-        recordId: 'rec-1',
+        recordId,
         baseVersion: 1,
         data: { name: 'Aliyu' },
         createdAt: '2026-11-03T12:00:00Z',
@@ -64,9 +78,9 @@ describe('SyncEngine (FE-1.4)', () => {
     mockClient.post = vi.fn().mockResolvedValue({
       results: [
         {
-          opId: 'op-1',
+          opId,
           entity: 'farmer',
-          recordId: 'rec-1',
+          recordId,
           outcome: 'applied',
           newVersion: 2,
         },
@@ -76,22 +90,57 @@ describe('SyncEngine (FE-1.4)', () => {
 
     const res = await engine.push();
     expect(res).toBeDefined();
-    expect(mockStore.markRecordClean).toHaveBeenCalledWith('farmer', 'rec-1', 2);
-    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith('op-1');
+    expect(mockStore.markRecordClean).toHaveBeenCalledWith('farmer', recordId, 2);
+    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith(opId);
+    expect(engine.getState()).toBe('idle');
+  });
+
+  it('purges legacy invalid ops with non-UUID identifiers', async () => {
+    mockStore.getPendingOps = vi.fn().mockResolvedValue([
+      {
+        opId: 'legacy-op-not-uuid',
+        entity: 'farmer',
+        action: 'create',
+        recordId: 'legacy-rec-not-uuid',
+        baseVersion: 1,
+        data: { name: 'Test' },
+        createdAt: '2026-11-03T12:00:00Z',
+        attempts: 0,
+      },
+    ]);
+
+    const res = await engine.push();
+    expect(res).toBeNull();
+    expect(mockStore.removeOutboxOp).toHaveBeenCalledWith('legacy-op-not-uuid');
+    expect(mockClient.post).not.toHaveBeenCalled();
     expect(engine.getState()).toBe('idle');
   });
 
   it('pulls server changes and updates safe cursor', async () => {
     mockStore.getCursor = vi.fn().mockResolvedValue('50:12');
     mockClient.get = vi.fn().mockResolvedValue({
-      items: [],
+      items: [
+        {
+          entity: 'farmer',
+          recordId: '018f3a5e-0000-7000-8000-000000000099',
+          seq: 51,
+          data: { name: 'Musa' },
+        },
+      ],
       nextCursor: '52:18',
       hasMore: false,
     });
 
     const res = await engine.pull('national');
     expect(res.nextCursor).toBe('52:18');
-    expect(mockClient.get).toHaveBeenCalledWith('/slis/sync/pull?cursor=50%3A12');
     expect(mockStore.setCursor).toHaveBeenCalledWith('52:18', 'national');
+    expect(mockStore.cacheCleanRecord).toHaveBeenCalledWith(
+      'farmer',
+      '018f3a5e-0000-7000-8000-000000000099',
+      { name: 'Musa' },
+      expect.objectContaining({ version: 51 }),
+    );
+    expect(mockClient.get).toHaveBeenCalledWith('/slis/sync/pull?cursor=50%3A12');
+    expect(engine.getState()).toBe('idle');
   });
 });
