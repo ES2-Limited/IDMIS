@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { SyncEngine, type SyncState, localDb, LocalStore } from '@idmis/sync';
 import { useAuth } from '../auth';
 import { useScope } from '../shell/ScopeContext';
@@ -18,6 +19,7 @@ const SyncContext = createContext<SyncContextValue | null>(null);
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { client, isAuthenticated, user } = useAuth();
   const { currentScope } = useScope();
+  const queryClient = useQueryClient();
 
   const store = useMemo(() => new LocalStore(localDb), []);
   const { deviceId } = useMemo(() => getOrCreateDeviceInfo(), []);
@@ -63,10 +65,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setLastSyncedAt(new Date());
       const ops = await store.getPendingOps();
       setPendingOpsCount(ops.length);
-    } catch {
+      // Invalidate active query caches so screens update reactively without browser reload
+      await queryClient.invalidateQueries();
+    } catch (err) {
       // syncState will reflect 'error'
+      throw err;
     }
-  }, [engine, store, isAuthenticated, currentScope]);
+  }, [engine, store, isAuthenticated, currentScope, queryClient]);
 
   // Listen for online/offline events
   useEffect(() => {

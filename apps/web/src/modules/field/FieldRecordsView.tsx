@@ -13,6 +13,10 @@ import {
   GraduationCap,
   Sprout,
   Filter,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   Card,
@@ -41,6 +45,8 @@ interface RecordDisplayItem {
   createdAt: string;
   comment?: string;
   editRoute?: string;
+  data: Record<string, unknown>;
+  recordId: string;
 }
 
 export function FieldRecordsView() {
@@ -49,6 +55,7 @@ export function FieldRecordsView() {
   const [entityFilter, setEntityFilter] = React.useState('all');
   const [search, setSearch] = React.useState('');
   const [records, setRecords] = React.useState<RecordDisplayItem[]>([]);
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const { pendingOpsCount } = useSync();
 
   // Load records directly from Dexie localDb
@@ -59,26 +66,71 @@ export function FieldRecordsView() {
       const outboxRecordIds = new Set(outbox.map((op) => op.recordId));
 
       const items: RecordDisplayItem[] = stored.map((r: LocalRecord) => {
-        const d = r.data || {};
-        let title = String(d.displayName || d.title || d.farmerCode || r.recordId);
-        if (r.entity === 'farmer') {
-          title =
-            `${d.firstName || ''} ${d.lastName || ''}`.trim() || String(d.farmerCode || r.recordId);
-        }
+        const d = (r.data || {}) as Record<string, unknown>;
+        let title = '';
+        let subtitle = '';
 
-        let subtitle = `Scheme: ${r.schemeId ? 'Allocated' : 'General'}`;
-        if (r.entity === 'farmer' && d.village) {
-          subtitle = `Village: ${d.village} · Sector ${d.sectorId ? 'B4' : 'General'}`;
-        } else if (r.entity === 'farm' && d.areaHa) {
-          subtitle = `Area: ${d.areaHa} ha · Geodesic Polygon`;
-        } else if (r.entity === 'water_request') {
-          subtitle = `Volume: ${d.volumeM3 || 0} m³ · Season ${d.periodFromOn || ''}`;
-        } else if (r.entity === 'fee_collection') {
-          subtitle = `Receipt: ${d.fieldReceiptRef || d.receiptBookNo || 'Cash'} · ₦${d.amountNgn || 0}`;
-        } else if (r.entity === 'crop_production') {
-          subtitle = `${d.cropName || 'Crop'} · Area: ${d.areaHa || 0} ha`;
-        } else if (r.entity === 'training_attendance') {
-          subtitle = `${d.topic || 'PIM Training'} · Attendance`;
+        switch (r.entity) {
+          case 'farmer': {
+            const name = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+            title = name
+              ? `${name} (${d.farmerCode || 'Farmer'})`
+              : `Farmer ${d.farmerCode || r.recordId.slice(0, 8)}`;
+            subtitle = `Village: ${d.village || 'N/A'} · Phone: ${d.phone || 'N/A'}${d.gender ? ` · ${d.gender}` : ''}`;
+            break;
+          }
+          case 'farm':
+          case 'plot': {
+            title = `Plot ${d.plotCode || d.name || r.recordId.slice(0, 8)}`;
+            subtitle = `Area: ${d.areaHa ? d.areaHa + ' ha' : 'N/A'} · Block: ${d.blockId || d.channelId || 'Main Canal'}`;
+            break;
+          }
+          case 'water_request': {
+            title = `Water Request: ${d.volumeM3 ? d.volumeM3 + ' m³' : 'Scheduled'}`;
+            subtitle = `Requested: ${d.requestedFor || d.periodFromOn || (typeof d.createdAt === 'string' ? d.createdAt.slice(0, 10) : 'Pending')} · Canal: ${d.channelId || 'Canal 1'}`;
+            break;
+          }
+          case 'fee_collection': {
+            title = `Water Fee Receipt: ${d.fieldReceiptRef || d.receiptNo || 'CASH-REC'}`;
+            subtitle = `Amount Collected: ₦${Number(d.amountNgn || 0).toLocaleString()} · Paid: ${d.paidOn || 'Confirmed'}`;
+            break;
+          }
+          case 'fee_billing': {
+            title = `Fee Billing Invoice`;
+            subtitle = `Billed Amount: ₦${Number(d.amountNgn || 0).toLocaleString()} · Due: ${d.dueDate || 'N/A'}`;
+            break;
+          }
+          case 'crop_production': {
+            title = `${d.cropName || d.cropType || 'Crop Production'} (${d.season || '2026 Season'})`;
+            subtitle = `Planted: ${d.areaHa || 0} ha · Yield: ${d.harvestTons || d.yieldTons || 0} tons`;
+            break;
+          }
+          case 'survey_response': {
+            const resp = d.respondentName
+              ? `Respondent: ${d.respondentName}`
+              : d.farmerId
+                ? `Farmer: ${String(d.farmerId).slice(0, 8)}`
+                : 'Beneficiary Response';
+            title = `${d.surveyName || 'M&E Beneficiary Survey'}`;
+            subtitle = `${resp} · ${d.collectedAt ? String(d.collectedAt).slice(0, 10) : 'Recorded'}`;
+            break;
+          }
+          case 'dam_inspection':
+          case 'dam_safety_inspection': {
+            title = `Dam Safety Inspection (${d.damName || d.stationName || 'Structure ' + r.recordId.slice(0, 8)})`;
+            subtitle = `Water Level: ${d.waterLevelM ? d.waterLevelM + ' m' : 'Normal'} · Status: ${d.status || d.overallCondition || 'Operational'}`;
+            break;
+          }
+          case 'training':
+          case 'training_attendance': {
+            title = `${d.topic || d.courseName || 'Capacity Training Attendance'}`;
+            subtitle = `Location: ${d.location || 'Scheme Office'} · Attendees: ${d.attendeeCount || 1}`;
+            break;
+          }
+          default: {
+            title = `${r.entity.replace(/_/g, ' ').toUpperCase()}: ${r.recordId.slice(0, 8)}`;
+            subtitle = `Scheme: ${r.schemeId ? r.schemeId.slice(0, 8) : 'General'} · Version ${r.version}`;
+          }
         }
 
         let editRoute = '/field/capture';
@@ -94,6 +146,7 @@ export function FieldRecordsView() {
         return {
           id: r.id,
           entityType: r.entity,
+          recordId: r.recordId,
           title: title || 'Field Record',
           subtitle,
           status:
@@ -105,7 +158,13 @@ export function FieldRecordsView() {
                   ? 'queued'
                   : 'saved_on_device',
           createdAt: r.updatedAt
-            ? new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            ? new Date(r.updatedAt).toLocaleDateString([], {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
             : 'Today',
           comment:
             r.rejectionReason ||
@@ -113,6 +172,7 @@ export function FieldRecordsView() {
               ? 'Held offline conflict: Concurrent update detected on server.'
               : undefined),
           editRoute,
+          data: d,
         };
       });
 
@@ -145,15 +205,23 @@ export function FieldRecordsView() {
       case 'farmer':
         return <User className="h-4 w-4 text-teal-700" />;
       case 'farm':
+      case 'plot':
         return <MapPin className="h-4 w-4 text-emerald-700" />;
       case 'water_request':
         return <Droplets className="h-4 w-4 text-blue-700" />;
       case 'fee_collection':
+      case 'fee_billing':
         return <FileSpreadsheet className="h-4 w-4 text-amber-700" />;
       case 'training_attendance':
+      case 'training':
         return <GraduationCap className="h-4 w-4 text-purple-700" />;
       case 'crop_production':
         return <Sprout className="h-4 w-4 text-lime-700" />;
+      case 'survey_response':
+        return <FileText className="h-4 w-4 text-indigo-700" />;
+      case 'dam_inspection':
+      case 'dam_safety_inspection':
+        return <ShieldAlert className="h-4 w-4 text-orange-700" />;
       default:
         return <FolderCheck className="h-4 w-4 text-slate-700" />;
     }
@@ -202,16 +270,25 @@ export function FieldRecordsView() {
                 Farmers
               </SelectItem>
               <SelectItem value="farm" className="text-xs font-medium py-2">
-                Plots
+                Plots & Boundaries
               </SelectItem>
               <SelectItem value="water_request" className="text-xs font-medium py-2">
-                Water
+                Water Requests
               </SelectItem>
               <SelectItem value="fee_collection" className="text-xs font-medium py-2">
-                Fees
+                Fee Payments
+              </SelectItem>
+              <SelectItem value="fee_billing" className="text-xs font-medium py-2">
+                Fee Bills
               </SelectItem>
               <SelectItem value="crop_production" className="text-xs font-medium py-2">
-                Crops
+                Crop Production
+              </SelectItem>
+              <SelectItem value="survey_response" className="text-xs font-medium py-2">
+                M&E Surveys
+              </SelectItem>
+              <SelectItem value="dam_inspection" className="text-xs font-medium py-2">
+                Dam Inspections
               </SelectItem>
               <SelectItem value="training_attendance" className="text-xs font-medium py-2">
                 Trainings
@@ -311,19 +388,65 @@ export function FieldRecordsView() {
 
                 <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400">
                   <span>Recorded: {item.createdAt}</span>
-                  {item.status === 'conflict' || item.status === 'rejected' ? (
+                  <div className="flex items-center gap-1.5">
+                    {item.status === 'conflict' || item.status === 'rejected' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-7 px-2.5 border-rose-300 text-rose-700 hover:bg-rose-100/80 font-bold cursor-pointer"
+                        onClick={() => item.editRoute && navigate({ to: item.editRoute })}
+                      >
+                        Edit & Resubmit
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-xs h-7 px-2.5 border-rose-300 text-rose-700 hover:bg-rose-100/80 font-bold cursor-pointer"
-                      onClick={() => item.editRoute && navigate({ to: item.editRoute })}
+                      variant="ghost"
+                      className="text-xs h-7 px-2 text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                      onClick={() => setExpandedId((prev) => (prev === item.id ? null : item.id))}
                     >
-                      Edit & Resubmit
+                      {expandedId === item.id ? (
+                        <>
+                          <ChevronUp className="h-3 w-3" /> Hide Data
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3 w-3" /> View Data Details
+                        </>
+                      )}
                     </Button>
-                  ) : (
-                    <span className="text-slate-500 font-medium">Device IndexedDB</span>
-                  )}
+                  </div>
                 </div>
+
+                {expandedId === item.id && (
+                  <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2 animate-in fade-in-50">
+                    <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                      <span>Cached Record Attributes</span>
+                      <span className="font-mono text-[10px] text-slate-400">{item.recordId}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {Object.entries(item.data).map(([key, val]) => {
+                        if (val === null || val === undefined || val === '') return null;
+                        const displayVal =
+                          typeof val === 'object'
+                            ? Array.isArray(val)
+                              ? val
+                                  .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
+                                  .join(', ')
+                              : JSON.stringify(val)
+                            : String(val);
+                        return (
+                          <div key={key} className="bg-white p-2 rounded-lg border border-slate-100">
+                            <span className="font-semibold text-slate-500 block text-[10px] uppercase tracking-wider">
+                              {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-slate-900 font-medium break-all">{displayVal}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))

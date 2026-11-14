@@ -11,12 +11,13 @@ import {
   CheckCircle2,
   Trash2,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, useToast } from '@idmis/ui';
 import { localDb } from '@idmis/sync';
 import { useSync } from '../../sync';
 
 export function FieldSyncView() {
   const { pendingOpsCount, syncState, triggerSync, lastSyncedAt, store } = useSync();
+  const { success, info, error: toastError } = useToast();
   const [dbStats, setDbStats] = React.useState({
     recordsCount: 0,
     outboxCount: 0,
@@ -107,22 +108,50 @@ export function FieldSyncView() {
     refreshDbStats();
   }, [refreshDbStats, pendingOpsCount, syncState]);
 
-  const handleClearInvalidOps = async () => {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const allOps = await localDb.outbox.toArray();
-    const invalidOps = allOps.filter(
-      (op) => !uuidRegex.test(op.recordId) || !uuidRegex.test(op.opId),
-    );
-    if (invalidOps.length > 0) {
-      await Promise.all(invalidOps.map((op) => localDb.outbox.delete(op.opId)));
+  const handleManualSync = async () => {
+    try {
+      await triggerSync();
+      await refreshDbStats();
+      success('Sync Complete', 'Data successfully synchronized with the central server.');
+    } catch (err) {
+      await refreshDbStats();
+      toastError('Sync Failed', String(err));
     }
-    await refreshDbStats();
+  };
+
+  const handleClearInvalidOps = async () => {
+    try {
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const allOps = await localDb.outbox.toArray();
+      const invalidOps = allOps.filter(
+        (op) => !uuidRegex.test(op.recordId) || !uuidRegex.test(op.opId),
+      );
+      if (invalidOps.length > 0) {
+        await Promise.all(invalidOps.map((op) => localDb.outbox.delete(op.opId)));
+        success('Legacy Queue Cleaned', `Purged ${invalidOps.length} invalid legacy operations.`);
+      } else {
+        info('No Invalid Operations', 'The outbox queue contains no invalid legacy operations.');
+      }
+      await refreshDbStats();
+    } catch (err) {
+      toastError('Purge Failed', String(err));
+    }
   };
 
   const handleClearAllOutbox = async () => {
-    await localDb.outbox.clear();
-    await refreshDbStats();
+    try {
+      const count = await localDb.outbox.count();
+      if (count > 0) {
+        await localDb.outbox.clear();
+        success('Outbox Reset', `Cleared ${count} pending operations from local device queue.`);
+      } else {
+        info('Outbox Empty', 'No pending operations were found in the queue.');
+      }
+      await refreshDbStats();
+    } catch (err) {
+      toastError('Clear Failed', String(err));
+    }
   };
 
   const isSyncing = syncState === 'pushing' || syncState === 'pulling';
@@ -176,7 +205,7 @@ export function FieldSyncView() {
 
             <Button
               size="sm"
-              onClick={() => triggerSync()}
+              onClick={handleManualSync}
               disabled={!isOnline || isSyncing}
               className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-md cursor-pointer"
             >
