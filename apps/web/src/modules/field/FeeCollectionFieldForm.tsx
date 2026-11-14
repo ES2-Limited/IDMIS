@@ -168,7 +168,10 @@ export function FeeCollectionFieldForm() {
           await client.createFeeCollection(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct fee collection creation failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct fee collection creation failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -242,7 +245,9 @@ export function FeeCollectionFieldForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="p-5 space-y-4">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-extrabold text-slate-900">Field Water Fee Collection</h2>
+              <h2 className="text-base font-extrabold text-slate-900">
+                Field Water Fee Collection
+              </h2>
               <p className="text-xs text-slate-500">
                 Issue manual paper receipt reference and log offline water charge payments.
               </p>
@@ -272,7 +277,11 @@ export function FeeCollectionFieldForm() {
                   </SelectContent>
                 </Select>
               ) : (
-                <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium" />
+                <Input
+                  value={schemeName}
+                  disabled
+                  className="bg-slate-50 text-slate-700 font-medium"
+                />
               )}
             </div>
 
@@ -293,8 +302,8 @@ export function FeeCollectionFieldForm() {
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
                   <p className="font-bold">⚠️ No Unpaid Water Fee Invoices Found</p>
                   <p className="text-slate-600">
-                    There are no open fee billings recorded for this scheme and season. Fee collection
-                    requires an issued billing invoice before payments can be received.
+                    There are no open fee billings recorded for this scheme and season. Fee
+                    collection requires an issued billing invoice before payments can be received.
                   </p>
                 </div>
               ) : (
@@ -313,7 +322,8 @@ export function FeeCollectionFieldForm() {
                           : `WUA (${b.wuaId?.slice(0, 8)})`;
                       return (
                         <SelectItem key={b.id} value={b.id}>
-                          {payerName} — Bill: ₦{Number(b.amountNgn).toLocaleString()} (Due: {b.dueDate})
+                          {payerName} — Bill: ₦{Number(b.amountNgn).toLocaleString()} (Due:{' '}
+                          {b.dueDate})
                         </SelectItem>
                       );
                     })}
@@ -326,7 +336,10 @@ export function FeeCollectionFieldForm() {
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
                 <div className="flex items-center justify-between font-bold text-slate-800">
                   <span>Selected Invoice Details</span>
-                  <Badge variant="outline" className="bg-teal-50 text-teal-800 border-teal-300 text-[10px]">
+                  <Badge
+                    variant="outline"
+                    className="bg-teal-50 text-teal-800 border-teal-300 text-[10px]"
+                  >
                     {selectedBilling.farmerId ? 'Individual Farmer' : 'WUA Apex'}
                   </Badge>
                 </div>
@@ -338,7 +351,8 @@ export function FeeCollectionFieldForm() {
                         ? farmerMap.get(selectedBilling.farmerId)
                           ? `${farmerMap.get(selectedBilling.farmerId)!.firstName} ${farmerMap.get(selectedBilling.farmerId)!.lastName}`
                           : selectedBilling.farmerId.slice(0, 8)
-                        : wuaMap.get(selectedBilling.wuaId!)?.name || selectedBilling.wuaId?.slice(0, 8)}
+                        : wuaMap.get(selectedBilling.wuaId!)?.name ||
+                          selectedBilling.wuaId?.slice(0, 8)}
                     </span>
                   </div>
                   <div>
@@ -353,7 +367,9 @@ export function FeeCollectionFieldForm() {
                   </div>
                   <div>
                     <span className="text-slate-400 block">Invoice ID:</span>
-                    <span className="font-mono text-slate-500">{selectedBilling.id.slice(0, 13)}...</span>
+                    <span className="font-mono text-slate-500">
+                      {selectedBilling.id.slice(0, 13)}...
+                    </span>
                   </div>
                 </div>
               </div>
@@ -361,7 +377,9 @@ export function FeeCollectionFieldForm() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Amount Collected (₦) *</label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Amount Collected (₦) *
+                </label>
                 <Input
                   type="number"
                   min={1}
@@ -388,7 +406,9 @@ export function FeeCollectionFieldForm() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Physical Receipt Reference *</label>
+              <label className="text-xs font-semibold text-slate-700">
+                Physical Receipt Reference *
+              </label>
               <Input
                 placeholder="REC-2026-XXXX"
                 value={fieldReceiptRef}
@@ -399,7 +419,8 @@ export function FeeCollectionFieldForm() {
             {isOnline ? (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
                 <span className="font-bold">Online Connection: </span>
-                Clicking submit will credit the billing ledger on the server and generate a confirmed audit record.
+                Clicking submit will credit the billing ledger on the server and generate a
+                confirmed audit record.
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
@@ -416,7 +437,11 @@ export function FeeCollectionFieldForm() {
               className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-sm"
             >
               <Save className="h-3.5 w-3.5 mr-1" />
-              {isSubmitting ? 'Recording...' : isOnline ? 'Submit & Sync Payment' : 'Save Payment Offline'}
+              {isSubmitting
+                ? 'Recording...'
+                : isOnline
+                  ? 'Submit & Sync Payment'
+                  : 'Save Payment Offline'}
             </Button>
           </CardFooter>
         </form>

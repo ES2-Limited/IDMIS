@@ -62,7 +62,9 @@ export function FieldSurveyCaptureForm() {
   const { surveys = [], isLoading: loadingSurveys } = useSurveys();
 
   const [selectedSurveyId, setSelectedSurveyId] = React.useState<string>('');
-  const [respondentType, setRespondentType] = React.useState<'farmer' | 'wua' | 'community'>('farmer');
+  const [respondentType, setRespondentType] = React.useState<'farmer' | 'wua' | 'community'>(
+    'farmer',
+  );
   const [respondentName, setRespondentName] = React.useState('Mallam Bello Kura');
   const [village, setVillage] = React.useState('Dan Hassan');
   const [gpsCoordinates, setGpsCoordinates] = React.useState('11.7584° N, 8.4289° E');
@@ -190,7 +192,10 @@ export function FieldSurveyCaptureForm() {
           await client.submitSurveyResponse(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct survey response submission failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct survey response submission failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -238,7 +243,10 @@ export function FieldSurveyCaptureForm() {
       if (syncedOnline) {
         success('Survey Synced', 'Survey questionnaire response uploaded directly to M&E server.');
       } else {
-        warning('Saved Offline', 'Survey response saved to local outbox. Will sync when reconnected.');
+        warning(
+          'Saved Offline',
+          'Survey response saved to local outbox. Will sync when reconnected.',
+        );
       }
     } catch (err) {
       console.error('Failed to submit survey:', err);
@@ -339,7 +347,11 @@ export function FieldSurveyCaptureForm() {
                   </SelectContent>
                 </Select>
               ) : (
-                <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium h-10 text-xs" />
+                <Input
+                  value={schemeName}
+                  disabled
+                  className="bg-slate-50 text-slate-700 font-medium h-10 text-xs"
+                />
               )}
             </div>
 
@@ -469,10 +481,14 @@ export function FieldSurveyCaptureForm() {
               {sortedQuestions.map((q, idx) => {
                 const choices = extractQuestionChoices(q.options);
                 return (
-                  <div key={q.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                  <div
+                    key={q.id}
+                    className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2"
+                  >
                     <div className="flex items-baseline justify-between gap-2">
                       <label className="block text-xs font-semibold text-slate-800">
-                        {idx + 1}. {q.text} {q.isRequired && <span className="text-red-500">*</span>}
+                        {idx + 1}. {q.text}{' '}
+                        {q.isRequired && <span className="text-red-500">*</span>}
                       </label>
                       <span className="text-[10px] text-slate-400 font-mono shrink-0">
                         [{q.code}]

@@ -26,4 +26,3 @@ export function useFeeBillings(query?: ListFeeBillingsQuery) {
     refetch: billingsQuery.refetch,
   };
 }
-

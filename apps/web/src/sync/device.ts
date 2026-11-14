@@ -21,13 +21,19 @@ export function getOrCreateDeviceInfo(): ClientDeviceInfo {
   }
 
   let deviceId = localStorage.getItem(STORAGE_DEVICE_ID);
-  if (!deviceId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId)) {
+  if (
+    !deviceId ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId)
+  ) {
     deviceId = generateUuidV7();
     localStorage.setItem(STORAGE_DEVICE_ID, deviceId);
   }
 
   let installationId = localStorage.getItem(STORAGE_INSTALLATION_ID);
-  if (!installationId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(installationId)) {
+  if (
+    !installationId ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(installationId)
+  ) {
     installationId = generateUuidV7();
     localStorage.setItem(STORAGE_INSTALLATION_ID, installationId);
   }
@@ -42,9 +48,8 @@ export async function ensureDeviceRegistered(userId?: string): Promise<string> {
   const { deviceId, installationId } = getOrCreateDeviceInfo();
   if (!userId) return deviceId;
 
-  const lastRegisteredUser = typeof localStorage !== 'undefined'
-    ? localStorage.getItem(STORAGE_REGISTERED_USER)
-    : null;
+  const lastRegisteredUser =
+    typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_REGISTERED_USER) : null;
 
   if (lastRegisteredUser === userId) {
     return deviceId;
@@ -55,8 +60,12 @@ export async function ensureDeviceRegistered(userId?: string): Promise<string> {
     await client.registerDevice({
       id: deviceId,
       installationId,
-      label: typeof navigator !== 'undefined' ? `${navigator.userAgent.slice(0, 50)} (PWA)` : 'PWA Client',
-      platform: typeof navigator !== 'undefined' ? navigator.platform?.slice(0, 50) || 'web' : 'web',
+      label:
+        typeof navigator !== 'undefined'
+          ? `${navigator.userAgent.slice(0, 50)} (PWA)`
+          : 'PWA Client',
+      platform:
+        typeof navigator !== 'undefined' ? navigator.platform?.slice(0, 50) || 'web' : 'web',
     });
 
     if (typeof localStorage !== 'undefined') {
@@ -68,4 +77,3 @@ export async function ensureDeviceRegistered(userId?: string): Promise<string> {
 
   return deviceId;
 }
-

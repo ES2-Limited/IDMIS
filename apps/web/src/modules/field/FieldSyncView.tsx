@@ -355,13 +355,17 @@ export function FieldSyncView() {
           onClick={() => setShowDiagnostics((prev) => !prev)}
           className="text-[11px] text-slate-400 hover:text-slate-600 underline font-medium cursor-pointer"
         >
-          {showDiagnostics ? '▲ Hide Diagnostic Tools' : '▼ Advanced Diagnostic Tools (Troubleshooting)'}
+          {showDiagnostics
+            ? '▲ Hide Diagnostic Tools'
+            : '▼ Advanced Diagnostic Tools (Troubleshooting)'}
         </button>
 
         {showDiagnostics && (
           <Card className="rounded-2xl border-slate-200/90 shadow-sm bg-slate-50 mt-2 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700">Device Outbox Queue Maintenance</span>
+              <span className="text-xs font-bold text-slate-700">
+                Device Outbox Queue Maintenance
+              </span>
               <Trash2 className="h-4 w-4 text-slate-400" />
             </div>
             <p className="text-[11px] text-slate-500">

@@ -25,13 +25,7 @@ import { useLookupValues } from '../core/hooks';
 export type ComponentRating = 'good' | 'fair' | 'poor' | 'critical';
 
 export type DamComponentKey =
-  | 'dam_body'
-  | 'spillway_1'
-  | 'spillway_2'
-  | 'inlet'
-  | 'outlet'
-  | 'electrical'
-  | 'mechanical';
+  'dam_body' | 'spillway_1' | 'spillway_2' | 'inlet' | 'outlet' | 'electrical' | 'mechanical';
 
 export interface DamComponentEvaluation {
   component: DamComponentKey;
@@ -79,7 +73,9 @@ export function FieldDamInspectionCaptureForm() {
   const { data: ratingLookups = [] } = useLookupValues('component_rating');
 
   const [damId, setDamId] = React.useState('');
-  const [inspectedOn, setInspectedOn] = React.useState(() => new Date().toISOString().split('T')[0]);
+  const [inspectedOn, setInspectedOn] = React.useState(
+    () => new Date().toISOString().split('T')[0],
+  );
   const [nextDueOn, setNextDueOn] = React.useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() + 1);
@@ -119,11 +115,7 @@ export function FieldDamInspectionCaptureForm() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successId, setSuccessId] = React.useState<string | null>(null);
 
-  const updateEvaluation = (
-    index: number,
-    field: keyof DamComponentEvaluation,
-    value: unknown,
-  ) => {
+  const updateEvaluation = (index: number, field: keyof DamComponentEvaluation, value: unknown) => {
     setEvaluations((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -176,7 +168,10 @@ export function FieldDamInspectionCaptureForm() {
           await client.createDamInspection(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct dam inspection creation failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct dam inspection creation failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -216,7 +211,10 @@ export function FieldDamInspectionCaptureForm() {
       if (syncedOnline) {
         success('Inspection Synced', 'Dam inspection uploaded directly to BLIS server.');
       } else {
-        warning('Saved Offline', 'Dam inspection saved to offline outbox. Will sync when reconnected.');
+        warning(
+          'Saved Offline',
+          'Dam inspection saved to offline outbox. Will sync when reconnected.',
+        );
       }
     } catch (err) {
       console.error('Failed to commit dam inspection:', err);
@@ -237,7 +235,8 @@ export function FieldDamInspectionCaptureForm() {
         </h2>
         <p className="text-xs text-slate-500">
           Inspection record <span className="font-mono font-bold text-slate-700">{successId}</span>{' '}
-          has been {isOnline ? 'synced to the TRIMING backend' : 'committed to the device offline outbox'}.
+          has been{' '}
+          {isOnline ? 'synced to the TRIMING backend' : 'committed to the device offline outbox'}.
         </p>
 
         <div className="pt-2 flex flex-col gap-2">
@@ -269,7 +268,8 @@ export function FieldDamInspectionCaptureForm() {
             <h1 className="text-xl font-bold text-slate-900">Dam Safety Surveillance Inspection</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Perform component-by-component structural inspection, hazard classification, and staff readiness.
+            Perform component-by-component structural inspection, hazard classification, and staff
+            readiness.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -329,7 +329,11 @@ export function FieldDamInspectionCaptureForm() {
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Hazard Classification *
               </label>
-              <Select value={hazardClassId} onValueChange={setHazardClassId} disabled={hazardClasses.length === 0}>
+              <Select
+                value={hazardClassId}
+                onValueChange={setHazardClassId}
+                disabled={hazardClasses.length === 0}
+              >
                 <SelectTrigger className="h-10 text-xs">
                   <SelectValue placeholder="Hazard Class" />
                 </SelectTrigger>
@@ -436,7 +440,10 @@ export function FieldDamInspectionCaptureForm() {
 
           <div className="space-y-4">
             {evaluations.map((ev, index) => (
-              <div key={ev.component} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <div
+                key={ev.component}
+                className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2"
+              >
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="font-semibold text-xs text-slate-800">{ev.name}</span>
                   <div className="flex items-center gap-1">
@@ -529,7 +536,11 @@ export function FieldDamInspectionCaptureForm() {
             className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] px-6 text-xs font-bold"
           >
             <Send className="w-4 h-4 mr-1.5" />
-            {isSubmitting ? 'Saving...' : isOnline ? 'Submit & Sync Inspection' : 'Commit Inspection Offline'}
+            {isSubmitting
+              ? 'Saving...'
+              : isOnline
+                ? 'Submit & Sync Inspection'
+                : 'Commit Inspection Offline'}
           </Button>
         </div>
       </form>

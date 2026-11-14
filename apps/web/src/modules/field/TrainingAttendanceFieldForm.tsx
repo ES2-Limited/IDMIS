@@ -93,7 +93,10 @@ export function TrainingAttendanceFieldForm() {
           await client.recordTrainingAttendance(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct training attendance creation failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct training attendance creation failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -176,9 +179,12 @@ export function TrainingAttendanceFieldForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="p-5 space-y-4">
             <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-extrabold text-slate-900">Training Attendance Check-in</h2>
+              <h2 className="text-base font-extrabold text-slate-900">
+                Training Attendance Check-in
+              </h2>
               <p className="text-xs text-slate-500">
-                Register participant attendance for capacity building sessions and extension workshops.
+                Register participant attendance for capacity building sessions and extension
+                workshops.
               </p>
             </div>
 
@@ -205,7 +211,11 @@ export function TrainingAttendanceFieldForm() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium" />
+                  <Input
+                    value={schemeName}
+                    disabled
+                    className="bg-slate-50 text-slate-700 font-medium"
+                  />
                 )}
               </div>
 
@@ -238,7 +248,11 @@ export function TrainingAttendanceFieldForm() {
             {attendeeType === 'farmer' ? (
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Select Farmer *</label>
-                <Select value={farmerId} onValueChange={setFarmerId} disabled={farmers.length === 0}>
+                <Select
+                  value={farmerId}
+                  onValueChange={setFarmerId}
+                  disabled={farmers.length === 0}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue
                       placeholder={
@@ -286,7 +300,8 @@ export function TrainingAttendanceFieldForm() {
             {isOnline ? (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
                 <span className="font-bold">Online Connection: </span>
-                Clicking check-in will immediately record attendance on the central training session register.
+                Clicking check-in will immediately record attendance on the central training session
+                register.
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
@@ -303,7 +318,11 @@ export function TrainingAttendanceFieldForm() {
               className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-sm"
             >
               <Save className="h-3.5 w-3.5 mr-1" />
-              {isSubmitting ? 'Recording...' : isOnline ? 'Submit & Sync Check-in' : 'Save Check-in Offline'}
+              {isSubmitting
+                ? 'Recording...'
+                : isOnline
+                  ? 'Submit & Sync Check-in'
+                  : 'Save Check-in Offline'}
             </Button>
           </CardFooter>
         </form>

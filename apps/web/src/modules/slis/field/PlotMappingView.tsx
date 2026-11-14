@@ -427,13 +427,21 @@ export function PlotMappingView() {
                   </SelectContent>
                 </Select>
               ) : (
-                <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium" />
+                <Input
+                  value={schemeName}
+                  disabled
+                  className="bg-slate-50 text-slate-700 font-medium"
+                />
               )}
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">Distributary Sector</label>
-              <Select value={sectorId} onValueChange={setSectorId} disabled={sectorOrgs.length === 0}>
+              <Select
+                value={sectorId}
+                onValueChange={setSectorId}
+                disabled={sectorOrgs.length === 0}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue
                     placeholder={

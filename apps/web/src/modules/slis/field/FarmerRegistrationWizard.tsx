@@ -416,7 +416,10 @@ export function FarmerRegistrationWizard() {
           await client.createFarmer(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct online registration failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct online registration failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -755,7 +758,9 @@ export function FarmerRegistrationWizard() {
                   <label className="text-xs font-semibold text-slate-700">State</label>
                   <Select
                     value={formData.stateId}
-                    onValueChange={(val) => setFormData({ ...formData, stateId: val, lgaId: '', wardId: '' })}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, stateId: val, lgaId: '', wardId: '' })
+                    }
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={isLoadingStates ? 'Loading...' : 'Select State'} />
@@ -1159,7 +1164,8 @@ export function FarmerRegistrationWizard() {
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">WUA / Sector / Scheme:</span>
                   <span className="font-semibold text-slate-800">
-                    {selectedWua?.name || 'Selected WUA'} · {selectedSector?.name || 'Selected Sector'} · {schemeName}
+                    {selectedWua?.name || 'Selected WUA'} ·{' '}
+                    {selectedSector?.name || 'Selected Sector'} · {schemeName}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
@@ -1175,7 +1181,8 @@ export function FarmerRegistrationWizard() {
                   <Wifi className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold">Online Connection Active: </span>
-                    Submitting will immediately send this farmer record to the central server and persist an offline backup copy on this device.
+                    Submitting will immediately send this farmer record to the central server and
+                    persist an offline backup copy on this device.
                   </div>
                 </div>
               ) : (
@@ -1183,7 +1190,9 @@ export function FarmerRegistrationWizard() {
                   <WifiOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold">Offline Storage Guarantee: </span>
-                    You are currently offline. This record will be safely stored in your local Dexie database and automatically synchronized as soon as internet connectivity returns.
+                    You are currently offline. This record will be safely stored in your local Dexie
+                    database and automatically synchronized as soon as internet connectivity
+                    returns.
                   </div>
                 </div>
               )}
@@ -1235,7 +1244,11 @@ export function FarmerRegistrationWizard() {
                 disabled={isSubmitting}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-md"
               >
-                {isSubmitting ? 'Submitting...' : isOnline ? 'Submit & Sync Record' : 'Save Offline Record'}
+                {isSubmitting
+                  ? 'Submitting...'
+                  : isOnline
+                    ? 'Submit & Sync Record'
+                    : 'Save Offline Record'}
               </Button>
             )}
           </div>

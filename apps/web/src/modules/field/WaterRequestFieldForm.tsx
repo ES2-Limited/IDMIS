@@ -60,7 +60,9 @@ export function WaterRequestFieldForm() {
   const [farmerId, setFarmerId] = React.useState('');
   const [wuaId, setWuaId] = React.useState('');
   const [volumeM3, setVolumeM3] = React.useState<number>(1200);
-  const [periodFromOn, setPeriodFromOn] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [periodFromOn, setPeriodFromOn] = React.useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [periodToOn, setPeriodToOn] = React.useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 14);
@@ -110,7 +112,10 @@ export function WaterRequestFieldForm() {
           await client.createWaterRequest(payload);
           syncedOnline = true;
         } catch (serverErr) {
-          console.warn('Direct water request creation failed; falling back to offline outbox:', serverErr);
+          console.warn(
+            'Direct water request creation failed; falling back to offline outbox:',
+            serverErr,
+          );
         }
       }
 
@@ -215,7 +220,11 @@ export function WaterRequestFieldForm() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium" />
+                  <Input
+                    value={schemeName}
+                    disabled
+                    className="bg-slate-50 text-slate-700 font-medium"
+                  />
                 )}
               </div>
 
@@ -238,7 +247,11 @@ export function WaterRequestFieldForm() {
             {level === 'individual' ? (
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Select Farmer *</label>
-                <Select value={farmerId} onValueChange={setFarmerId} disabled={farmers.length === 0}>
+                <Select
+                  value={farmerId}
+                  onValueChange={setFarmerId}
+                  disabled={farmers.length === 0}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue
                       placeholder={
@@ -287,7 +300,9 @@ export function WaterRequestFieldForm() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Requested Volume (m³) *</label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Requested Volume (m³) *
+                </label>
                 <Input
                   type="number"
                   min={100}
@@ -319,7 +334,8 @@ export function WaterRequestFieldForm() {
             {isOnline ? (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
                 <span className="font-bold">Online Connection: </span>
-                Clicking submit will immediately dispatch this water request to the scheme canal water master.
+                Clicking submit will immediately dispatch this water request to the scheme canal
+                water master.
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
@@ -336,7 +352,11 @@ export function WaterRequestFieldForm() {
               className="bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-sm"
             >
               <Save className="h-3.5 w-3.5 mr-1" />
-              {isSubmitting ? 'Saving...' : isOnline ? 'Submit & Sync Water Request' : 'Save Water Request Offline'}
+              {isSubmitting
+                ? 'Saving...'
+                : isOnline
+                  ? 'Submit & Sync Water Request'
+                  : 'Save Water Request Offline'}
             </Button>
           </CardFooter>
         </form>

@@ -431,16 +431,23 @@ export function FieldRecordsView() {
                           typeof val === 'object'
                             ? Array.isArray(val)
                               ? val
-                                  .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
+                                  .map((v) =>
+                                    typeof v === 'object' ? JSON.stringify(v) : String(v),
+                                  )
                                   .join(', ')
                               : JSON.stringify(val)
                             : String(val);
                         return (
-                          <div key={key} className="bg-white p-2 rounded-lg border border-slate-100">
+                          <div
+                            key={key}
+                            className="bg-white p-2 rounded-lg border border-slate-100"
+                          >
                             <span className="font-semibold text-slate-500 block text-[10px] uppercase tracking-wider">
                               {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}
                             </span>
-                            <span className="text-slate-900 font-medium break-all">{displayVal}</span>
+                            <span className="text-slate-900 font-medium break-all">
+                              {displayVal}
+                            </span>
                           </div>
                         );
                       })}

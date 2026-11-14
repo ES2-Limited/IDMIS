@@ -10,10 +10,7 @@ export function useEffectiveSchemeId(scopeSchemeId?: string | null): {
 } {
   const { organisations = [], isLoading } = useOrganisations({ type: 'scheme' });
   const schemes = React.useMemo(
-    () =>
-      organisations
-        .filter((o) => o.type === 'scheme')
-        .map((s) => ({ id: s.id, name: s.name })),
+    () => organisations.filter((o) => o.type === 'scheme').map((s) => ({ id: s.id, name: s.name })),
     [organisations],
   );
 
@@ -42,4 +39,3 @@ export function useEffectiveSchemeId(scopeSchemeId?: string | null): {
     setSchemeId: setSelectedSchemeId,
   };
 }
-
