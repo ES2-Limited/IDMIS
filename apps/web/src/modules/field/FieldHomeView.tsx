@@ -12,17 +12,27 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@idmis/ui';
 import { useSync } from '../../sync';
 import { useFieldMode } from '../../shell/FieldModeContext';
 import { useScope } from '../../shell/ScopeContext';
-import { useEffectiveSchemeId } from '../core/hooks';
 
 export function FieldHomeView() {
   const { pendingOpsCount, syncState, triggerSync, lastSyncedAt, store } = useSync();
   const { toggleFieldModeOverride } = useFieldMode();
-  const { currentScope } = useScope();
-  const { schemeName } = useEffectiveSchemeId(currentScope.id);
+  const { currentScope, setScope, availableScopes = [] } = useScope();
   const [allowanceDays, setAllowanceDays] = React.useState<number>(14);
 
   const [isOnline, setIsOnline] = React.useState(
@@ -222,11 +232,32 @@ export function FieldHomeView() {
             <span className="text-slate-500">Offline Storage Allowance</span>
             <span className="font-semibold text-slate-800">{allowanceDays} Days Remaining</span>
           </div>
-          <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
-            <span className="text-slate-500">Active Scheme Scope</span>
-            <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
-              {schemeName || currentScope.name || 'General Scope'}
-            </span>
+          <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 gap-2">
+            <span className="text-slate-500 shrink-0">Active Scope</span>
+            {availableScopes.length > 1 ? (
+              <Select
+                value={currentScope.id}
+                onValueChange={(val) => {
+                  const target = availableScopes.find((s) => s.id === val);
+                  if (target) setScope(target);
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs font-semibold max-w-[240px] bg-teal-50/60 border-teal-200 text-teal-900">
+                  <SelectValue placeholder={currentScope.name} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableScopes.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-xs">
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
+                {currentScope.name}
+              </span>
+            )}
           </div>
 
           <div className="pt-2 flex items-center justify-between">

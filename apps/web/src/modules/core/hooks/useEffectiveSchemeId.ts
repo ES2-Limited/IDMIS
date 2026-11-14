@@ -35,8 +35,8 @@ export function useEffectiveSchemeId(scopeSchemeId?: string | null): {
   const activeScheme = schemes.find((s) => s.id === selectedSchemeId) ?? schemes[0];
 
   return {
-    schemeId: activeScheme?.id || '018f3a5e-0020-7000-8000-000000000001',
-    schemeName: activeScheme?.name || 'Kano River Irrigation Scheme',
+    schemeId: activeScheme?.id || '',
+    schemeName: activeScheme?.name || 'All Schemes',
     schemes,
     isLoading,
     setSchemeId: setSelectedSchemeId,
