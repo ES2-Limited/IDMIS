@@ -9,6 +9,22 @@ import { useAuth } from '../../../auth';
 
 export const CORE_ORGS_QUERY_KEY = ['core', 'organisations'] as const;
 
+function extractList<T>(raw: unknown): { items: T[]; total: number } {
+  if (Array.isArray(raw)) {
+    return { items: raw as T[], total: raw.length };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { items?: unknown; data?: unknown; total?: number };
+    if (Array.isArray(obj.items)) {
+      return { items: obj.items as T[], total: obj.total ?? obj.items.length };
+    }
+    if (Array.isArray(obj.data)) {
+      return { items: obj.data as T[], total: obj.total ?? obj.data.length };
+    }
+  }
+  return { items: [], total: 0 };
+}
+
 export function useOrganisations(query?: Partial<ListOrganisationsQuery>) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -33,8 +49,11 @@ export function useOrganisations(query?: Partial<ListOrganisationsQuery>) {
     },
   });
 
+  const { items: organisations, total } = extractList<OrganisationResponse>(orgsQuery.data);
+
   return {
-    organisations: (orgsQuery.data as OrganisationResponse[] | undefined) ?? [],
+    organisations,
+    total,
     isLoading: orgsQuery.isLoading,
     isFetching: orgsQuery.isFetching,
     error: orgsQuery.error,

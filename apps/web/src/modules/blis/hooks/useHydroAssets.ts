@@ -1,44 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getApiClient } from '@idmis/api-client';
+import type { Reservoir, BasinMorphometry } from '@idmis/contracts';
 import { useAuth } from '../../../auth';
-
-export interface Reservoir {
-  id: string;
-  basinId: string;
-  name: string;
-  river?: string;
-  areaKm2?: string;
-  volumeMcm?: string;
-  meanDepthM?: string;
-  maxDepthM?: string;
-  relativeDepth?: string;
-  maxLengthKm?: string;
-  maxWidthKm?: string;
-  meanElevationM?: string;
-  sedimentRatio?: string;
-  version: number;
-}
-
-export interface BasinMorphometry {
-  id: string;
-  basinId: string;
-  measuredOn: string;
-  lowestPointM?: string;
-  highestPointM?: string;
-  avgSlopePct?: string;
-  streamCount?: number;
-  streamLengthTotalKm?: string;
-  streamLengthAvgKm?: string;
-  drainageDensity?: string;
-  streamOrder?: number;
-  reliefM?: string;
-  lengthKm?: string;
-  perimeterKm?: string;
-  version: number;
-}
 
 export const BLIS_RESERVOIRS_KEY = ['blis', 'reservoirs'] as const;
 export const BLIS_MORPHOMETRY_KEY = ['blis', 'morphometry'] as const;
+
+function extractList<T>(raw: unknown): { items: T[]; total: number } {
+  if (Array.isArray(raw)) {
+    return { items: raw as T[], total: raw.length };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { items?: unknown; data?: unknown; total?: number };
+    if (Array.isArray(obj.items)) {
+      return { items: obj.items as T[], total: obj.total ?? obj.items.length };
+    }
+    if (Array.isArray(obj.data)) {
+      return { items: obj.data as T[], total: obj.total ?? obj.data.length };
+    }
+  }
+  return { items: [], total: 0 };
+}
 
 export function useReservoirs(basinId?: string) {
   const { isAuthenticated } = useAuth();
@@ -50,7 +32,9 @@ export function useReservoirs(basinId?: string) {
       const client = getApiClient();
       const params = new URLSearchParams();
       if (basinId) params.set('basinId', basinId);
-      return client.get<Reservoir[]>(`/blis/reservoirs?${params.toString()}`);
+      return client.get<Reservoir[] | { data?: Reservoir[]; items?: Reservoir[]; total?: number }>(
+        `/blis/reservoirs?${params.toString()}`,
+      );
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 15,
@@ -66,8 +50,11 @@ export function useReservoirs(basinId?: string) {
     },
   });
 
+  const { items: reservoirs, total } = extractList<Reservoir>(reservoirsQuery.data);
+
   return {
-    reservoirs: reservoirsQuery.data ?? [],
+    reservoirs,
+    total,
     isLoading: reservoirsQuery.isLoading,
     isFetching: reservoirsQuery.isFetching,
     error: reservoirsQuery.error,
@@ -85,7 +72,11 @@ export function useBasinMorphometry(basinId?: string) {
     queryFn: async () => {
       if (!basinId) return [];
       const client = getApiClient();
-      return client.get<BasinMorphometry[]>(`/blis/basins/${basinId}/morphometry`);
+      const res = await client.get<
+        | BasinMorphometry[]
+        | { data?: BasinMorphometry[]; items?: BasinMorphometry[]; total?: number }
+      >(`/blis/basin-morphometry?basinId=${basinId}`);
+      return extractList<BasinMorphometry>(res).items;
     },
     enabled: isAuthenticated && Boolean(basinId),
     staleTime: 1000 * 60 * 15,

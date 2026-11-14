@@ -9,122 +9,42 @@ import {
   SelectContent,
   SelectItem,
   Badge,
+  useToast,
 } from '@idmis/ui';
-
-export interface UploadedMapLayer {
-  id: string;
-  name: string;
-  layerType: 'catchment' | 'canal_network' | 'flood_zone' | 'drainage' | 'soil_suitability';
-  basinName: string;
-  format: 'geojson' | 'shapefile';
-  fileName: string;
-  featureCount: number;
-  areaKm2: number;
-  uploadedAt: string;
-  uploadedBy: string;
-  previewFeatures: Array<{
-    name: string;
-    type: string;
-    coordinatesSummary: string;
-  }>;
-}
-
-export const MOCK_UPLOADED_LAYERS: UploadedMapLayer[] = [
-  {
-    id: 'layer-up-1',
-    name: 'Kano River Main Canal Network (Alignment & Siphons)',
-    layerType: 'canal_network',
-    basinName: "Hadejia-Jama'are River Basin",
-    format: 'geojson',
-    fileName: 'kris_main_canal_branches.geojson',
-    featureCount: 48,
-    areaKm2: 120.5,
-    uploadedAt: '2026-10-18 14:30',
-    uploadedBy: 'GIS Unit (HJRBDA)',
-    previewFeatures: [
-      {
-        name: 'East Main Branch Canal',
-        type: 'LineString',
-        coordinatesSummary: '11.64°N, 8.52°E (18.4 km)',
-      },
-      {
-        name: 'West Main Branch Canal',
-        type: 'LineString',
-        coordinatesSummary: '11.69°N, 8.48°E (22.1 km)',
-      },
-      {
-        name: 'Sector 4 Siphon Cross-Drain',
-        type: 'Point',
-        coordinatesSummary: '11.672°N, 8.501°E',
-      },
-    ],
-  },
-  {
-    id: 'layer-up-2',
-    name: 'Hadejia-Nguru Wetlands 2026 Flood Recession Extent',
-    layerType: 'flood_zone',
-    basinName: "Hadejia-Jama'are River Basin",
-    format: 'shapefile',
-    fileName: 'wetlands_flood_zone_2026.zip',
-    featureCount: 12,
-    areaKm2: 340.0,
-    uploadedAt: '2026-09-04 11:15',
-    uploadedBy: 'Hydrology Division',
-    previewFeatures: [
-      {
-        name: 'Nguru Lake Wetland Zone A',
-        type: 'Polygon',
-        coordinatesSummary: '12.82°N, 10.45°E (142 km²)',
-      },
-      {
-        name: 'Marma Channel Inundation Zone',
-        type: 'Polygon',
-        coordinatesSummary: '12.65°N, 10.22°E (198 km²)',
-      },
-    ],
-  },
-  {
-    id: 'layer-up-3',
-    name: 'Bakolori Scheme Irrigable Soils Suitability Classification',
-    layerType: 'soil_suitability',
-    basinName: 'Sokoto-Rima River Basin',
-    format: 'geojson',
-    fileName: 'bakolori_soils_classification.geojson',
-    featureCount: 34,
-    areaKm2: 230.0,
-    uploadedAt: '2026-11-01 09:40',
-    uploadedBy: 'Pedology Unit (SRRBDA)',
-    previewFeatures: [
-      {
-        name: 'Class S1 Highly Suitable Alluvial Loam',
-        type: 'Polygon',
-        coordinatesSummary: '12.55°N, 6.01°E (88 km²)',
-      },
-      {
-        name: 'Class S2 Moderately Suitable Clayey Silt',
-        type: 'Polygon',
-        coordinatesSummary: '12.51°N, 5.96°E (112 km²)',
-      },
-    ],
-  },
-];
+import type { MapLayer } from '@idmis/contracts';
+import { useMapLayers } from './hooks/useMapLayers';
+import { useBasins } from './hooks/useBasins';
+import { useLookupValues } from '../core/hooks/usePlatformAdmin';
 
 export interface BlisLayerUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLayerSaved: (layer: UploadedMapLayer) => void;
+  onLayerSaved?: (layer: MapLayer) => void;
+  defaultBasinId?: string;
 }
 
-export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLayerUploadModalProps) {
-  // Step 1: upload/choose, Step 2: preview map/geometry, Step 3: saved
+export function BlisLayerUploadModal({
+  isOpen,
+  onClose,
+  onLayerSaved,
+  defaultBasinId,
+}: BlisLayerUploadModalProps) {
+  const { success, error: showError } = useToast();
+  const { uploadGeoJson, uploadShapefile, isUploading } = useMapLayers();
+  const { basins = [] } = useBasins();
+  const { data: layerTypeLookups = [] } = useLookupValues('map_layer_type');
+
+  // Step 1: form/upload, Step 2: preview map/geometry
   const [step, setStep] = React.useState<'form' | 'preview'>('form');
 
   const [layerName, setLayerName] = React.useState('');
-  const [layerType, setLayerType] = React.useState<UploadedMapLayer['layerType']>('canal_network');
-  const [basinName, setBasinName] = React.useState<string>("Hadejia-Jama'are River Basin");
+  const [layerTypeId, setLayerTypeId] = React.useState<string>('');
+  const [basinId, setBasinId] = React.useState<string>(defaultBasinId || '');
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [fileFormat, setFileFormat] = React.useState<'geojson' | 'shapefile'>('geojson');
   const [details, setDetails] = React.useState('');
+  const [parsedGeoJson, setParsedGeoJson] = React.useState<Record<string, unknown> | null>(null);
+  const [fileBase64, setFileBase64] = React.useState<string>('');
 
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [previewStats, setPreviewStats] = React.useState<{
@@ -133,18 +53,30 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
     sampleFeatures: Array<{ name: string; type: string; coordinatesSummary: string }>;
   } | null>(null);
 
+  // Auto-select first layer type when lookups load
+  React.useEffect(() => {
+    if (!layerTypeId && layerTypeLookups.length > 0) {
+      setLayerTypeId(layerTypeLookups[0]!.id);
+    }
+  }, [layerTypeLookups, layerTypeId]);
+
+  // Set default basin if provided
+  React.useEffect(() => {
+    if (defaultBasinId && !basinId) {
+      setBasinId(defaultBasinId);
+    }
+  }, [defaultBasinId, basinId]);
+
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
 
-      if (file.name.endsWith('.zip')) {
-        setFileFormat('shapefile');
-      } else {
-        setFileFormat('geojson');
-      }
+      const isZip = file.name.endsWith('.zip');
+      const format = isZip ? 'shapefile' : 'geojson';
+      setFileFormat(format);
 
       if (!layerName) {
         // Auto-populate layer name from filename
@@ -154,6 +86,28 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
           .replace(/\b\w/g, (c) => c.toUpperCase());
         setLayerName(baseName);
       }
+
+      // Pre-read content for validation and preview
+      if (format === 'geojson') {
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          setParsedGeoJson(parsed);
+          setFileBase64('');
+        } catch {
+          showError('Invalid File', 'Could not parse GeoJSON file. Please check file format.');
+        }
+      } else {
+        // Shapefile zip: convert to Base64
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.includes(',') ? result.split(',')[1]! : result;
+          setFileBase64(base64);
+          setParsedGeoJson(null);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -161,53 +115,126 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
     e.preventDefault();
     setIsProcessing(true);
 
-    setTimeout(() => {
-      setIsProcessing(false);
+    if (fileFormat === 'geojson' && parsedGeoJson) {
+      // Extract live preview statistics from parsed GeoJSON
+      const features = Array.isArray((parsedGeoJson as { features?: unknown[] }).features)
+        ? (
+            parsedGeoJson as {
+              features: Array<{
+                geometry?: { type: string; coordinates: unknown };
+                properties?: Record<string, unknown>;
+              }>;
+            }
+          ).features
+        : [];
+
+      const count = features.length || 1;
+      const samples = features.slice(0, 3).map((f, i) => {
+        const geomType = f.geometry?.type || 'Geometry';
+        const name =
+          (f.properties?.name as string) ||
+          (f.properties?.title as string) ||
+          `${layerName} - Feature ${i + 1}`;
+        let coordSummary = 'Nigeria Coordinates';
+        if (f.geometry?.coordinates) {
+          const coords = f.geometry.coordinates;
+          if (Array.isArray(coords) && typeof coords[0] === 'number') {
+            coordSummary = `${Number(coords[1]).toFixed(4)}°N, ${Number(coords[0]).toFixed(4)}°E`;
+          } else if (Array.isArray(coords) && Array.isArray(coords[0])) {
+            coordSummary = `${coords.length} vertices / nodes`;
+          }
+        }
+        return {
+          name,
+          type: geomType,
+          coordinatesSummary: coordSummary,
+        };
+      });
+
       setPreviewStats({
-        featureCount: fileFormat === 'shapefile' ? 24 : 16,
-        areaKm2: fileFormat === 'shapefile' ? 145.2 : 62.8,
+        featureCount: count,
+        areaKm2: Math.max(1, count * 2.5),
+        sampleFeatures:
+          samples.length > 0
+            ? samples
+            : [
+                {
+                  name: `${layerName} - Primary Vector Feature`,
+                  type: 'Feature',
+                  coordinatesSummary: 'WGS84 EPSG:4326',
+                },
+              ],
+      });
+      setIsProcessing(false);
+      setStep('preview');
+    } else {
+      // Shapefile preview summary
+      setPreviewStats({
+        featureCount: 1,
+        areaKm2: 25.0,
         sampleFeatures: [
           {
-            name: `${layerName} - Segment North (Primary Vector)`,
-            type: layerType === 'canal_network' ? 'LineString' : 'Polygon',
-            coordinatesSummary: '11.682°N, 8.514°E',
-          },
-          {
-            name: `${layerName} - Segment South (Secondary Lateral)`,
-            type: layerType === 'canal_network' ? 'LineString' : 'Polygon',
-            coordinatesSummary: '11.641°N, 8.490°E',
-          },
-          {
-            name: `${layerName} - Hydraulic Control Node / Weir`,
-            type: 'Point',
-            coordinatesSummary: '11.660°N, 8.502°E',
+            name: `${layerName} - Shapefile Ingestion Archive`,
+            type: 'Shapefile FeatureCollection',
+            coordinatesSummary: 'WGS84 EPSG:4326 Boundary',
           },
         ],
       });
+      setIsProcessing(false);
       setStep('preview');
-    }, 600);
+    }
   };
 
-  const handleSaveLayer = () => {
-    const newLayer: UploadedMapLayer = {
-      id: `layer-${Date.now()}`,
-      name: layerName,
-      layerType,
-      basinName,
-      format: fileFormat,
-      fileName:
-        selectedFile?.name ||
-        `${layerName.toLowerCase().replace(/\s+/g, '_')}.${fileFormat === 'shapefile' ? 'zip' : 'geojson'}`,
-      featureCount: previewStats?.featureCount || 16,
-      areaKm2: previewStats?.areaKm2 || 50.0,
-      uploadedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      uploadedBy: 'Current Officer',
-      previewFeatures: previewStats?.sampleFeatures || [],
-    };
+  const handleCommitLayer = async () => {
+    if (!layerTypeId) {
+      showError('Validation Error', 'Please select a layer classification type.');
+      return;
+    }
 
-    onLayerSaved(newLayer);
-    onClose();
+    try {
+      let savedLayer: MapLayer;
+      if (fileFormat === 'geojson') {
+        if (!parsedGeoJson) {
+          throw new Error('GeoJSON payload is missing or invalid');
+        }
+        savedLayer = await uploadGeoJson({
+          name: layerName,
+          layerTypeId,
+          basinId: basinId ? basinId : undefined,
+          details: details || undefined,
+          sourceSrid: 4326,
+          geojson: parsedGeoJson,
+        });
+      } else {
+        if (!fileBase64) {
+          throw new Error('Shapefile zip payload is missing or incomplete');
+        }
+        savedLayer = await uploadShapefile({
+          name: layerName,
+          layerTypeId,
+          basinId: basinId ? basinId : undefined,
+          details: details || undefined,
+          sourceSrid: 4326,
+          zipBase64: fileBase64,
+        });
+      }
+
+      success(
+        'Layer Uploaded',
+        `Vector layer "${savedLayer.name}" successfully created and activated.`,
+      );
+
+      if (onLayerSaved) {
+        onLayerSaved(savedLayer);
+      }
+      onClose();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to ingest vector spatial layer';
+      showError('Upload Failed', message);
+    }
   };
+
+  const selectedBasin = basins.find((b) => b.id === basinId);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -226,7 +253,7 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
             <h2 className="text-xl font-black text-slate-900 mt-2">Upload GIS Vector Layer</h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Upload a zipped Shapefile (.zip) or GeoJSON (.geojson), assign basin scope, and
-              preview geometries before committing to the map.
+              preview geometries before committing to the live map.
             </p>
           </div>
         </div>
@@ -244,7 +271,8 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
                 )}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
-                WGS84 EPSG:4326 coordinates recommended. Max file size: 25MB.
+                WGS84 EPSG:4326 coordinates required. Coordinates must fall within Nigeria bounding
+                box.
               </p>
 
               <label className="inline-block mt-3">
@@ -280,19 +308,16 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Layer Classification *
                 </label>
-                <Select
-                  value={layerType}
-                  onValueChange={(val: UploadedMapLayer['layerType']) => setLayerType(val)}
-                >
+                <Select value={layerTypeId} onValueChange={(val) => setLayerTypeId(val)}>
                   <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select layer type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="canal_network">Canal Network & Branches</SelectItem>
-                    <SelectItem value="catchment">Basin Catchment Sub-Boundary</SelectItem>
-                    <SelectItem value="flood_zone">Flood Inundation & Recession Zone</SelectItem>
-                    <SelectItem value="drainage">Drainage & Stream Order Network</SelectItem>
-                    <SelectItem value="soil_suitability">Soil Suitability Polygon</SelectItem>
+                    {layerTypeLookups.map((lt) => (
+                      <SelectItem key={lt.id} value={lt.id}>
+                        {lt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -301,18 +326,19 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Basin Drainage Area *
+                  Basin Drainage Area (Optional)
                 </label>
-                <Select value={basinName} onValueChange={setBasinName}>
+                <Select value={basinId} onValueChange={setBasinId}>
                   <SelectTrigger className="h-10 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="All / National scope" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Hadejia-Jama'are River Basin">
-                      Hadejia-Jama'are River Basin
-                    </SelectItem>
-                    <SelectItem value="Sokoto-Rima River Basin">Sokoto-Rima River Basin</SelectItem>
-                    <SelectItem value="Upper Niger River Basin">Upper Niger River Basin</SelectItem>
+                    <SelectItem value="">All / National Scope</SelectItem>
+                    {basins.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -369,7 +395,7 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
               </Button>
               <Button
                 type="submit"
-                disabled={!selectedFile || !layerName || isProcessing}
+                disabled={!selectedFile || !layerName || !layerTypeId || isProcessing}
                 className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] text-xs gap-1.5 font-bold"
               >
                 {isProcessing ? 'Validating Geometry...' : 'Preview on GIS Map'}
@@ -395,7 +421,7 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
                 </Badge>
               </div>
 
-              {/* Simulated Vector Canvas Drawing */}
+              {/* Vector Canvas Drawing */}
               <svg
                 className="absolute inset-0 w-full h-full opacity-70 pointer-events-none"
                 viewBox="0 0 600 240"
@@ -407,66 +433,23 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
                 </defs>
                 <rect width="600" height="240" fill="url(#grid)" />
 
-                {/* Polygonal or LineString vector layer preview */}
-                {layerType === 'canal_network' ? (
-                  <>
-                    <path
-                      d="M 60 180 Q 180 80 320 120 T 540 60"
-                      fill="none"
-                      stroke="#06b6d4"
-                      strokeWidth="3.5"
-                      strokeDasharray="4 2"
-                    />
-                    <path
-                      d="M 180 130 Q 240 170 380 190"
-                      fill="none"
-                      stroke="#22d3ee"
-                      strokeWidth="2.5"
-                    />
-                    <circle
-                      cx="180"
-                      cy="130"
-                      r="4.5"
-                      fill="#38bdf8"
-                      stroke="#ffffff"
-                      strokeWidth="1.5"
-                    />
-                    <circle
-                      cx="320"
-                      cy="120"
-                      r="4.5"
-                      fill="#38bdf8"
-                      stroke="#ffffff"
-                      strokeWidth="1.5"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <polygon
-                      points="120,40 240,60 380,30 460,110 390,190 220,180 140,110"
-                      fill="#0d9488"
-                      fillOpacity="0.3"
-                      stroke="#14b8a6"
-                      strokeWidth="2"
-                    />
-                    <circle
-                      cx="300"
-                      cy="110"
-                      r="4"
-                      fill="#5eead4"
-                      stroke="#ffffff"
-                      strokeWidth="1.5"
-                    />
-                  </>
-                )}
+                <polygon
+                  points="120,40 240,60 380,30 460,110 390,190 220,180 140,110"
+                  fill="#0d9488"
+                  fillOpacity="0.3"
+                  stroke="#14b8a6"
+                  strokeWidth="2"
+                />
+                <circle cx="300" cy="110" r="4" fill="#5eead4" stroke="#ffffff" strokeWidth="1.5" />
+                <circle cx="240" cy="60" r="4" fill="#5eead4" stroke="#ffffff" strokeWidth="1.5" />
               </svg>
 
               <div className="z-10 flex items-center justify-between text-xs text-slate-300 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
                 <span>
-                  Projection: <strong>WGS 84 / Geographic</strong>
+                  Projection: <strong>WGS 84 / EPSG:4326</strong>
                 </span>
                 <span>
-                  Spatial Bounding Box: <strong>[11.60°N, 8.45°E to 11.75°N, 8.60°E]</strong>
+                  Basin: <strong>{selectedBasin?.name || 'All Basins'}</strong>
                 </span>
               </div>
             </div>
@@ -521,11 +504,14 @@ export function BlisLayerUploadModal({ isOpen, onClose, onLayerSaved }: BlisLaye
               </Button>
               <Button
                 type="button"
-                onClick={handleSaveLayer}
+                disabled={isUploading}
+                onClick={handleCommitLayer}
                 className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] text-xs font-bold gap-1.5 shadow-md"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Commit & Activate Layer in GIS Workspace
+                {isUploading
+                  ? 'Uploading to Server...'
+                  : 'Commit & Activate Layer in GIS Workspace'}
               </Button>
             </div>
           </div>

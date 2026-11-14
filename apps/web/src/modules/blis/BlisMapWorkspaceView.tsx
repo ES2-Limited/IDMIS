@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   Activity,
-  AlertTriangle,
   Info,
   Waves,
   Compass,
@@ -30,14 +29,15 @@ import {
   SelectItem,
   useToast,
 } from '@idmis/ui';
+import type { MapLayer } from '@idmis/contracts';
 import { useScope } from '../../shell/ScopeContext';
-import {
-  BlisLayerUploadModal,
-  UploadedMapLayer,
-  MOCK_UPLOADED_LAYERS,
-} from './BlisLayerUploadModal';
+import { BlisLayerUploadModal } from './BlisLayerUploadModal';
+import { useMapLayers } from './hooks/useMapLayers';
+import { useDams, useStations, useDamInspections } from './hooks/useWaterBodies';
+import { useBasins } from './hooks/useBasins';
+import { useOrganisations } from '../core/hooks/useOrganisations';
 
-export type BlisFeatureType = 'basin' | 'dam' | 'station' | 'scheme' | 'plot';
+export type BlisFeatureType = 'basin' | 'dam' | 'station' | 'scheme';
 
 export interface BlisFeature {
   id: string;
@@ -64,214 +64,184 @@ export interface LayerVisibility {
   dams: boolean;
   stations: boolean;
   schemes: boolean;
-  plots: boolean;
 }
 
-// Seeded BLIS GeoJSON / Map features representing Nigerian River Basin Authorities
-const SEEDED_FEATURES: BlisFeature[] = [
-  // Basins
-  {
-    id: 'bsn-1',
-    name: 'Hadejia-Jama’are River Basin',
-    code: 'HJRB-01',
-    type: 'basin',
-    basinName: 'Hadejia-Jama’are River Basin',
-    coordinates: { lat: 12.18, lng: 9.54 },
-    status: 'normal',
-    details: {
-      'Catchment Area': '45,000 km²',
-      'River Length': '380 km',
-      'Operating Authority': 'HJRBDA Kano',
-      'Major Reservoirs': 'Tiga Dam, Challawa Gorge Dam',
-    },
-  },
-  {
-    id: 'bsn-2',
-    name: 'Sokoto-Rima River Basin',
-    code: 'SRRB-02',
-    type: 'basin',
-    basinName: 'Sokoto-Rima River Basin',
-    coordinates: { lat: 13.06, lng: 5.24 },
-    status: 'normal',
-    details: {
-      'Catchment Area': '32,500 km²',
-      'River Length': '320 km',
-      'Operating Authority': 'SRRBDA Sokoto',
-      'Major Reservoirs': 'Bakolori Dam, Goronyo Dam',
-    },
-  },
-
-  // Dams (coloured by last inspection condition)
-  {
-    id: 'dam-1',
-    name: 'Tiga Dam',
-    code: 'DAM-TIG-01',
-    type: 'dam',
-    basinName: 'Hadejia-Jama’are River Basin',
-    schemeName: 'Kano River Irrigation Scheme',
-    coordinates: { lat: 11.43, lng: 8.42 },
-    status: 'active', // 'good'
-    latestInspectionDate: '2026-02-15',
-    details: {
-      'Dam Height': '48.0 m',
-      'Crest Length': '6,000 m',
-      'Reservoir Capacity': '1,428 MCM',
-      'Hazard Classification': 'High Hazard (Downstream Communities)',
-      'Last Component Rating': 'Good (Spillway cleared, rip-rap intact)',
-      'Meets Dam Safety Standard': 'YES (FMWR Certified)',
-    },
-  },
-  {
-    id: 'dam-2',
-    name: 'Challawa Gorge Dam',
-    code: 'DAM-CHL-02',
-    type: 'dam',
-    basinName: 'Hadejia-Jama’are River Basin',
-    schemeName: 'Kano River Irrigation Scheme',
-    coordinates: { lat: 11.72, lng: 8.03 },
-    status: 'fair',
-    latestInspectionDate: '2026-03-05',
-    details: {
-      'Dam Height': '42.0 m',
-      'Crest Length': '7,800 m',
-      'Reservoir Capacity': '972 MCM',
-      'Hazard Classification': 'High Hazard',
-      'Last Component Rating': 'Fair (Hydromechanical gate seal seepage)',
-      'Meets Dam Safety Standard': 'Conditional Compliance',
-    },
-  },
-  {
-    id: 'dam-3',
-    name: 'Bakolori Dam',
-    code: 'DAM-BAK-03',
-    type: 'dam',
-    basinName: 'Sokoto-Rima River Basin',
-    schemeName: 'Bakolori Irrigation Scheme',
-    coordinates: { lat: 12.52, lng: 5.91 },
-    status: 'poor', // 'poor/critical'
-    latestInspectionDate: '2026-01-28',
-    details: {
-      'Dam Height': '53.0 m',
-      'Crest Length': '5,300 m',
-      'Reservoir Capacity': '450 MCM',
-      'Hazard Classification': 'High Hazard',
-      'Last Component Rating': 'Poor (Left embankment crest rutting, drain clogged)',
-      'Next Due Inspection': '2026-07-28 (Urgent Action Plan)',
-    },
-  },
-
-  // Hydromet Stations (coloured by latest transmission / quality status)
-  {
-    id: 'stn-1',
-    name: 'Wudil River Discharge Gauging Station',
-    code: 'STN-WDL-01',
-    type: 'station',
-    basinName: 'Hadejia-Jama’are River Basin',
-    schemeName: 'Kano River Scheme Reach',
-    coordinates: { lat: 11.81, lng: 8.84 },
-    status: 'active', // verified
-    details: {
-      'Station Type': 'Hydrological / Discharge Level',
-      'Telemetry Mode': 'GPRS 15-min Automated Logger',
-      'River Channel': 'Hadejia River (Mainstem)',
-      'Installed Year': '2019 (Refurbished 2024)',
-    },
-    latestReading: {
-      parameter: 'River Stage (Water Level)',
-      value: '3.42 m (48.5 m³/s flow)',
-      timestamp: '2026-04-02 11:45',
-      quality: 'checked',
-    },
-  },
-  {
-    id: 'stn-2',
-    name: 'Kadawa Agro-Meteorological Station',
-    code: 'STN-KDW-02',
-    type: 'station',
-    basinName: 'Hadejia-Jama’are River Basin',
-    schemeName: 'Kano River Scheme',
-    coordinates: { lat: 11.65, lng: 8.52 },
-    status: 'active',
-    details: {
-      'Station Type': 'Agro-Meteorological (AWS)',
-      Sensors: 'Air Temp, Solar Radiation, Humidity, Soil Moisture',
-      'Operating Authority': 'KRS Field Station',
-    },
-    latestReading: {
-      parameter: 'Air Temp & Solar Radiation',
-      value: '33.4°C · 840 W/m²',
-      timestamp: '2026-04-02 12:00',
-      quality: 'checked',
-    },
-  },
-  {
-    id: 'stn-3',
-    name: 'Talata Mafara River Level Gauge',
-    code: 'STN-TLM-03',
-    type: 'station',
-    basinName: 'Sokoto-Rima River Basin',
-    schemeName: 'Bakolori Scheme',
-    coordinates: { lat: 12.58, lng: 6.07 },
-    status: 'suspect',
-    details: {
-      'Station Type': 'Water Level & Rainfall',
-      'Telemetry Mode': 'Solar Satellite Logger',
-      'Quality Status': 'Flagged Sensor Drift (+0.85m offset detected)',
-    },
-    latestReading: {
-      parameter: 'River Gauge Level',
-      value: '5.10 m (Suspect Reading)',
-      timestamp: '2026-04-02 10:15',
-      quality: 'suspect',
-    },
-  },
-
-  // Irrigation Schemes & Command Areas
-  {
-    id: 'scm-1',
-    name: 'Kano River Irrigation Scheme Command Area',
-    code: 'SCM-KRIS',
-    type: 'scheme',
-    basinName: 'Hadejia-Jama’are River Basin',
-    schemeName: 'Kano River Irrigation Scheme',
-    coordinates: { lat: 11.68, lng: 8.53 },
-    status: 'normal',
-    details: {
-      'Total Developed Area': '22,000 ha',
-      'Gravity Canal Length': '142 km',
-      'Beneficiary Farmers': '42,000 active smallholders',
-      'Primary Crops': 'Rice, Tomato, Maize, Wheat',
-    },
-  },
-  {
-    id: 'scm-2',
-    name: 'Bakolori Irrigation Scheme Command Area',
-    code: 'SCM-BIS',
-    type: 'scheme',
-    basinName: 'Sokoto-Rima River Basin',
-    schemeName: 'Bakolori Irrigation Scheme',
-    coordinates: { lat: 12.54, lng: 6.02 },
-    status: 'normal',
-    details: {
-      'Total Developed Area': '23,000 ha',
-      'Distribution System': 'Sprinkler & Surface Lateral',
-      'Beneficiary Farmers': '31,500 smallholders',
-      'Primary Crops': 'Rice, Onion, Garlic, Pepper',
-    },
-  },
-];
+// Helper to extract numeric lat/lng from GeoJSON geometry objects or strings
+function parseCoordinates(
+  geom: unknown,
+  fallbackLat: number,
+  fallbackLng: number,
+): { lat: number; lng: number } {
+  if (geom && typeof geom === 'object' && 'coordinates' in geom) {
+    const coords = (geom as { coordinates?: unknown }).coordinates;
+    if (Array.isArray(coords)) {
+      if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return { lng: coords[0], lat: coords[1] };
+      }
+      if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
+        return { lng: coords[0][0], lat: coords[0][1] };
+      }
+      if (
+        Array.isArray(coords[0]) &&
+        Array.isArray(coords[0][0]) &&
+        typeof coords[0][0][0] === 'number'
+      ) {
+        return { lng: coords[0][0][0], lat: coords[0][0][1] };
+      }
+    }
+  } else if (typeof geom === 'string') {
+    try {
+      const parsed = JSON.parse(geom);
+      return parseCoordinates(parsed, fallbackLat, fallbackLng);
+    } catch {
+      // Ignore parse failure, use fallback
+    }
+  }
+  return { lat: fallbackLat, lng: fallbackLng };
+}
 
 export function BlisMapWorkspaceView() {
   const { currentScope } = useScope();
   const { info } = useToast();
 
+  // Queries for live data
+  const { basins = [], isLoading: isLoadingBasins } = useBasins();
+  const { dams = [], isLoading: isLoadingDams } = useDams({ limit: 100 });
+  const { stations = [], isLoading: isLoadingStations } = useStations({ limit: 100 });
+  const { inspections = [] } = useDamInspections();
+  const { organisations: schemes = [], isLoading: isLoadingSchemes } = useOrganisations({
+    type: 'scheme',
+  });
+  const { layers: serverLayers = [], isLoading: isLoadingLayers } = useMapLayers();
+
+  // Basin map for fast label lookups
+  const basinMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    basins.forEach((b) => map.set(b.id, b.name));
+    return map;
+  }, [basins]);
+
+  // Inspection map by damId (latest inspection)
+  const damInspectionMap = React.useMemo(() => {
+    const map = new Map<
+      string,
+      { inspectedOn: string; meetsStandard: boolean | null | undefined }
+    >();
+    inspections.forEach((insp) => {
+      if (!map.has(insp.damId)) {
+        map.set(insp.damId, {
+          inspectedOn: insp.inspectedOn,
+          meetsStandard: insp.meetsStandard,
+        });
+      }
+    });
+    return map;
+  }, [inspections]);
+
+  // Assemble unified live features array
+  const liveFeatures = React.useMemo<BlisFeature[]>(() => {
+    const list: BlisFeature[] = [];
+
+    // 1. Basins
+    basins.forEach((b, idx) => {
+      const coords = parseCoordinates(b.geom, 11.5 + (idx % 3) * 0.5, 8.5 + (idx % 4) * 0.4);
+      list.push({
+        id: b.id,
+        name: b.name,
+        code: b.code,
+        type: 'basin',
+        basinName: b.name,
+        coordinates: coords,
+        status: 'normal',
+        details: {
+          'Main River': b.mainRiver || 'N/A',
+          'Hydrological Unit': b.hydrologicalUnit || 'N/A',
+          'Alt Name': b.altName || 'N/A',
+        },
+      });
+    });
+
+    // 2. Dams
+    dams.forEach((d, idx) => {
+      const bName = basinMap.get(d.basinId) || 'Regional River Basin';
+      const coords = parseCoordinates(d.geom, 11.6 + (idx % 4) * 0.3, 8.2 + (idx % 3) * 0.3);
+      const insp = damInspectionMap.get(d.id);
+      const meetsStandard = insp?.meetsStandard;
+
+      const status: BlisFeature['status'] =
+        meetsStandard === false ? 'poor' : meetsStandard === true ? 'active' : 'fair';
+
+      list.push({
+        id: d.id,
+        name: d.name,
+        code: d.code || `DAM-${d.id.slice(-4).toUpperCase()}`,
+        type: 'dam',
+        basinName: bName,
+        coordinates: coords,
+        status,
+        latestInspectionDate: insp?.inspectedOn,
+        details: {
+          'Dam Height': d.heightM ? `${d.heightM} m` : 'N/A',
+          'Crest Length': d.crestLengthM ? `${d.crestLengthM} m` : 'N/A',
+          'Reservoir Capacity': d.reservoirCapacityMcm ? `${d.reservoirCapacityMcm} MCM` : 'N/A',
+          'Spillway Type': d.spillwayType || 'N/A',
+          'Nearest Town': d.nearestTown || 'N/A',
+        },
+      });
+    });
+
+    // 3. Hydromet Stations
+    stations.forEach((s, idx) => {
+      const bName = basinMap.get(s.basinId) || 'Regional River Basin';
+      const coords = parseCoordinates(s.geom, 11.7 + (idx % 5) * 0.2, 8.6 + (idx % 4) * 0.2);
+      list.push({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        type: 'station',
+        basinName: bName,
+        coordinates: coords,
+        status: s.isActive ? 'active' : 'suspect',
+        details: {
+          'River Channel': s.river || 'N/A',
+          'Installed Date': s.installedOn || 'N/A',
+          'Active Telemetry': s.isActive ? 'Online / Transmitting' : 'Offline / Standby',
+        },
+        latestReading: {
+          parameter: 'Operational Status',
+          value: s.isActive ? 'Active Transmitting' : 'Standby / Offline',
+          timestamp: s.installedOn || 'Current',
+          quality: s.isActive ? 'checked' : 'suspect',
+        },
+      });
+    });
+
+    // 4. Irrigation Schemes
+    schemes.forEach((scm, idx) => {
+      list.push({
+        id: scm.id,
+        name: scm.name,
+        code: scm.code,
+        type: 'scheme',
+        basinName: 'Regional Scheme Reach',
+        schemeName: scm.name,
+        coordinates: { lat: 11.65 + (idx % 3) * 0.4, lng: 8.55 + (idx % 3) * 0.3 },
+        status: 'normal',
+        details: {
+          'Scheme Code': scm.code,
+          'Authority / Operator': 'Federal Ministry of Water Resources',
+        },
+      });
+    });
+
+    return list;
+  }, [basins, dams, stations, schemes, basinMap, damInspectionMap]);
+
   // Map view controls
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = React.useState<number>(8);
   const [searchQuery, setSearchQuery] = React.useState<string>('');
-  const [selectedFeature, setSelectedFeature] = React.useState<BlisFeature | null>(
-    SEEDED_FEATURES[2]!,
-  ); // Default: Tiga Dam
+  const [selectedFeature, setSelectedFeature] = React.useState<BlisFeature | null>(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = React.useState<string>('all');
 
   // Layer visibility toggles
@@ -280,31 +250,37 @@ export function BlisMapWorkspaceView() {
     dams: true,
     stations: true,
     schemes: true,
-    plots: true,
   });
 
-  // Uploaded user layers
-  const [customLayers, setCustomLayers] = React.useState<UploadedMapLayer[]>(MOCK_UPLOADED_LAYERS);
-  const [customLayersVisibility, setCustomLayersVisibility] = React.useState<{
-    [id: string]: boolean;
-  }>({
-    'layer-up-1': true,
-    'layer-up-2': true,
-    'layer-up-3': true,
-  });
+  // Track visibility of custom uploaded layers
+  const [customLayersVisibility, setCustomLayersVisibility] = React.useState<
+    Record<string, boolean>
+  >({});
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
+
+  // Set default selected feature when data loads
+  React.useEffect(() => {
+    if (!selectedFeature && liveFeatures.length > 0) {
+      // Prefer a dam, otherwise first feature
+      const damFeature = liveFeatures.find((f) => f.type === 'dam');
+      setSelectedFeature(damFeature || liveFeatures[0]!);
+    }
+  }, [liveFeatures, selectedFeature]);
 
   const toggleLayer = (layer: keyof LayerVisibility) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
   };
 
   const toggleCustomLayer = (id: string) => {
-    setCustomLayersVisibility((prev) => ({ ...prev, [id]: !prev[id] }));
+    setCustomLayersVisibility((prev) => ({
+      ...prev,
+      [id]: prev[id] === undefined ? false : !prev[id],
+    }));
   };
 
   // Filtered features matching scope, search, and layer visibility
   const filteredFeatures = React.useMemo(() => {
-    return SEEDED_FEATURES.filter((f) => {
+    return liveFeatures.filter((f) => {
       // Layer toggle check
       if (f.type === 'basin' && !layers.basins) return false;
       if (f.type === 'dam' && !layers.dams) return false;
@@ -325,7 +301,15 @@ export function BlisMapWorkspaceView() {
       }
       return true;
     });
-  }, [layers, selectedTypeFilter, searchQuery]);
+  }, [liveFeatures, layers, selectedTypeFilter, searchQuery]);
+
+  const totalDamsCount = liveFeatures.filter((f) => f.type === 'dam').length;
+  const totalStationsCount = liveFeatures.filter((f) => f.type === 'station').length;
+  const totalBasinsCount = liveFeatures.filter((f) => f.type === 'basin').length;
+  const totalSchemesCount = liveFeatures.filter((f) => f.type === 'scheme').length;
+
+  const isDataLoading =
+    isLoadingBasins || isLoadingDams || isLoadingStations || isLoadingSchemes || isLoadingLayers;
 
   return (
     <div className="space-y-4 animate-in fade-in-50">
@@ -364,25 +348,25 @@ export function BlisMapWorkspaceView() {
             variant="outline"
             className="text-[11px] font-semibold border-slate-300 gap-1.5 py-1"
           >
-            <span className="h-2 w-2 rounded-full bg-blue-500" /> Basins
+            <span className="h-2 w-2 rounded-full bg-blue-500" /> Basins ({totalBasinsCount})
           </Badge>
           <Badge
             variant="outline"
             className="text-[11px] font-semibold border-slate-300 gap-1.5 py-1"
           >
-            <span className="h-2 w-2 rounded-full bg-amber-500" /> Dams (Inspected)
+            <span className="h-2 w-2 rounded-full bg-amber-500" /> Dams ({totalDamsCount})
           </Badge>
           <Badge
             variant="outline"
             className="text-[11px] font-semibold border-slate-300 gap-1.5 py-1"
           >
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Stations (Active)
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Stations ({totalStationsCount})
           </Badge>
           <Badge
             variant="outline"
             className="text-[11px] font-semibold border-slate-300 gap-1.5 py-1"
           >
-            <span className="h-2 w-2 rounded-full bg-teal-500" /> Schemes
+            <span className="h-2 w-2 rounded-full bg-teal-500" /> Schemes ({totalSchemesCount})
           </Badge>
         </div>
       </div>
@@ -416,19 +400,19 @@ export function BlisMapWorkspaceView() {
                     </SelectTrigger>
                     <SelectContent className="bg-white shadow-xl">
                       <SelectItem value="all" className="text-xs py-1.5">
-                        All Features ({SEEDED_FEATURES.length})
+                        All Features ({liveFeatures.length})
                       </SelectItem>
                       <SelectItem value="dam" className="text-xs py-1.5">
-                        Dams & Reservoirs (3)
+                        Dams & Reservoirs ({totalDamsCount})
                       </SelectItem>
                       <SelectItem value="station" className="text-xs py-1.5">
-                        Hydromet Stations (3)
+                        Hydromet Stations ({totalStationsCount})
                       </SelectItem>
                       <SelectItem value="basin" className="text-xs py-1.5">
-                        River Basins (2)
+                        River Basins ({totalBasinsCount})
                       </SelectItem>
                       <SelectItem value="scheme" className="text-xs py-1.5">
-                        Command Areas (2)
+                        Command Areas ({totalSchemesCount})
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -507,11 +491,11 @@ export function BlisMapWorkspaceView() {
                 </button>
               </div>
 
-              {/* Uploaded Vector Layers Sub-Panel */}
+              {/* Uploaded Server Vector Layers Sub-Panel */}
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between pb-1.5">
                   <span className="text-[11px] font-bold text-slate-700">
-                    Uploaded Custom Layers ({customLayers.length})
+                    Uploaded GIS Layers ({serverLayers.length})
                   </span>
                   <button
                     type="button"
@@ -522,95 +506,113 @@ export function BlisMapWorkspaceView() {
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                  {customLayers.map((layer) => {
-                    const isVisible = customLayersVisibility[layer.id] ?? true;
-                    return (
-                      <div
-                        key={layer.id}
-                        onClick={() => toggleCustomLayer(layer.id)}
-                        className={`p-2 rounded-xl border text-[11px] flex items-center justify-between cursor-pointer transition-all ${
-                          isVisible
-                            ? 'border-purple-200 bg-purple-50/60 text-purple-950 font-semibold'
-                            : 'border-slate-200 text-slate-400 opacity-60'
-                        }`}
-                      >
-                        <div className="truncate pr-1">
-                          <div className="truncate">{layer.name}</div>
-                          <div className="text-[10px] text-slate-400 font-normal">
-                            {layer.featureCount} features · {layer.format.toUpperCase()}
+                {serverLayers.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic py-1">
+                    No custom spatial layers uploaded yet.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {serverLayers.map((layer) => {
+                      const isVisible = customLayersVisibility[layer.id] ?? true;
+                      return (
+                        <div
+                          key={layer.id}
+                          onClick={() => toggleCustomLayer(layer.id)}
+                          className={`p-2 rounded-xl border text-[11px] flex items-center justify-between cursor-pointer transition-all ${
+                            isVisible
+                              ? 'border-purple-200 bg-purple-50/60 text-purple-950 font-semibold'
+                              : 'border-slate-200 text-slate-400 opacity-60'
+                          }`}
+                        >
+                          <div className="truncate pr-1">
+                            <div className="truncate">{layer.name}</div>
+                            <div className="text-[10px] text-slate-400 font-normal">
+                              {layer.featureCount ?? 0} features · {layer.type || 'Vector'}
+                            </div>
                           </div>
+                          {isVisible ? (
+                            <Eye className="h-3 w-3 shrink-0 text-purple-700" />
+                          ) : (
+                            <EyeOff className="h-3 w-3 shrink-0" />
+                          )}
                         </div>
-                        {isVisible ? (
-                          <Eye className="h-3 w-3 shrink-0 text-purple-700" />
-                        ) : (
-                          <EyeOff className="h-3 w-3 shrink-0" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Feature Records List Browser */}
             <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-              {filteredFeatures.map((f) => {
-                const isSelected = selectedFeature?.id === f.id;
-                return (
-                  <div
-                    key={f.id}
-                    onClick={() => setSelectedFeature(f)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`h-2 w-2 rounded-full shrink-0 ${
-                              f.type === 'dam'
-                                ? f.status === 'active'
-                                  ? 'bg-emerald-500'
-                                  : f.status === 'fair'
-                                    ? 'bg-amber-500'
-                                    : 'bg-rose-500'
-                                : f.type === 'station'
+              {isDataLoading && liveFeatures.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Loading spatial records...
+                </div>
+              ) : filteredFeatures.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  No matching spatial records found.
+                </div>
+              ) : (
+                filteredFeatures.map((f) => {
+                  const isSelected = selectedFeature?.id === f.id;
+                  return (
+                    <div
+                      key={f.id}
+                      onClick={() => setSelectedFeature(f)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-teal-600 bg-teal-50/40 shadow-sm ring-1 ring-teal-600/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`h-2 w-2 rounded-full shrink-0 ${
+                                f.type === 'dam'
                                   ? f.status === 'active'
                                     ? 'bg-emerald-500'
-                                    : 'bg-amber-500'
-                                  : 'bg-blue-500'
-                            }`}
-                          />
-                          <span className="font-mono font-bold text-xs text-slate-900 truncate">
-                            {f.name}
+                                    : f.status === 'fair'
+                                      ? 'bg-amber-500'
+                                      : 'bg-rose-500'
+                                  : f.type === 'station'
+                                    ? f.status === 'active'
+                                      ? 'bg-emerald-500'
+                                      : 'bg-amber-500'
+                                    : 'bg-blue-500'
+                              }`}
+                            />
+                            <span className="font-mono font-bold text-xs text-slate-900 truncate">
+                              {f.name}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                            {f.basinName}
+                          </p>
+                          {f.latestReading && (
+                            <p className="text-[10px] text-teal-700 font-mono mt-1 font-semibold">
+                              Latest: {f.latestReading.value}
+                            </p>
+                          )}
+                          {f.latestInspectionDate && (
+                            <p className="text-[10px] text-amber-800 font-medium mt-0.5">
+                              Inspected: {f.latestInspectionDate}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono">
+                            {f.code}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{f.basinName}</p>
-                        {f.latestReading && (
-                          <p className="text-[10px] text-teal-700 font-mono mt-1 font-semibold">
-                            Latest: {f.latestReading.value}
-                          </p>
-                        )}
-                        {f.latestInspectionDate && (
-                          <p className="text-[10px] text-amber-800 font-medium mt-0.5">
-                            Inspected: {f.latestInspectionDate}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono">
-                          {f.code}
-                        </span>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -656,7 +658,9 @@ export function BlisMapWorkspaceView() {
                   variant="outline"
                   onClick={() => {
                     setZoomLevel(8);
-                    setSelectedFeature(SEEDED_FEATURES[2]!);
+                    if (liveFeatures.length > 0) {
+                      setSelectedFeature(liveFeatures[0]!);
+                    }
                   }}
                   className="h-7 w-7 p-0 cursor-pointer"
                   aria-label="Reset map"
@@ -703,64 +707,87 @@ export function BlisMapWorkspaceView() {
 
               {/* Interactive On-Canvas Spatial Markers */}
               <div className="relative z-10 w-full h-full p-8 flex items-center justify-center">
-                {/* Floating Map Feature Nodes */}
-                <div className="relative w-[500px] h-[380px] border border-sky-500/20 rounded-3xl bg-sky-950/20 backdrop-blur-xs flex items-center justify-center">
-                  {/* Dam Marker 1: Tiga Dam */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFeature(SEEDED_FEATURES[2]!)}
-                    className="absolute top-1/4 left-1/3 transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <span className="absolute h-9 w-9 rounded-full bg-emerald-500/30 animate-ping" />
-                      <div className="h-8 w-8 rounded-full bg-emerald-600 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold">
-                        <Waves className="h-4 w-4" />
-                      </div>
+                {/* Floating Map Feature Nodes Container */}
+                <div className="relative w-[500px] h-[380px] border border-sky-500/20 rounded-3xl bg-sky-950/20 backdrop-blur-xs flex items-center justify-center overflow-hidden">
+                  {filteredFeatures.length === 0 ? (
+                    <div className="text-center text-xs text-sky-300">
+                      <Compass className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      No active features to display on canvas.
                     </div>
-                    <span className="mt-1 px-2 py-0.5 rounded-md bg-slate-900/90 text-[10px] font-bold text-white border border-slate-700 block whitespace-nowrap shadow-md">
-                      Tiga Dam (Good)
-                    </span>
-                  </button>
+                  ) : (
+                    filteredFeatures.slice(0, 8).map((feat, idx) => {
+                      // Project lat/lng or distribute on canvas
+                      const total = Math.min(filteredFeatures.length, 8);
+                      const angle = (idx / total) * 2 * Math.PI;
+                      const radiusX = 160;
+                      const radiusY = 120;
+                      const leftPos = 250 + Math.cos(angle) * radiusX;
+                      const topPos = 190 + Math.sin(angle) * radiusY;
 
-                  {/* Dam Marker 2: Bakolori Dam */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFeature(SEEDED_FEATURES[4]!)}
-                    className="absolute bottom-1/4 left-1/5 transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <div className="h-8 w-8 rounded-full bg-amber-600 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold">
-                        <AlertTriangle className="h-4 w-4" />
-                      </div>
+                      const isSelected = selectedFeature?.id === feat.id;
+
+                      return (
+                        <button
+                          key={feat.id}
+                          type="button"
+                          style={{ left: `${leftPos}px`, top: `${topPos}px` }}
+                          onClick={() => setSelectedFeature(feat)}
+                          className={`absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer transition-transform ${
+                            isSelected ? 'scale-110 z-20' : 'hover:scale-105 z-10'
+                          }`}
+                        >
+                          <div className="relative flex items-center justify-center">
+                            {isSelected && (
+                              <span className="absolute h-9 w-9 rounded-full bg-teal-400/30 animate-ping" />
+                            )}
+                            <div
+                              className={`h-8 w-8 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold ${
+                                feat.type === 'dam'
+                                  ? feat.status === 'active'
+                                    ? 'bg-emerald-600'
+                                    : feat.status === 'fair'
+                                      ? 'bg-amber-600'
+                                      : 'bg-rose-600'
+                                  : feat.type === 'station'
+                                    ? feat.status === 'active'
+                                      ? 'bg-teal-500'
+                                      : 'bg-amber-600'
+                                    : feat.type === 'scheme'
+                                      ? 'bg-cyan-600'
+                                      : 'bg-blue-600'
+                              }`}
+                            >
+                              {feat.type === 'dam' ? (
+                                <Waves className="h-4 w-4" />
+                              ) : feat.type === 'station' ? (
+                                <Activity className="h-3.5 w-3.5" />
+                              ) : feat.type === 'scheme' ? (
+                                <Layers className="h-3.5 w-3.5" />
+                              ) : (
+                                <Compass className="h-3.5 w-3.5" />
+                              )}
+                            </div>
+                          </div>
+                          <span className="mt-1 px-2 py-0.5 rounded-md bg-slate-900/90 text-[10px] font-bold text-white border border-slate-700 block whitespace-nowrap shadow-md max-w-[130px] truncate">
+                            {feat.name}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+
+                  {/* Active Vector Layers HUD watermark */}
+                  {serverLayers.length > 0 && (
+                    <div className="absolute bottom-4 right-4 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-left pointer-events-none">
+                      <span className="text-[10px] font-mono text-purple-300 font-bold block">
+                        {serverLayers.length} Vector Layer(s) Active
+                      </span>
+                      <span className="text-[9px] text-slate-400">
+                        {serverLayers.reduce((acc, l) => acc + (l.featureCount ?? 0), 0)} server
+                        features loaded
+                      </span>
                     </div>
-                    <span className="mt-1 px-2 py-0.5 rounded-md bg-slate-900/90 text-[10px] font-bold text-white border border-slate-700 block whitespace-nowrap shadow-md">
-                      Bakolori Dam (Poor)
-                    </span>
-                  </button>
-
-                  {/* Station Marker: Wudil Gauging Station */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFeature(SEEDED_FEATURES[5]!)}
-                    className="absolute top-1/3 right-1/4 transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-                  >
-                    <div className="relative flex items-center justify-center">
-                      <div className="h-7 w-7 rounded-full bg-teal-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold">
-                        <Activity className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-                    <span className="mt-1 px-2 py-0.5 rounded-md bg-slate-900/90 text-[10px] font-bold text-teal-300 border border-slate-700 block whitespace-nowrap shadow-md">
-                      Wudil Stn (3.42m)
-                    </span>
-                  </button>
-
-                  {/* Scheme Perimeter Polygon representation */}
-                  <div className="absolute bottom-6 right-8 p-3 rounded-2xl bg-teal-500/10 border border-dashed border-teal-400/60 text-center pointer-events-none">
-                    <span className="text-[10px] font-mono text-teal-300 font-bold block">
-                      KRIS Command Perimeter
-                    </span>
-                    <span className="text-[9px] text-teal-200/60">22,000 ha Irrigable</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -773,12 +800,12 @@ export function BlisMapWorkspaceView() {
                 <div className="text-[11px] text-slate-300">
                   Active Basin:{' '}
                   <span className="font-bold text-white">
-                    {selectedFeature?.basinName || 'Hadejia-Jama’are'}
+                    {selectedFeature?.basinName || 'All Basins'}
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5">
-                  <span>Lat: {selectedFeature?.coordinates.lat.toFixed(4)}°N</span>
-                  <span>Lng: {selectedFeature?.coordinates.lng.toFixed(4)}°E</span>
+                  <span>Lat: {selectedFeature?.coordinates.lat.toFixed(4) ?? '11.5000'}°N</span>
+                  <span>Lng: {selectedFeature?.coordinates.lng.toFixed(4) ?? '8.5000'}°E</span>
                 </div>
               </div>
 
@@ -875,8 +902,7 @@ export function BlisMapWorkspaceView() {
       <BlisLayerUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        onLayerSaved={(newLayer) => {
-          setCustomLayers((prev) => [newLayer, ...prev]);
+        onLayerSaved={(newLayer: MapLayer) => {
           setCustomLayersVisibility((prev) => ({ ...prev, [newLayer.id]: true }));
         }}
       />
