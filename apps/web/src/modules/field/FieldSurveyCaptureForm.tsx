@@ -68,7 +68,7 @@ export function FieldSurveyCaptureForm() {
   const [respondentName, setRespondentName] = React.useState('Mallam Bello Kura');
   const [village, setVillage] = React.useState('Dan Hassan');
   const [gpsCoordinates, setGpsCoordinates] = React.useState('11.7584° N, 8.4289° E');
-  const [answers, setAnswers] = React.useState<Record<string, unknown>>({});
+  const [answers, setAnswers] = React.useState<Record<string, string | number>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successId, setSuccessId] = React.useState<string | null>(null);
 
@@ -109,7 +109,7 @@ export function FieldSurveyCaptureForm() {
     }
   }, [sortedQuestions]);
 
-  const handleAnswerChange = (questionId: string, value: unknown) => {
+  const handleAnswerChange = (questionId: string, value: string | number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
@@ -498,7 +498,7 @@ export function FieldSurveyCaptureForm() {
                     {q.answerType === 'single' ? (
                       choices.length > 0 ? (
                         <Select
-                          value={answers[q.id] || ''}
+                          value={String(answers[q.id] ?? '')}
                           onValueChange={(val) => handleAnswerChange(q.id, val)}
                         >
                           <SelectTrigger className="h-9 text-xs bg-white">

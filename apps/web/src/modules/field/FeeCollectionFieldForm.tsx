@@ -74,15 +74,6 @@ export function FeeCollectionFieldForm() {
       const first = billings[0]!;
       setBillingId(first.id);
       if (first.seasonId) setSeasonId(first.seasonId);
-      if (first.farmerId) {
-        setLevel('farmer');
-        setFarmerId(first.farmerId);
-        setWuaId('');
-      } else if (first.wuaId) {
-        setLevel('wua');
-        setWuaId(first.wuaId);
-        setFarmerId('');
-      }
       setAmountNgn(parseFloat(first.amountNgn) || 15000);
     }
   }, [billings, billingId]);
