@@ -9,18 +9,39 @@ import {
   RefreshCw,
   CheckCircle2,
   Clock,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@idmis/ui';
 import { useSync } from '../../sync';
 import { useFieldMode } from '../../shell/FieldModeContext';
+import { useScope } from '../../shell/ScopeContext';
+import { useEffectiveSchemeId } from '../core/hooks';
 
 export function FieldHomeView() {
-  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt } = useSync();
+  const { pendingOpsCount, syncState, triggerSync, lastSyncedAt, store } = useSync();
   const { toggleFieldModeOverride } = useFieldMode();
+  const { currentScope } = useScope();
+  const { schemeName } = useEffectiveSchemeId(currentScope.id);
+  const [allowanceDays, setAllowanceDays] = React.useState<number>(14);
 
   const [isOnline, setIsOnline] = React.useState(
     typeof window !== 'undefined' ? window.navigator.onLine : true,
   );
+
+  React.useEffect(() => {
+    store.getOfflineGrant().then((grant) => {
+      if (grant) {
+        const days = Math.max(
+          0,
+          Math.ceil((new Date(grant).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        );
+        setAllowanceDays(days);
+      } else {
+        setAllowanceDays(14);
+      }
+    });
+  }, [store]);
 
   React.useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -114,7 +135,15 @@ export function FieldHomeView() {
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Fast Data Capture
           </h3>
-          <span className="text-[11px] text-teal-700 font-medium">Offline Ready</span>
+          {isOnline ? (
+            <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+              <Wifi className="h-3 w-3" /> Online Connected
+            </span>
+          ) : (
+            <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
+              <WifiOff className="h-3 w-3" /> Offline Outbox Ready
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -191,12 +220,12 @@ export function FieldHomeView() {
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
             <span className="text-slate-500">Offline Storage Allowance</span>
-            <span className="font-semibold text-slate-800">14 Days Remaining</span>
+            <span className="font-semibold text-slate-800">{allowanceDays} Days Remaining</span>
           </div>
           <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
             <span className="text-slate-500">Active Scheme Scope</span>
             <span className="font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
-              Kano River (KRIS)
+              {schemeName || currentScope.name || 'General Scope'}
             </span>
           </div>
 
