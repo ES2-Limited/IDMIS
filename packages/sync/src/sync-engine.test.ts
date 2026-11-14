@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SyncEngine } from './sync-engine';
 import { LocalStore } from './store';
+import { LocalRecord } from './db';
 import { ApiClient } from '@idmis/api-client';
 
 describe('SyncEngine (FE-1.4)', () => {
@@ -15,7 +16,15 @@ describe('SyncEngine (FE-1.4)', () => {
       removeOutboxOp: vi.fn().mockResolvedValue(undefined),
       getCursor: vi.fn().mockResolvedValue(undefined),
       setCursor: vi.fn().mockResolvedValue(undefined),
-      cacheCleanRecord: vi.fn().mockResolvedValue({} as any),
+      cacheCleanRecord: vi.fn().mockResolvedValue({
+        id: 'test',
+        entity: 'test',
+        recordId: '1',
+        data: {},
+        version: 1,
+        status: 'clean',
+        updatedAt: '2026-01-01T00:00:00Z',
+      } as LocalRecord),
       deleteLocalRecord: vi.fn().mockResolvedValue(undefined),
       getRecord: vi.fn().mockResolvedValue(null),
     };

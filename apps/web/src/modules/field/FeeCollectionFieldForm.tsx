@@ -48,18 +48,15 @@ export function FeeCollectionFieldForm() {
   const { schemeId, schemeName, schemes, setSchemeId } = useEffectiveSchemeId(currentScope.id);
 
   // Live WUAs for scheme
-  const { wuas = [], isLoading: loadingWuas } = useWuas({ organisationId: schemeId });
+  const { wuas = [] } = useWuas({ organisationId: schemeId });
 
   // Live Farmers for scheme
-  const { farmers = [], isLoading: loadingFarmers } = useFarmers({ schemeId, limit: 100 });
+  const { farmers = [] } = useFarmers({ schemeId, limit: 100 });
 
   // Live Billings for scheme & season
   const { billings = [], isLoading: loadingBillings } = useFeeBillings({ schemeId, limit: 100 });
 
   const [billingId, setBillingId] = React.useState('');
-  const [level, setLevel] = React.useState<'farmer' | 'wua'>('farmer');
-  const [farmerId, setFarmerId] = React.useState('');
-  const [wuaId, setWuaId] = React.useState('');
   const [amountNgn, setAmountNgn] = React.useState<number>(15000);
   const [paidOn, setPaidOn] = React.useState(() => new Date().toISOString().slice(0, 10));
   const [fieldReceiptRef, setFieldReceiptRef] = React.useState(
@@ -104,15 +101,6 @@ export function FeeCollectionFieldForm() {
     const b = billings.find((item) => item.id === id);
     if (b) {
       if (b.seasonId) setSeasonId(b.seasonId);
-      if (b.farmerId) {
-        setLevel('farmer');
-        setFarmerId(b.farmerId);
-        setWuaId('');
-      } else if (b.wuaId) {
-        setLevel('wua');
-        setWuaId(b.wuaId);
-        setFarmerId('');
-      }
       setAmountNgn(parseFloat(b.amountNgn) || 1000);
     }
   };
@@ -261,8 +249,6 @@ export function FeeCollectionFieldForm() {
                   onValueChange={(val) => {
                     setSchemeId(val);
                     setBillingId('');
-                    setWuaId('');
-                    setFarmerId('');
                   }}
                 >
                   <SelectTrigger className="w-full">

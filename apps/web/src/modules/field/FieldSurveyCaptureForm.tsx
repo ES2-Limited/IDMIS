@@ -68,7 +68,7 @@ export function FieldSurveyCaptureForm() {
   const [respondentName, setRespondentName] = React.useState('Mallam Bello Kura');
   const [village, setVillage] = React.useState('Dan Hassan');
   const [gpsCoordinates, setGpsCoordinates] = React.useState('11.7584° N, 8.4289° E');
-  const [answers, setAnswers] = React.useState<Record<string, any>>({});
+  const [answers, setAnswers] = React.useState<Record<string, unknown>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successId, setSuccessId] = React.useState<string | null>(null);
 
@@ -109,7 +109,7 @@ export function FieldSurveyCaptureForm() {
     }
   }, [sortedQuestions]);
 
-  const handleAnswerChange = (questionId: string, value: any) => {
+  const handleAnswerChange = (questionId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 

@@ -67,8 +67,8 @@ export function FieldRecordsView() {
 
       const items: RecordDisplayItem[] = stored.map((r: LocalRecord) => {
         const d = (r.data || {}) as Record<string, unknown>;
-        let title = '';
-        let subtitle = '';
+        let title: string;
+        let subtitle: string;
 
         switch (r.entity) {
           case 'farmer': {

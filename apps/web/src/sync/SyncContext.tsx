@@ -59,18 +59,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const triggerSync = useCallback(async () => {
     if (!isAuthenticated) return;
-    try {
-      const scopeKey = currentScope.type === 'national' ? 'national' : currentScope.id;
-      await engine.sync(scopeKey);
-      setLastSyncedAt(new Date());
-      const ops = await store.getPendingOps();
-      setPendingOpsCount(ops.length);
-      // Invalidate active query caches so screens update reactively without browser reload
-      await queryClient.invalidateQueries();
-    } catch (err) {
-      // syncState will reflect 'error'
-      throw err;
-    }
+    const scopeKey = currentScope.type === 'national' ? 'national' : currentScope.id;
+    await engine.sync(scopeKey);
+    setLastSyncedAt(new Date());
+    const ops = await store.getPendingOps();
+    setPendingOpsCount(ops.length);
+    // Invalidate active query caches so screens update reactively without browser reload
+    await queryClient.invalidateQueries();
   }, [engine, store, isAuthenticated, currentScope, queryClient]);
 
   // Listen for online/offline events
