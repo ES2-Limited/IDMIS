@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Camera, CheckCircle2, Send } from 'lucide-react';
+import { Camera, CheckCircle2, Send, Wifi, WifiOff } from 'lucide-react';
 import {
   Button,
   Input,
@@ -10,20 +10,37 @@ import {
   SelectContent,
   SelectItem,
   Badge,
+  useToast,
 } from '@idmis/ui';
-import { localDb, LocalStore } from '@idmis/sync';
+import {
+  CreateDamSafetyInspectionInputSchema,
+  type CreateDamSafetyInspectionInput,
+} from '@idmis/contracts';
+import { generateUuidV7, localDb, LocalStore } from '@idmis/sync';
+import { getApiClient } from '@idmis/api-client';
 import { useScope } from '../../shell/ScopeContext';
+import { useDams } from '../blis/hooks';
+import { useLookupValues } from '../core/hooks';
 
 export type ComponentRating = 'good' | 'fair' | 'poor' | 'critical';
 
+export type DamComponentKey =
+  | 'dam_body'
+  | 'spillway_1'
+  | 'spillway_2'
+  | 'inlet'
+  | 'outlet'
+  | 'electrical'
+  | 'mechanical';
+
 export interface DamComponentEvaluation {
-  component: string;
+  component: DamComponentKey;
   name: string;
   rating: ComponentRating;
   defectSummary: string;
 }
 
-const DAM_COMPONENTS = [
+const DAM_COMPONENTS: Array<{ component: DamComponentKey; name: string }> = [
   { component: 'dam_body', name: 'Main Embankment & Dam Crest' },
   { component: 'spillway_1', name: 'Primary Spillway Structure' },
   { component: 'spillway_2', name: 'Emergency Spillway & Chute' },
@@ -36,12 +53,39 @@ const DAM_COMPONENTS = [
 export function FieldDamInspectionCaptureForm() {
   const navigate = useNavigate();
   const { currentScope } = useScope();
+  const { success, warning, error: toastError } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
 
-  const [damName, setDamName] = React.useState('Tiga Dam (DAM-HJB-001)');
-  const [inspectedOn, setInspectedOn] = React.useState(new Date().toISOString().split('T')[0]);
-  const [nextDueOn, setNextDueOn] = React.useState('2027-05-15');
-  const [hazardClass, setHazardClass] = React.useState<'high' | 'significant' | 'low'>('high');
+  const [isOnline, setIsOnline] = React.useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Live Dams from DB
+  const { dams = [], isLoading: loadingDams } = useDams({ limit: 50 });
+
+  // Live Lookups
+  const { data: hazardClasses = [] } = useLookupValues('hazard_class');
+  const { data: ratingLookups = [] } = useLookupValues('component_rating');
+
+  const [damId, setDamId] = React.useState('');
+  const [inspectedOn, setInspectedOn] = React.useState(() => new Date().toISOString().split('T')[0]);
+  const [nextDueOn, setNextDueOn] = React.useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [hazardClassId, setHazardClassId] = React.useState('');
   const [safetyOfficer, setSafetyOfficer] = React.useState('Engr. Ibrahim Lawan');
   const [staffOnSite, setStaffOnSite] = React.useState(14);
   const [safetyBudgetNgn, setSafetyBudgetNgn] = React.useState('15000000');
@@ -60,54 +104,123 @@ export function FieldDamInspectionCaptureForm() {
     })),
   );
 
+  React.useEffect(() => {
+    if (dams.length > 0 && !damId) {
+      setDamId(dams[0]!.id);
+    }
+  }, [dams, damId]);
+
+  React.useEffect(() => {
+    if (hazardClasses.length > 0 && !hazardClassId) {
+      setHazardClassId(hazardClasses[0]!.id);
+    }
+  }, [hazardClasses, hazardClassId]);
+
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successId, setSuccessId] = React.useState<string | null>(null);
 
-  const handleRatingChange = (componentKey: string, rating: ComponentRating) => {
-    setEvaluations((prev) =>
-      prev.map((e) => (e.component === componentKey ? { ...e, rating } : e)),
-    );
+  const updateEvaluation = (
+    index: number,
+    field: keyof DamComponentEvaluation,
+    value: unknown,
+  ) => {
+    setEvaluations((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
   };
 
-  const handleDefectChange = (componentKey: string, defectSummary: string) => {
-    setEvaluations((prev) =>
-      prev.map((e) => (e.component === componentKey ? { ...e, defectSummary } : e)),
-    );
+  const resolveRatingId = (code: string) => {
+    const match = ratingLookups.find((r) => r.code === code);
+    return match?.id || '018f3a5e-0003-7000-8010-000000000001';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!damId) {
+      toastError('Dam Required', 'Please select a target dam.');
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
-      const inspectionId = `insp-${Date.now()}`;
-      const payload = {
-        inspectionId,
-        damName,
+      const inspectionId = generateUuidV7();
+
+      const payload: CreateDamSafetyInspectionInput = {
+        damId,
         inspectedOn,
-        nextDueOn,
-        hazardClass,
-        safetyOfficer,
-        staffOnSite,
-        safetyBudgetNgn,
+        nextDueOn: nextDueOn || undefined,
+        hazardClassId: hazardClassId || undefined,
+        safetyContact: safetyOfficer,
+        staffOnSite: Number(staffOnSite) || undefined,
+        safetyBudgetNgn: safetyBudgetNgn ? String(safetyBudgetNgn) : undefined,
         meetsStandard: overallMeetsStandard,
         specificHazards,
-        evaluations,
-        photoCount,
-        capturedAt: new Date().toISOString(),
-        schemeId: currentScope.id,
+        components: evaluations.map((ev) => ({
+          component: ev.component,
+          ratingId: resolveRatingId(ev.rating),
+          notes: ev.defectSummary,
+        })),
       };
 
-      // Commit to local Dexie sync outbox
-      await store.commitInsert('dam_inspection', inspectionId, {
-        ...payload,
-        status: 'saved_on_device',
-        displayName: `Dam Inspection: ${damName}`,
-      });
+      // Strict validation
+      CreateDamSafetyInspectionInputSchema.parse(payload);
+
+      let syncedOnline = false;
+
+      // Online attempt first
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const client = getApiClient();
+          await client.createDamInspection(payload);
+          syncedOnline = true;
+        } catch (serverErr) {
+          console.warn('Direct dam inspection creation failed; falling back to offline outbox:', serverErr);
+        }
+      }
+
+      if (syncedOnline) {
+        // Cache cleanly in local storage (zero pending outbox ops)
+        await store.cacheCleanRecord(
+          'dam_inspection',
+          inspectionId,
+          {
+            ...payload,
+            photoCount,
+            status: 'synced',
+            displayName: `Dam Inspection: ${dams.find((d) => d.id === damId)?.name || 'Dam'}`,
+          },
+          {
+            schemeId: currentScope.id,
+          },
+        );
+      } else {
+        // Offline commit to Dexie
+        await store.commitInsert(
+          'dam_inspection',
+          inspectionId,
+          {
+            ...payload,
+            photoCount,
+            status: 'saved_on_device',
+            displayName: `Dam Inspection: ${dams.find((d) => d.id === damId)?.name || 'Dam'}`,
+          },
+          {
+            schemeId: currentScope.id,
+          },
+        );
+      }
 
       setSuccessId(inspectionId);
+      if (syncedOnline) {
+        success('Inspection Synced', 'Dam inspection uploaded directly to BLIS server.');
+      } else {
+        warning('Saved Offline', 'Dam inspection saved to offline outbox. Will sync when reconnected.');
+      }
     } catch (err) {
-      console.error('Failed to commit offline inspection to outbox:', err);
+      console.error('Failed to commit dam inspection:', err);
+      toastError('Inspection Failed', String(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -119,12 +232,12 @@ export function FieldDamInspectionCaptureForm() {
         <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900">Dam Inspection Captured Offline</h2>
+        <h2 className="text-xl font-bold text-slate-900">
+          {isOnline ? 'Dam Inspection Synced to Server' : 'Dam Inspection Captured Offline'}
+        </h2>
         <p className="text-xs text-slate-500">
           Inspection record <span className="font-mono font-bold text-slate-700">{successId}</span>{' '}
-          has been committed to the offline outbox. When your device reconnects, it will
-          automatically sync to TRIMING backend and update the dam's condition status on the
-          interactive map.
+          has been {isOnline ? 'synced to the TRIMING backend' : 'committed to the device offline outbox'}.
         </p>
 
         <div className="pt-2 flex flex-col gap-2">
@@ -141,7 +254,7 @@ export function FieldDamInspectionCaptureForm() {
             className="w-full min-h-[44px]"
             onClick={() => navigate({ to: '/field/records' })}
           >
-            View Offline Outbox Records
+            View Field Records
           </Button>
         </div>
       </div>
@@ -149,18 +262,33 @@ export function FieldDamInspectionCaptureForm() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-slate-900">Dam Safety Surveillance Inspection</h1>
-          <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-mono text-[11px]">
-            Offline Field Form
-          </Badge>
+    <div className="space-y-6 max-w-2xl mx-auto pb-12">
+      <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900">Dam Safety Surveillance Inspection</h1>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Perform component-by-component structural inspection, hazard classification, and staff readiness.
+          </p>
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          Perform component-by-component structural inspection, hazard classification, and staff
-          readiness.
-        </p>
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs flex items-center gap-1"
+            >
+              <Wifi className="h-3 w-3" /> Online
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="bg-amber-50 text-amber-800 border-amber-300 text-xs flex items-center gap-1"
+            >
+              <WifiOff className="h-3 w-3" /> Offline Outbox Active
+            </Badge>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -175,21 +303,24 @@ export function FieldDamInspectionCaptureForm() {
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Target Dam Asset *
               </label>
-              <Select value={damName} onValueChange={setDamName}>
+              <Select value={damId} onValueChange={setDamId} disabled={dams.length === 0}>
                 <SelectTrigger className="h-10 text-xs">
-                  <SelectValue />
+                  <SelectValue
+                    placeholder={
+                      loadingDams
+                        ? 'Loading dams...'
+                        : dams.length === 0
+                          ? 'No dams registered'
+                          : 'Select Dam'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Tiga Dam (DAM-HJB-001)">Tiga Dam (DAM-HJB-001)</SelectItem>
-                  <SelectItem value="Bakolori Dam (DAM-SRB-001)">
-                    Bakolori Dam (DAM-SRB-001)
-                  </SelectItem>
-                  <SelectItem value="Goronyo Dam (DAM-SRB-002)">
-                    Goronyo Dam (DAM-SRB-002)
-                  </SelectItem>
-                  <SelectItem value="Challawa Gorge Dam (DAM-HJB-002)">
-                    Challawa Gorge Dam (DAM-HJB-002)
-                  </SelectItem>
+                  {dams.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -198,17 +329,16 @@ export function FieldDamInspectionCaptureForm() {
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Hazard Classification *
               </label>
-              <Select
-                value={hazardClass}
-                onValueChange={(v: 'high' | 'significant' | 'low') => setHazardClass(v)}
-              >
+              <Select value={hazardClassId} onValueChange={setHazardClassId} disabled={hazardClasses.length === 0}>
                 <SelectTrigger className="h-10 text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder="Hazard Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high">High Hazard Potential</SelectItem>
-                  <SelectItem value="significant">Significant Hazard Potential</SelectItem>
-                  <SelectItem value="low">Low Hazard Potential</SelectItem>
+                  {hazardClasses.map((h) => (
+                    <SelectItem key={h.id} value={h.id}>
+                      {h.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -255,142 +385,153 @@ export function FieldDamInspectionCaptureForm() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Operating Staff on Site
+                Dam Maintenance Staff on Site
               </label>
               <Input
                 type="number"
+                min={0}
                 value={staffOnSite}
-                onChange={(e) => setStaffOnSite(Number(e.target.value))}
+                onChange={(e) => setStaffOnSite(parseInt(e.target.value, 10) || 0)}
                 className="h-10 text-xs"
               />
             </div>
           </div>
-        </div>
 
-        {/* Component Conditions Evaluation */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
           <div>
-            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-              Component-by-Component Condition Ratings
-            </h3>
-            <p className="text-slate-400 text-xs mt-0.5">
-              Grade each structural component as Good, Fair, Poor, or Critical.
-            </p>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              Annual Safety O&M Allocation (₦)
+            </label>
+            <Input
+              type="number"
+              value={safetyBudgetNgn}
+              onChange={(e) => setSafetyBudgetNgn(e.target.value)}
+              className="h-10 text-xs"
+            />
           </div>
 
-          <div className="space-y-3 divide-y divide-slate-100">
-            {evaluations.map((item) => (
-              <div key={item.component} className="pt-3 space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="font-bold text-xs text-slate-900">{item.name}</div>
-                  <div className="flex items-center gap-1.5">
-                    {(['good', 'fair', 'poor', 'critical'] as ComponentRating[]).map((rating) => (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="overallMeetsStandard"
+              checked={overallMeetsStandard}
+              onChange={(e) => setOverallMeetsStandard(e.target.checked)}
+              className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            <label htmlFor="overallMeetsStandard" className="text-xs font-semibold text-slate-700">
+              Facility Meets Overall Structural & Operational Safety Standards
+            </label>
+          </div>
+        </div>
+
+        {/* 7 Component Evaluations */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+              Component Condition Evaluations (7 Critical Structures)
+            </h3>
+            <span className="text-[11px] text-slate-500">
+              {evaluations.filter((e) => e.rating === 'good').length}/7 Good
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {evaluations.map((ev, index) => (
+              <div key={ev.component} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="font-semibold text-xs text-slate-800">{ev.name}</span>
+                  <div className="flex items-center gap-1">
+                    {(['good', 'fair', 'poor', 'critical'] as ComponentRating[]).map((r) => (
                       <button
-                        key={rating}
+                        key={r}
                         type="button"
-                        onClick={() => handleRatingChange(item.component, rating)}
-                        className={`px-2.5 py-1 text-[11px] font-bold rounded capitalize min-h-[36px] transition-all ${
-                          item.rating === rating
-                            ? rating === 'good'
-                              ? 'bg-emerald-700 text-white shadow-sm'
-                              : rating === 'fair'
-                                ? 'bg-amber-600 text-white shadow-sm'
-                                : rating === 'poor'
-                                  ? 'bg-orange-600 text-white shadow-sm'
-                                  : 'bg-rose-700 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        onClick={() => updateEvaluation(index, 'rating', r)}
+                        className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase transition-all ${
+                          ev.rating === r
+                            ? r === 'good'
+                              ? 'bg-emerald-600 text-white'
+                              : r === 'fair'
+                                ? 'bg-amber-500 text-white'
+                                : r === 'poor'
+                                  ? 'bg-orange-600 text-white'
+                                  : 'bg-rose-600 text-white'
+                            : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                         }`}
                       >
-                        {rating}
+                        {r}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <Input
-                  placeholder="Notes or defect observations for this component..."
-                  value={item.defectSummary}
-                  onChange={(e) => handleDefectChange(item.component, e.target.value)}
-                  className="h-9 text-xs"
+                  value={ev.defectSummary}
+                  onChange={(e) => updateEvaluation(index, 'defectSummary', e.target.value)}
+                  placeholder="Describe observed defects, seepage, or mechanical status..."
+                  className="h-8 text-xs bg-white"
                 />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Specific Hazards & Verification */}
+        {/* Specific Hazards & Photo Attachments */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-            Risk Assessment & Compliance
+            Observed Hazards & Photos
           </h3>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">
-              Identified Specific Hazards & Defect Narrative
+              Specific Hazard / Urgent Corrective Findings
             </label>
             <textarea
               rows={3}
               value={specificHazards}
               onChange={(e) => setSpecificHazards(e.target.value)}
-              className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="w-full text-xs rounded-md border border-slate-300 p-2 focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Annual Safety Maintenance Budget (NGN)
-              </label>
-              <Input
-                type="number"
-                value={safetyBudgetNgn}
-                onChange={(e) => setSafetyBudgetNgn(e.target.value)}
-                className="h-10 text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Geo-Tagged Photo Attachments
-              </label>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setPhotoCount((p) => p + 1)}
-                  className="h-10 text-xs gap-1.5 flex-1"
-                >
-                  <Camera className="w-4 h-4 text-slate-600" />
-                  Attach Site Photo ({photoCount})
-                </Button>
+          <div className="flex items-center justify-between p-3 bg-teal-50 border border-teal-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-teal-700" />
+              <div>
+                <p className="text-xs font-bold text-teal-900">Surveillance Field Photos</p>
+                <p className="text-[10px] text-teal-700">{photoCount} photos captured on camera</p>
               </div>
             </div>
-          </div>
-
-          <div className="pt-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={overallMeetsStandard}
-                onChange={(e) => setOverallMeetsStandard(e.target.checked)}
-                className="w-4 h-4 text-teal-600 rounded"
-              />
-              <span className="text-xs font-semibold text-slate-700">
-                Dam barrier and hydraulic appurtenances satisfy statutory safety regulatory
-                standards.
-              </span>
-            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs border-teal-300 text-teal-800"
+              onClick={() => setPhotoCount((c) => c + 1)}
+            >
+              Add Photo ({photoCount})
+            </Button>
           </div>
         </div>
 
-        {/* Submit Action */}
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white min-h-[48px] font-bold text-xs shadow-md gap-2"
-        >
-          <Send className="w-4 h-4" />
-          {isSubmitting ? 'Saving to Sync Outbox...' : 'Commit Dam Inspection Offline'}
-        </Button>
+        {/* Submission actions */}
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-xs"
+            onClick={() => navigate({ to: '/field/capture' })}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] px-6 text-xs font-bold"
+          >
+            <Send className="w-4 h-4 mr-1.5" />
+            {isSubmitting ? 'Saving...' : isOnline ? 'Submit & Sync Inspection' : 'Commit Inspection Offline'}
+          </Button>
+        </div>
       </form>
     </div>
   );

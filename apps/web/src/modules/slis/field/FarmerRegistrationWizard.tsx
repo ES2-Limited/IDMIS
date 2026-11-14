@@ -16,6 +16,8 @@ import {
   Plus,
   Trash2,
   Navigation,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import {
   Card,
@@ -33,12 +35,22 @@ import {
 } from '@idmis/ui';
 import { CreateFarmerInputSchema, type CreateFarmerInput, type SlisGender } from '@idmis/contracts';
 import { generateUuidV7, localDb, LocalStore, compressFieldPhoto } from '@idmis/sync';
+import { getApiClient } from '@idmis/api-client';
 import { useScope } from '../../../shell/ScopeContext';
 import { registerDirtyFormCheck } from '../../../pwa';
+import {
+  useEffectiveSchemeId,
+  useOrganisations,
+  useWuas,
+  useGeography,
+  useLgas,
+  useWards,
+  useLookupValues,
+} from '../../core/hooks';
 
 export interface IdentityDocItem {
   id: string;
-  type: string; // 'NIN' | 'BVN' | 'voter_card' | 'bank_account' | 'drivers_licence' | 'other'
+  type: string; // 'nin' | 'bvn' | 'voters_card' | 'national_id' | 'passport' | 'drivers_license' | 'bank_account'
   number: string;
   bankName?: string;
   file?: File;
@@ -60,8 +72,41 @@ const STORAGE_AUTOSAVE_KEY = 'idmis_offline_farmer_draft';
 export function FarmerRegistrationWizard() {
   const navigate = useNavigate();
   const { currentScope } = useScope();
-  const { success, error: toastError } = useToast();
+  const { success, error: toastError, warning } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
+
+  const [isOnline, setIsOnline] = React.useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Live Scheme Resolution
+  const { schemeId, schemeName, schemes, setSchemeId } = useEffectiveSchemeId(currentScope.id);
+
+  // Live Lookups
+  const { data: docTypes = [] } = useLookupValues('document_type');
+  const { data: maritalStatuses = [] } = useLookupValues('marital_status');
+
+  // Live Sectors for active scheme
+  const { organisations: sectorOrgs = [], isLoading: loadingSectors } = useOrganisations({
+    type: 'sector',
+    parentId: schemeId,
+  });
+
+  // Live WUAs for active scheme
+  const { wuas = [], isLoading: loadingWuas } = useWuas({
+    organisationId: schemeId,
+  });
 
   const [currentStep, setCurrentStep] = React.useState(1);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -74,36 +119,36 @@ export function FarmerRegistrationWizard() {
     lastName: '',
     otherNames: '',
     gender: 'male' as SlisGender,
-    birthYear: 1985,
+    birthYear: new Date().getFullYear() - 35,
     phone: '',
 
     // Step 2: Household
-    maritalStatus: 'married',
-    householdSize: 6,
-    dependents: 4,
+    maritalStatusCode: 'married',
+    householdSize: 1,
+    dependents: 0,
     nextOfKinName: '',
     nextOfKinPhone: '',
-    nextOfKinRelation: 'Spouse',
+    nextOfKinRelation: '',
 
     // Step 3: Location
-    stateId: '018f3a70-0001-7000-8000-000000000001', // Kano
-    lga: 'Kura',
-    wardId: '018f3a70-0002-7000-8000-000000000001',
-    village: 'Dan Hassan',
+    stateId: '018f3a5e-0001-7000-8000-000000000020', // Kano default
+    lgaId: '',
+    wardId: '',
+    village: '',
     latitude: 11.7584,
     longitude: 8.4289,
 
     // Step 4: WUA & Group
-    schemeId: currentScope.id || '018f3a70-0003-7000-8000-000000000001',
-    sectorId: '018f3a70-0004-7000-8000-000000000001',
-    unitWuaId: '018f3a70-0005-7000-8000-000000000001',
+    schemeId,
+    sectorId: '',
+    unitWuaId: '',
     farmerGroupId: '',
 
     // Step 5: Documents
     identities: [
       {
         id: generateUuidV7(),
-        type: 'NIN',
+        type: 'nin',
         number: '',
         bankName: '',
       },
@@ -113,6 +158,44 @@ export function FarmerRegistrationWizard() {
     portraitPhoto: null as File | null,
     portraitPreview: null as string | null,
   });
+
+  // Keep schemeId synchronized
+  React.useEffect(() => {
+    if (schemeId && formData.schemeId !== schemeId) {
+      setFormData((prev) => ({ ...prev, schemeId }));
+    }
+  }, [schemeId, formData.schemeId]);
+
+  // Set default sector / WUA when loaded
+  React.useEffect(() => {
+    if (sectorOrgs.length > 0 && !formData.sectorId) {
+      setFormData((prev) => ({ ...prev, sectorId: sectorOrgs[0]!.id }));
+    }
+  }, [sectorOrgs, formData.sectorId]);
+
+  React.useEffect(() => {
+    if (wuas.length > 0 && !formData.unitWuaId) {
+      setFormData((prev) => ({ ...prev, unitWuaId: wuas[0]!.id }));
+    }
+  }, [wuas, formData.unitWuaId]);
+
+  // Live Geography
+  const { states = [], isLoadingStates } = useGeography();
+  const { lgas = [] } = useLgas(formData.stateId);
+  const { wards = [] } = useWards(formData.lgaId);
+
+  // Set default LGA and Ward when options load
+  React.useEffect(() => {
+    if (lgas.length > 0 && (!formData.lgaId || !lgas.some((l) => l.id === formData.lgaId))) {
+      setFormData((prev) => ({ ...prev, lgaId: lgas[0]!.id }));
+    }
+  }, [lgas, formData.lgaId]);
+
+  React.useEffect(() => {
+    if (wards.length > 0 && (!formData.wardId || !wards.some((w) => w.id === formData.wardId))) {
+      setFormData((prev) => ({ ...prev, wardId: wards[0]!.id }));
+    }
+  }, [wards, formData.wardId]);
 
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
@@ -191,15 +274,15 @@ export function FarmerRegistrationWizard() {
     }
 
     if (step === 3) {
-      if (!formData.village.trim()) newErrors.village = 'Village name is required';
+      if (!formData.village.trim()) newErrors.village = 'Village / Settlement name is required';
     }
 
     if (step === 5) {
       for (const doc of formData.identities) {
-        if (doc.type === 'NIN' && doc.number && !/^\d{11}$/.test(doc.number)) {
+        if (doc.type === 'nin' && doc.number && !/^\d{11}$/.test(doc.number.trim())) {
           newErrors.nin = 'NIN must be exactly 11 digits';
         }
-        if (doc.type === 'BVN' && doc.number && !/^\d{11}$/.test(doc.number)) {
+        if (doc.type === 'bvn' && doc.number && !/^\d{11}$/.test(doc.number.trim())) {
           newErrors.bvn = 'BVN must be exactly 11 digits';
         }
       }
@@ -248,7 +331,7 @@ export function FarmerRegistrationWizard() {
         ...prev.identities,
         {
           id: generateUuidV7(),
-          type: 'voter_card',
+          type: 'voters_card',
           number: '',
         },
       ],
@@ -269,32 +352,44 @@ export function FarmerRegistrationWizard() {
     }));
   };
 
-  // Final Submission to Offline Outbox
+  // Helper to map doc type code to DB lookup_value UUID
+  const resolveDocTypeId = (typeCode: string) => {
+    const match = docTypes.find((d) => d.code.toLowerCase() === typeCode.toLowerCase());
+    return match?.id || '018f3a5e-0003-7000-8001-000000000001';
+  };
+
+  // Helper to map marital status code to DB lookup_value UUID
+  const resolveMaritalStatusId = (statusCode: string) => {
+    const match = maritalStatuses.find((m) => m.code.toLowerCase() === statusCode.toLowerCase());
+    return match?.id;
+  };
+
+  // Final Submission (Immediate online sync if available + Dexie fallback)
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
       const farmerId = generateUuidV7();
-      const farmerCode = `NG-KRIS-${Math.floor(100000 + Math.random() * 900000)}`;
+      const farmerCode = `FARM-KRIS-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const payload: CreateFarmerInput = {
         id: farmerId,
         schemeId: formData.schemeId,
         sectorId: formData.sectorId || undefined,
         farmerCode,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        otherNames: formData.otherNames || undefined,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        otherNames: formData.otherNames?.trim() || undefined,
         gender: formData.gender,
         birthYear: Number(formData.birthYear) || undefined,
-        phone: formData.phone || undefined,
-        village: formData.village || undefined,
+        phone: formData.phone?.trim() || undefined,
+        village: formData.village?.trim() || undefined,
         wardId: formData.wardId || undefined,
         unitWuaId: formData.unitWuaId || undefined,
-        farmerGroupId: formData.farmerGroupId || undefined,
-        maritalStatusId: formData.maritalStatus ? generateUuidV7() : undefined,
-        nextOfKinName: formData.nextOfKinName || undefined,
-        nextOfKinPhone: formData.nextOfKinPhone || undefined,
-        nextOfKinRelation: formData.nextOfKinRelation || undefined,
+        farmerGroupId: formData.farmerGroupId?.trim() || undefined,
+        maritalStatusId: resolveMaritalStatusId(formData.maritalStatusCode),
+        nextOfKinName: formData.nextOfKinName?.trim() || undefined,
+        nextOfKinPhone: formData.nextOfKinPhone?.trim() || undefined,
+        nextOfKinRelation: formData.nextOfKinRelation?.trim() || undefined,
         location: {
           type: 'Point',
           coordinates: [formData.longitude, formData.latitude],
@@ -303,20 +398,51 @@ export function FarmerRegistrationWizard() {
           .filter((d) => d.number.trim().length > 0)
           .map((d) => ({
             id: d.id,
-            documentTypeId: generateUuidV7(),
-            number: d.number,
-            bankName: d.bankName || undefined,
+            documentTypeId: resolveDocTypeId(d.type),
+            number: d.number.trim(),
+            bankName: d.bankName?.trim() || undefined,
           })),
       };
 
       // Strict contract validation
       CreateFarmerInputSchema.parse(payload);
 
-      // Save to device Dexie outbox
-      await store.commitInsert('farmer', farmerId, payload as unknown as Record<string, unknown>, {
-        schemeId: formData.schemeId,
-        stateId: formData.stateId,
-      });
+      let syncedOnline = false;
+
+      // Online attempt first
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const client = getApiClient();
+          await client.createFarmer(payload);
+          syncedOnline = true;
+        } catch (serverErr) {
+          console.warn('Direct online registration failed; falling back to offline outbox:', serverErr);
+        }
+      }
+
+      if (syncedOnline) {
+        // Cache cleanly in local storage (zero pending outbox ops)
+        await store.cacheCleanRecord(
+          'farmer',
+          farmerId,
+          payload as unknown as Record<string, unknown>,
+          {
+            schemeId: formData.schemeId,
+            stateId: formData.stateId,
+          },
+        );
+      } else {
+        // Queue in offline Dexie outbox
+        await store.commitInsert(
+          'farmer',
+          farmerId,
+          payload as unknown as Record<string, unknown>,
+          {
+            schemeId: formData.schemeId,
+            stateId: formData.stateId,
+          },
+        );
+      }
 
       // Queue photo if attached
       if (formData.portraitPhoto) {
@@ -335,12 +461,18 @@ export function FarmerRegistrationWizard() {
       // Clear autosave draft
       localStorage.removeItem(STORAGE_AUTOSAVE_KEY);
 
-      success(
-        'Farmer Registered',
-        `${formData.firstName} ${formData.lastName} (${farmerCode}) queued for synchronization.`,
-      );
+      if (syncedOnline) {
+        success(
+          'Farmer Registered & Synced',
+          `${formData.firstName} ${formData.lastName} (${farmerCode}) uploaded directly to server.`,
+        );
+      } else {
+        warning(
+          'Saved Offline',
+          `${formData.firstName} ${formData.lastName} saved to local outbox. Will sync automatically when connection is restored.`,
+        );
+      }
 
-      // Navigate to field records view
       navigate({ to: '/field/records' });
     } catch (err) {
       console.error('Farmer registration error:', err);
@@ -349,6 +481,9 @@ export function FarmerRegistrationWizard() {
       setIsSubmitting(false);
     }
   };
+
+  const selectedSector = sectorOrgs.find((s) => s.id === formData.sectorId);
+  const selectedWua = wuas.find((w) => w.id === formData.unitWuaId);
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-12">
@@ -360,12 +495,23 @@ export function FarmerRegistrationWizard() {
             Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1].title}
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs"
-        >
-          Autosaved on Device
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs flex items-center gap-1"
+            >
+              <Wifi className="h-3 w-3" /> Online
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="bg-amber-50 text-amber-800 border-amber-300 text-xs flex items-center gap-1"
+            >
+              <WifiOff className="h-3 w-3" /> Offline Outbox Active
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Stepper Progress Bar */}
@@ -425,7 +571,7 @@ export function FarmerRegistrationWizard() {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">First Name *</label>
                   <Input
-                    placeholder="e.g. Abubakar"
+                    placeholder="Enter first name"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     className={errors.firstName ? 'border-rose-500' : ''}
@@ -438,7 +584,7 @@ export function FarmerRegistrationWizard() {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Last Name *</label>
                   <Input
-                    placeholder="e.g. Danbatta"
+                    placeholder="Enter last name"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     className={errors.lastName ? 'border-rose-500' : ''}
@@ -453,7 +599,7 @@ export function FarmerRegistrationWizard() {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Other Names</label>
                   <Input
-                    placeholder="Middle name"
+                    placeholder="Middle name (optional)"
                     value={formData.otherNames}
                     onChange={(e) => setFormData({ ...formData, otherNames: e.target.value })}
                   />
@@ -479,8 +625,8 @@ export function FarmerRegistrationWizard() {
                   <label className="text-xs font-semibold text-slate-700">Birth Year</label>
                   <Input
                     type="number"
-                    min={1920}
-                    max={2015}
+                    min={1930}
+                    max={new Date().getFullYear() - 15}
                     value={formData.birthYear}
                     onChange={(e) =>
                       setFormData({ ...formData, birthYear: Number(e.target.value) })
@@ -514,16 +660,27 @@ export function FarmerRegistrationWizard() {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Marital Status</label>
                   <Select
-                    value={formData.maritalStatus}
-                    onValueChange={(val) => setFormData({ ...formData, maritalStatus: val })}
+                    value={formData.maritalStatusCode}
+                    onValueChange={(val) => setFormData({ ...formData, maritalStatusCode: val })}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="married">Married</SelectItem>
-                      <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="widowed">Widowed</SelectItem>
+                      {maritalStatuses.length > 0 ? (
+                        maritalStatuses.map((m) => (
+                          <SelectItem key={m.id} value={m.code}>
+                            {m.label}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="married">Married</SelectItem>
+                          <SelectItem value="single">Single</SelectItem>
+                          <SelectItem value="widowed">Widowed</SelectItem>
+                          <SelectItem value="divorced">Divorced</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -593,24 +750,78 @@ export function FarmerRegistrationWizard() {
                 3. Residence & GPS Coordinates
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">State / LGA</label>
-                  <Input value="Kano / Kura LGA" disabled className="bg-slate-50 text-slate-600" />
+                  <label className="text-xs font-semibold text-slate-700">State</label>
+                  <Select
+                    value={formData.stateId}
+                    onValueChange={(val) => setFormData({ ...formData, stateId: val, lgaId: '', wardId: '' })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={isLoadingStates ? 'Loading...' : 'Select State'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map((st) => (
+                        <SelectItem key={st.id} value={st.id}>
+                          {st.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Village / Settlement *
-                  </label>
-                  <Input
-                    placeholder="e.g. Dan Hassan"
-                    value={formData.village}
-                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                    className={errors.village ? 'border-rose-500' : ''}
-                  />
-                  {errors.village && <p className="text-[11px] text-rose-600">{errors.village}</p>}
+                  <label className="text-xs font-semibold text-slate-700">LGA</label>
+                  <Select
+                    value={formData.lgaId}
+                    onValueChange={(val) => setFormData({ ...formData, lgaId: val, wardId: '' })}
+                    disabled={lgas.length === 0}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={lgas.length === 0 ? 'No LGAs' : 'Select LGA'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lgas.map((lg) => (
+                        <SelectItem key={lg.id} value={lg.id}>
+                          {lg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Ward</label>
+                  <Select
+                    value={formData.wardId}
+                    onValueChange={(val) => setFormData({ ...formData, wardId: val })}
+                    disabled={wards.length === 0}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={wards.length === 0 ? 'No Wards' : 'Select Ward'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {wards.map((wd) => (
+                        <SelectItem key={wd.id} value={wd.id}>
+                          {wd.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Village / Settlement Name *
+                </label>
+                <Input
+                  placeholder="Enter village or settlement name"
+                  value={formData.village}
+                  onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                  className={errors.village ? 'border-rose-500' : ''}
+                />
+                {errors.village && <p className="text-[11px] text-rose-600">{errors.village}</p>}
               </div>
 
               {/* GPS Capture */}
@@ -677,11 +888,32 @@ export function FarmerRegistrationWizard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">Irrigation Scheme</label>
-                  <Input
-                    value="Kano River Irrigation Scheme (KRIS)"
-                    disabled
-                    className="bg-slate-50 text-slate-600"
-                  />
+                  {schemes.length > 1 ? (
+                    <Select
+                      value={formData.schemeId}
+                      onValueChange={(val) => {
+                        setSchemeId(val);
+                        setFormData({ ...formData, schemeId: val, sectorId: '', unitWuaId: '' });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Scheme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schemes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={schemeName}
+                      disabled
+                      className="bg-slate-50 text-slate-700 font-medium"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -691,20 +923,25 @@ export function FarmerRegistrationWizard() {
                   <Select
                     value={formData.sectorId}
                     onValueChange={(val) => setFormData({ ...formData, sectorId: val })}
+                    disabled={sectorOrgs.length === 0}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sector" />
+                      <SelectValue
+                        placeholder={
+                          loadingSectors
+                            ? 'Loading sectors...'
+                            : sectorOrgs.length === 0
+                              ? 'No sectors available'
+                              : 'Select Sector'
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="018f3a70-0004-7000-8000-000000000001">
-                        Sector B4 (Western Main)
-                      </SelectItem>
-                      <SelectItem value="018f3a70-0004-7000-8000-000000000002">
-                        Sector A2 (Kura Branch)
-                      </SelectItem>
-                      <SelectItem value="018f3a70-0004-7000-8000-000000000003">
-                        Sector C1 (Eastern Lateral)
-                      </SelectItem>
+                      {sectorOrgs.map((sec) => (
+                        <SelectItem key={sec.id} value={sec.id}>
+                          {sec.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -716,17 +953,25 @@ export function FarmerRegistrationWizard() {
                   <Select
                     value={formData.unitWuaId}
                     onValueChange={(val) => setFormData({ ...formData, unitWuaId: val })}
+                    disabled={wuas.length === 0}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="WUA Unit" />
+                      <SelectValue
+                        placeholder={
+                          loadingWuas
+                            ? 'Loading WUAs...'
+                            : wuas.length === 0
+                              ? 'No WUAs in this scheme'
+                              : 'Select WUA Unit'
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="018f3a70-0005-7000-8000-000000000001">
-                        Galadima WUA Cluster 3
-                      </SelectItem>
-                      <SelectItem value="018f3a70-0005-7000-8000-000000000002">
-                        Danbatta Apex WUA 1
-                      </SelectItem>
+                      {wuas.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -793,11 +1038,21 @@ export function FarmerRegistrationWizard() {
                           <SelectValue placeholder="Doc Type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="NIN">National Identity Number (NIN)</SelectItem>
-                          <SelectItem value="BVN">Bank Verification Number (BVN)</SelectItem>
-                          <SelectItem value="voter_card">INEC Voter's Card</SelectItem>
-                          <SelectItem value="bank_account">Commercial Bank Account</SelectItem>
-                          <SelectItem value="drivers_licence">Driver's Licence</SelectItem>
+                          {docTypes.length > 0 ? (
+                            docTypes.map((dt) => (
+                              <SelectItem key={dt.id} value={dt.code}>
+                                {dt.label}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <>
+                              <SelectItem value="nin">National Identity Number (NIN)</SelectItem>
+                              <SelectItem value="bvn">Bank Verification Number (BVN)</SelectItem>
+                              <SelectItem value="voters_card">INEC Voter's Card</SelectItem>
+                              <SelectItem value="bank_account">Bank Account Number</SelectItem>
+                              <SelectItem value="drivers_license">Driver's License</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
 
@@ -847,7 +1102,7 @@ export function FarmerRegistrationWizard() {
                     <div className="text-center">
                       <p className="text-xs font-bold text-slate-800">Capture or Upload Portrait</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Compressed client-side to ~1600px for offline efficiency.
+                        Compressed client-side to ~1600px for efficient sync.
                       </p>
                     </div>
                   </>
@@ -881,7 +1136,7 @@ export function FarmerRegistrationWizard() {
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Farmer Name:</span>
                   <span className="font-bold text-slate-900">
-                    {formData.firstName} {formData.lastName}
+                    {formData.firstName || '—'} {formData.lastName || '—'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
@@ -897,29 +1152,41 @@ export function FarmerRegistrationWizard() {
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Village & GPS:</span>
                   <span className="font-semibold text-slate-800">
-                    {formData.village} ({formData.latitude.toFixed(4)},{' '}
+                    {formData.village || '—'} ({formData.latitude.toFixed(4)},{' '}
                     {formData.longitude.toFixed(4)})
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">WUA / Scheme:</span>
+                  <span className="text-slate-500">WUA / Sector / Scheme:</span>
                   <span className="font-semibold text-slate-800">
-                    Galadima WUA · KRIS Western Branch
+                    {selectedWua?.name || 'Selected WUA'} · {selectedSector?.name || 'Selected Sector'} · {schemeName}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Identity Docs:</span>
                   <span className="font-semibold text-teal-800">
-                    {formData.identities.filter((d) => d.number).length} document(s) attached
+                    {formData.identities.filter((d) => d.number.trim()).length} document(s) attached
                   </span>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 text-xs">
-                <span className="font-bold">Offline Storage Guarantee: </span>
-                Clicking submit saves this record directly to your device's offline Dexie database
-                with an outbox mutation op. It will automatically synchronize when internet returns.
-              </div>
+              {isOnline ? (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start gap-2">
+                  <Wifi className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Online Connection Active: </span>
+                    Submitting will immediately send this farmer record to the central server and persist an offline backup copy on this device.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+                  <WifiOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Offline Storage Guarantee: </span>
+                    You are currently offline. This record will be safely stored in your local Dexie database and automatically synchronized as soon as internet connectivity returns.
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -968,7 +1235,7 @@ export function FarmerRegistrationWizard() {
                 disabled={isSubmitting}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-md"
               >
-                {isSubmitting ? 'Saving Offline...' : 'Submit & Save Record'}
+                {isSubmitting ? 'Submitting...' : isOnline ? 'Submit & Sync Record' : 'Save Offline Record'}
               </Button>
             )}
           </div>

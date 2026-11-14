@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { SyncEngine, type SyncState, localDb, LocalStore } from '@idmis/sync';
 import { useAuth } from '../auth';
 import { useScope } from '../shell/ScopeContext';
+import { getOrCreateDeviceInfo, ensureDeviceRegistered } from './device';
 
 export interface SyncContextValue {
   syncState: SyncState;
@@ -15,17 +16,26 @@ export interface SyncContextValue {
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
-  const { client, isAuthenticated } = useAuth();
+  const { client, isAuthenticated, user } = useAuth();
   const { currentScope } = useScope();
 
   const store = useMemo(() => new LocalStore(localDb), []);
+  const { deviceId } = useMemo(() => getOrCreateDeviceInfo(), []);
+
   const engine = useMemo(() => {
     return new SyncEngine({
       apiClient: client,
       store,
-      deviceId: 'web-pwa-client',
+      deviceId,
     });
-  }, [client, store]);
+  }, [client, store, deviceId]);
+
+  // Ensure device is registered with backend once user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      ensureDeviceRegistered(user.id);
+    }
+  }, [isAuthenticated, user?.id]);
 
   const [syncState, setSyncState] = useState<SyncState>(engine.getState());
   const [pendingOpsCount, setPendingOpsCount] = useState<number>(0);

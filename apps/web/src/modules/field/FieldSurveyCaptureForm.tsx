@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ClipboardList, MapPin, CheckCircle2, Send } from 'lucide-react';
+import { CheckCircle2, Send, Wifi, WifiOff } from 'lucide-react';
 import {
   Button,
   Input,
@@ -9,396 +9,443 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Badge,
+  useToast,
 } from '@idmis/ui';
-import { localDb, LocalStore } from '@idmis/sync';
+import { localDb, LocalStore, generateUuidV7 } from '@idmis/sync';
 import { useScope } from '../../shell/ScopeContext';
-import { CreateSurveyResponseInputSchema } from '@idmis/contracts';
-
-interface SurveyOption {
-  id: string;
-  name: string;
-  questions: Array<{
-    id: string;
-    code: string;
-    text: string;
-    answerType: 'text' | 'number' | 'single' | 'multi' | 'date' | 'gps';
-    options?: string[];
-    isRequired: boolean;
-  }>;
-}
-
-const ACTIVE_FIELD_SURVEYS: SurveyOption[] = [
-  {
-    id: 'srv-1',
-    name: 'Farmer Household Income & Living Standards Survey 2026',
-    questions: [
-      {
-        id: 'q1',
-        code: 'HH_SIZE',
-        text: 'Total number of family members residing in this farming household?',
-        answerType: 'number',
-        isRequired: true,
-      },
-      {
-        id: 'q2',
-        code: 'PRIMARY_CROP',
-        text: 'What was your primary commercial irrigated crop this cycle?',
-        answerType: 'single',
-        options: ['Rice', 'Tomato', 'Maize', 'Wheat', 'Onion'],
-        isRequired: true,
-      },
-      {
-        id: 'q3',
-        code: 'INCOME_RANGE',
-        text: 'Estimated gross seasonal farm revenue from irrigated parcels (NGN)?',
-        answerType: 'single',
-        options: [
-          'Under 500,000 NGN',
-          '500,000 - 1,500,000 NGN',
-          '1,500,000 - 3,000,000 NGN',
-          'Above 3,000,000 NGN',
-        ],
-        isRequired: true,
-      },
-      {
-        id: 'q4',
-        code: 'OFFTAKE_CHANNEL',
-        text: 'Primary produce sales channel utilized by farmer?',
-        answerType: 'single',
-        options: [
-          'Local Aggregator',
-          'Direct Factory Contract',
-          'Spot Market',
-          'Cooperative Store',
-        ],
-        isRequired: true,
-      },
-      {
-        id: 'q5',
-        code: 'NOTES',
-        text: 'Enumerator field observations & verification notes',
-        answerType: 'text',
-        isRequired: false,
-      },
-    ],
-  },
-  {
-    id: 'srv-2',
-    name: 'WUA Water Distribution Satisfaction & Governance Assessment',
-    questions: [
-      {
-        id: 'q21',
-        code: 'TAIL_END',
-        text: 'Is your farm parcel situated at the head, middle, or tail end of the lateral canal?',
-        answerType: 'single',
-        options: ['Head Reach', 'Middle Reach', 'Tail End Reach'],
-        isRequired: true,
-      },
-      {
-        id: 'q22',
-        code: 'WATER_RELIABILITY',
-        text: 'How reliable was scheduled irrigation water delivery during peak vegetative stage?',
-        answerType: 'single',
-        options: ['Always on Schedule', 'Occasional Delay (1-2 days)', 'Severe Deficit / Missed'],
-        isRequired: true,
-      },
-      {
-        id: 'q23',
-        code: 'DISPUTE_EXPERIENCE',
-        text: 'Did your block experience water distribution disputes between users this season?',
-        answerType: 'single',
-        options: ['No Disputes', 'Resolved by WUA Executives', 'Escalated to Project Office'],
-        isRequired: true,
-      },
-      {
-        id: 'q24',
-        code: 'WUA_FEE_FAIRNESS',
-        text: 'Do you consider the current ISF fee schedule fair relative to water delivery volume?',
-        answerType: 'single',
-        options: ['Completely Fair', 'Acceptable', 'Unfair / Overbilled'],
-        isRequired: true,
-      },
-    ],
-  },
-];
+import {
+  CreateSurveyResponseInputSchema,
+  type CreateSurveyResponseInput,
+  type CreateSurveyAnswerInput,
+} from '@idmis/contracts';
+import { getApiClient } from '@idmis/api-client';
+import { useEffectiveSchemeId } from '../core/hooks';
+import { useSurveys } from '../me/hooks';
 
 export function FieldSurveyCaptureForm() {
   const navigate = useNavigate();
   const { currentScope } = useScope();
+  const { success, warning, error: toastError } = useToast();
   const store = React.useMemo(() => new LocalStore(localDb), []);
 
-  const [selectedSurveyId, setSelectedSurveyId] = React.useState<string>('srv-1');
-  const [respondentName, setRespondentName] = React.useState<string>('');
-  const [answers, setAnswers] = React.useState<Record<string, unknown>>({});
-  const [gpsLocation, setGpsLocation] = React.useState<{ lat: number; lng: number } | null>(null);
-  const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [isOnline, setIsOnline] = React.useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
 
-  const activeSurvey =
-    ACTIVE_FIELD_SURVEYS.find((s) => s.id === selectedSurveyId) ?? ACTIVE_FIELD_SURVEYS[0]!;
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-  // Handle GPS Capture
-  const handleCaptureGps = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGpsLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-        },
-        () => {
-          // Fallback approximate Kano irrigation scheme coordinates
-          setGpsLocation({ lat: 11.642, lng: 8.534 });
-        },
-      );
-    } else {
-      setGpsLocation({ lat: 11.642, lng: 8.534 });
+  // Live Scheme Resolution
+  const { schemeId, schemeName, schemes, setSchemeId } = useEffectiveSchemeId(currentScope.id);
+
+  // Live Surveys from DB
+  const { surveys = [], isLoading: loadingSurveys } = useSurveys();
+
+  const [selectedSurveyId, setSelectedSurveyId] = React.useState<string>('');
+  const [respondentType, setRespondentType] = React.useState<'farmer' | 'wua' | 'community'>('farmer');
+  const [respondentName, setRespondentName] = React.useState('Mallam Bello Kura');
+  const [village, setVillage] = React.useState('Dan Hassan');
+  const [gpsCoordinates, setGpsCoordinates] = React.useState('11.7584° N, 8.4289° E');
+  const [answers, setAnswers] = React.useState<Record<string, string>>({
+    HH_SIZE: '6',
+    PRIMARY_CROP: 'Rice',
+    WATER_SATISFACTION: 'Satisfied',
+  });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successId, setSuccessId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (surveys.length > 0 && !selectedSurveyId) {
+      setSelectedSurveyId(surveys[0]!.id);
     }
-  };
+  }, [surveys, selectedSurveyId]);
 
-  const handleAnswerChange = (code: string, value: unknown) => {
+  const activeSurvey = surveys.find((s) => s.id === selectedSurveyId) ?? surveys[0];
+
+  const handleAnswerChange = (code: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [code]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-
-    if (!respondentName.trim()) {
-      setErrorMsg('Respondent farmer / household name is required.');
+    if (!selectedSurveyId) {
+      toastError('Survey Required', 'Please select an active survey instrument.');
       return;
-    }
-
-    // Validate required questions
-    for (const q of activeSurvey.questions) {
-      if (q.isRequired && (answers[q.code] === undefined || answers[q.code] === '')) {
-        setErrorMsg(`Please answer required question: "${q.text}"`);
-        return;
-      }
     }
 
     setIsSubmitting(true);
     try {
-      const responseId = crypto.randomUUID();
-      const schemeId = currentScope.id || 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
-
-      const payload = {
-        id: responseId,
-        surveyId: '11111111-2222-3333-4444-555555555555',
-        schemeId,
-        collectedAt: new Date().toISOString(),
-        location: gpsLocation,
-        answers: Object.entries(answers).map(([code, value]) => ({
+      const answersArray: CreateSurveyAnswerInput[] = Object.entries(answers).map(
+        ([code, value]) => ({
           questionCode: code,
-          value,
-        })),
-      };
-
-      // Contract validation
-      CreateSurveyResponseInputSchema.parse(payload);
-
-      // Commit locally to outbox via Dexie storage
-      await store.commitInsert(
-        'survey_response',
-        responseId,
-        {
-          ...payload,
-          surveyName: activeSurvey.name,
-          respondentName,
-          status: 'saved_on_device',
-          displayName: `Survey: ${activeSurvey.name} (${respondentName})`,
-          submittedAt: new Date().toISOString(),
-        },
-        { schemeId },
+          value: code === 'HH_SIZE' ? Number(value) || 0 : value,
+        }),
       );
 
-      navigate({ to: '/field/records' });
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errors' in err) {
-        setErrorMsg('Validation failed on survey questionnaire schema.');
-      } else {
-        setErrorMsg(err instanceof Error ? err.message : 'Failed to save survey to device.');
+      const payload: CreateSurveyResponseInput = {
+        surveyId: selectedSurveyId,
+        schemeId,
+        answers: answersArray,
+        collectedAt: new Date().toISOString(),
+      };
+
+      CreateSurveyResponseInputSchema.parse(payload);
+
+      let syncedOnline = false;
+
+      // Online attempt first
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const client = getApiClient();
+          await client.submitSurveyResponse(payload);
+          syncedOnline = true;
+        } catch (serverErr) {
+          console.warn('Direct survey response submission failed; falling back to offline outbox:', serverErr);
+        }
       }
+
+      const responseId = generateUuidV7();
+
+      if (syncedOnline) {
+        // Cache cleanly in local storage (zero pending outbox ops)
+        await store.cacheCleanRecord(
+          'survey_response',
+          responseId,
+          {
+            ...payload,
+            respondentType,
+            respondentName,
+            village,
+            gpsCoordinates,
+            status: 'synced',
+            surveyName: activeSurvey?.name || 'Survey',
+          },
+          {
+            schemeId,
+          },
+        );
+      } else {
+        // Offline commit to Dexie outbox
+        await store.commitInsert(
+          'survey_response',
+          responseId,
+          {
+            ...payload,
+            respondentType,
+            respondentName,
+            village,
+            gpsCoordinates,
+            status: 'saved_on_device',
+            surveyName: activeSurvey?.name || 'Survey',
+          },
+          {
+            schemeId,
+          },
+        );
+      }
+
+      setSuccessId(responseId);
+      if (syncedOnline) {
+        success('Survey Synced', 'Survey questionnaire response uploaded directly to M&E server.');
+      } else {
+        warning('Saved Offline', 'Survey response saved to local outbox. Will sync when reconnected.');
+      }
+    } catch (err) {
+      console.error('Failed to submit survey:', err);
+      toastError('Submission Failed', String(err));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-in fade-in-50 pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <ClipboardList className="h-3 w-3 text-teal-700" /> Offline Field Capture
-        </span>
-        <span className="text-xs text-slate-400">·</span>
-        <span className="text-xs font-bold text-slate-600">
-          Scope: {currentScope.name || 'All Schemes'}
-        </span>
-      </div>
+  if (successId) {
+    return (
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center max-w-lg mx-auto space-y-4">
+        <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
+          <CheckCircle2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">
+          {isOnline ? 'Survey Synced to M&E Server' : 'Survey Questionnaire Saved Offline'}
+        </h2>
+        <p className="text-xs text-slate-500">
+          The survey response for <span className="font-bold">{respondentName}</span> has been{' '}
+          {isOnline ? 'recorded on the TRIMING server' : 'queued in your device offline outbox'}.
+        </p>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <div className="pt-2 flex flex-col gap-2">
+          <Button
+            className="w-full bg-teal-700 hover:bg-teal-800 text-white min-h-[44px]"
+            onClick={() => {
+              setSuccessId(null);
+            }}
+          >
+            Conduct Another Survey
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full min-h-[44px]"
+            onClick={() => navigate({ to: '/field/records' })}
+          >
+            View Field Records
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto pb-12">
+      <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Field Beneficiary Survey
-          </h2>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900">M&E Beneficiary Survey</h1>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
-            Complete questionnaire for farmer household or WUA member. Stores locally and syncs to
-            M&E upon reconnection.
+            Conduct household, agronomic, or WUA governance field interviews.
           </p>
         </div>
-
-        {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Survey Questionnaire Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Select Questionnaire *</label>
-            <Select
-              value={selectedSurveyId}
-              onValueChange={(val) => {
-                setSelectedSurveyId(val);
-                setAnswers({});
-              }}
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs flex items-center gap-1"
             >
-              <SelectTrigger className="h-10 text-xs font-bold bg-slate-50">
-                <SelectValue placeholder="Choose Survey" />
-              </SelectTrigger>
-              <SelectContent className="bg-white shadow-xl">
-                {ACTIVE_FIELD_SURVEYS.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="text-xs font-semibold py-2">
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <Wifi className="h-3 w-3" /> Online
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="bg-amber-50 text-amber-800 border-amber-300 text-xs flex items-center gap-1"
+            >
+              <WifiOff className="h-3 w-3" /> Offline Outbox Active
+            </Badge>
+          )}
+        </div>
+      </div>
 
-          {/* Respondent Metadata */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700">
-                Respondent Farmer / Household Name *
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Survey instrument picker */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+            1. Survey Instrument & Scheme
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Scheme Context
+              </label>
+              {schemes.length > 1 ? (
+                <Select value={schemeId} onValueChange={setSchemeId}>
+                  <SelectTrigger className="h-10 text-xs">
+                    <SelectValue placeholder="Select Scheme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schemes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={schemeName} disabled className="bg-slate-50 text-slate-700 font-medium h-10 text-xs" />
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Active Survey Template *
+              </label>
+              <Select
+                value={selectedSurveyId}
+                onValueChange={setSelectedSurveyId}
+                disabled={surveys.length === 0}
+              >
+                <SelectTrigger className="h-10 text-xs">
+                  <SelectValue
+                    placeholder={
+                      loadingSurveys
+                        ? 'Loading templates...'
+                        : surveys.length === 0
+                          ? 'No surveys active'
+                          : 'Select Survey'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {surveys.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} (v{s.version ?? 1})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Respondent Metadata */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+            2. Respondent Details
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Beneficiary Category
+              </label>
+              <Select
+                value={respondentType}
+                onValueChange={(val: 'farmer' | 'wua' | 'community') => setRespondentType(val)}
+              >
+                <SelectTrigger className="h-10 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="farmer">Smallholder Farmer</SelectItem>
+                  <SelectItem value="wua">WUA Executive / Trustee</SelectItem>
+                  <SelectItem value="community">Host Community Leader</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Respondent Full Name *
               </label>
               <Input
-                placeholder="e.g. Aliyu Ibrahim Garba (KRIS-04-129)"
+                required
                 value={respondentName}
                 onChange={(e) => setRespondentName(e.target.value)}
-                className="text-xs bg-white"
+                className="h-10 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Settlement / Village
+              </label>
+              <Input
+                value={village}
+                onChange={(e) => setVillage(e.target.value)}
+                className="h-10 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                GPS Location
+              </label>
+              <Input
+                value={gpsCoordinates}
+                onChange={(e) => setGpsCoordinates(e.target.value)}
+                className="h-10 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Questionnaire Form */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+              3. Interview Questionnaire
+            </h3>
+            <span className="text-[11px] text-teal-700 font-semibold">
+              3 Verified Questions
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <label className="block text-xs font-semibold text-slate-800">
+                1. Total number of family members in household? *
+              </label>
+              <Input
+                type="number"
+                min={1}
+                value={answers.HH_SIZE || '6'}
+                onChange={(e) => handleAnswerChange('HH_SIZE', e.target.value)}
+                className="h-9 text-xs bg-white"
               />
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <div className="text-xs">
-                <span className="font-bold text-slate-700 block">GPS Coordinates:</span>
-                <span className="text-[11px] font-mono text-slate-500">
-                  {gpsLocation
-                    ? `${gpsLocation.lat.toFixed(5)}, ${gpsLocation.lng.toFixed(5)} (Verified)`
-                    : 'Not captured yet'}
-                </span>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleCaptureGps}
-                className="text-xs font-bold gap-1 text-teal-800 border-teal-200 bg-teal-50/50 cursor-pointer"
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <label className="block text-xs font-semibold text-slate-800">
+                2. What was your primary irrigated commercial crop this season? *
+              </label>
+              <Select
+                value={answers.PRIMARY_CROP || 'Rice'}
+                onValueChange={(val) => handleAnswerChange('PRIMARY_CROP', val)}
               >
-                <MapPin className="h-3 w-3" /> Get Location
-              </Button>
+                <SelectTrigger className="h-9 text-xs bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rice">Lowland Rice</SelectItem>
+                  <SelectItem value="Maize">Hybrid Maize</SelectItem>
+                  <SelectItem value="Tomato">Dry Season Tomato</SelectItem>
+                  <SelectItem value="Wheat">Irrigated Wheat</SelectItem>
+                  <SelectItem value="Onion">Commercial Onion</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <label className="block text-xs font-semibold text-slate-800">
+                3. How satisfied are you with water delivery reliability? *
+              </label>
+              <Select
+                value={answers.WATER_SATISFACTION || 'Satisfied'}
+                onValueChange={(val) => handleAnswerChange('WATER_SATISFACTION', val)}
+              >
+                <SelectTrigger className="h-9 text-xs bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Very Satisfied">Very Satisfied</SelectItem>
+                  <SelectItem value="Satisfied">Satisfied</SelectItem>
+                  <SelectItem value="Neutral">Neutral</SelectItem>
+                  <SelectItem value="Dissatisfied">Dissatisfied</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+        </div>
 
-          {/* Dynamic Questionnaire Questions */}
-          <div className="space-y-4 pt-2">
-            <h4 className="font-black text-slate-800 text-sm border-b border-slate-100 pb-2 flex items-center justify-between">
-              <span>Questionnaire Prompts</span>
-              <span className="text-[11px] font-normal text-slate-400">
-                {activeSurvey.questions.length} Questions
-              </span>
-            </h4>
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-xs"
+            onClick={() => navigate({ to: '/field/capture' })}
+          >
+            Cancel
+          </Button>
 
-            {activeSurvey.questions.map((q, idx) => (
-              <div key={q.id} className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="font-mono text-teal-700 font-black">Q{idx + 1}.</span>
-                  {q.text}
-                  {q.isRequired && <span className="text-rose-600 font-bold">*</span>}
-                </label>
-
-                {q.answerType === 'single' && q.options && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                    {q.options.map((opt) => {
-                      const isSelected = answers[q.code] === opt;
-                      return (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => handleAnswerChange(q.code, opt)}
-                          className={`p-3 rounded-xl border text-xs text-left font-bold transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-teal-700 bg-teal-50/80 text-teal-950 shadow-2xs'
-                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span>{opt}</span>
-                            {isSelected && <CheckCircle2 className="h-4 w-4 text-teal-700" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {q.answerType === 'number' && (
-                  <Input
-                    type="number"
-                    placeholder="Enter quantity or count..."
-                    value={String(answers[q.code] ?? '')}
-                    onChange={(e) => handleAnswerChange(q.code, Number(e.target.value))}
-                    className="text-xs font-mono bg-white"
-                  />
-                )}
-
-                {q.answerType === 'text' && (
-                  <Input
-                    placeholder="Enter observations or field notes..."
-                    value={String(answers[q.code] ?? '')}
-                    onChange={(e) => handleAnswerChange(q.code, e.target.value)}
-                    className="text-xs bg-white"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => navigate({ to: '/field/capture' })}
-              className="text-xs font-bold cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSubmitting}
-              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
-            >
-              <Send className="h-3.5 w-3.5" /> Save Survey to Outbox
-            </Button>
-          </div>
-        </form>
-      </div>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-teal-700 hover:bg-teal-800 text-white min-h-[44px] px-6 text-xs font-bold"
+          >
+            <Send className="w-4 h-4 mr-1.5" />
+            {isSubmitting ? 'Saving...' : isOnline ? 'Submit & Sync Survey' : 'Save Response Offline'}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

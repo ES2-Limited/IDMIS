@@ -34,8 +34,20 @@ import type {
   CreatePlotInput,
   UpdatePlotInput,
   ListPlotsQuery,
+  WaterRequestResponse,
+  CreateWaterRequestInput,
+  CropProductionResponse,
+  CreateCropProductionInput,
+  FeeCollectionResponse,
+  CreateFeeCollectionInput,
+  FeeBillingResponse,
+  ListFeeBillingsQuery,
+  TrainingAttendanceResponse,
+  RecordTrainingAttendanceInput,
   SyncPushInput,
   SyncPushResponse,
+  RegisterDeviceInput,
+  RegisterDeviceResponse,
   // BLIS Contracts
   Basin,
   ListBasinsQuery,
@@ -56,6 +68,8 @@ import type {
   CreateIndicatorValueInput,
   IndicatorValue,
   DashboardResponse,
+  CreateSurveyResponseInput,
+  SurveyResponse,
 } from '@idmis/contracts';
 
 export interface ApiClientOptions {
@@ -413,6 +427,53 @@ export class ApiClient {
     });
   }
 
+  public async createWaterRequest(body: CreateWaterRequestInput): Promise<WaterRequestResponse> {
+    return this.request<WaterRequestResponse>('/slis/water-requests', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  public async createCropProduction(
+    body: CreateCropProductionInput,
+  ): Promise<CropProductionResponse> {
+    return this.request<CropProductionResponse>('/slis/crops', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  public async getFeeBillings(
+    query?: ListFeeBillingsQuery,
+  ): Promise<{ items: FeeBillingResponse[]; nextCursor?: string | null }> {
+    return this.request<{ items: FeeBillingResponse[]; nextCursor?: string | null }>(
+      `/slis/fees/billings${buildQueryString(query)}`,
+    );
+  }
+
+  public async createFeeCollection(body: CreateFeeCollectionInput): Promise<FeeCollectionResponse> {
+    return this.request<FeeCollectionResponse>('/slis/fees/collections', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  public async recordTrainingAttendance(
+    body: RecordTrainingAttendanceInput,
+  ): Promise<TrainingAttendanceResponse> {
+    return this.request<TrainingAttendanceResponse>('/slis/trainings/attendance', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  public async registerDevice(body: RegisterDeviceInput): Promise<RegisterDeviceResponse> {
+    return this.request<RegisterDeviceResponse>('/slis/sync/device/register', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
   public async pushSync(body: SyncPushInput): Promise<SyncPushResponse> {
     return this.request<SyncPushResponse>('/slis/sync/push', {
       method: 'POST',
@@ -501,6 +562,13 @@ export class ApiClient {
 
   public async submitQuarterlyValue(body: CreateIndicatorValueInput): Promise<IndicatorValue> {
     return this.request<IndicatorValue>('/me/values', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  public async submitSurveyResponse(body: CreateSurveyResponseInput): Promise<SurveyResponse> {
+    return this.request<SurveyResponse>(`/me/surveys/${body.surveyId}/responses`, {
       method: 'POST',
       body: JSON.stringify(body),
     });

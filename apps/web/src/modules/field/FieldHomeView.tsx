@@ -149,7 +149,7 @@ export function FieldHomeView() {
           </Link>
 
           <Link
-            to="/slis"
+            to="/field/capture/water"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 w-fit group-hover:scale-105 transition-transform">
@@ -164,7 +164,7 @@ export function FieldHomeView() {
           </Link>
 
           <Link
-            to="/slis"
+            to="/field/capture/fee"
             className="group p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-500 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[120px]"
           >
             <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 w-fit group-hover:scale-105 transition-transform">
