@@ -29,8 +29,28 @@ export function useBasins() {
     },
   });
 
+  // Extract array safely from items, data, or raw array
+  const raw = basinsQuery.data as unknown;
+  let basins: Basin[] = [];
+  let total = 0;
+
+  if (Array.isArray(raw)) {
+    basins = raw as Basin[];
+    total = raw.length;
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as { items?: unknown; data?: unknown; total?: number };
+    if (Array.isArray(obj.items)) {
+      basins = obj.items as Basin[];
+      total = obj.total ?? basins.length;
+    } else if (Array.isArray(obj.data)) {
+      basins = obj.data as Basin[];
+      total = obj.total ?? basins.length;
+    }
+  }
+
   return {
-    basins: (basinsQuery.data as Basin[] | undefined) ?? [],
+    basins,
+    total,
     isLoading: basinsQuery.isLoading,
     isFetching: basinsQuery.isFetching,
     error: basinsQuery.error,

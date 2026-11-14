@@ -17,6 +17,22 @@ export const BLIS_STATIONS_QUERY_KEY = ['blis', 'stations'] as const;
 export const BLIS_DAMS_QUERY_KEY = ['blis', 'dams'] as const;
 export const BLIS_INSPECTIONS_QUERY_KEY = ['blis', 'inspections'] as const;
 
+function extractList<T>(raw: unknown): { items: T[]; total: number } {
+  if (Array.isArray(raw)) {
+    return { items: raw as T[], total: raw.length };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { items?: unknown; data?: unknown; total?: number };
+    if (Array.isArray(obj.items)) {
+      return { items: obj.items as T[], total: obj.total ?? obj.items.length };
+    }
+    if (Array.isArray(obj.data)) {
+      return { items: obj.data as T[], total: obj.total ?? obj.data.length };
+    }
+  }
+  return { items: [], total: 0 };
+}
+
 export function useStations(query?: Partial<ListStationsQuery>) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -47,9 +63,11 @@ export function useStations(query?: Partial<ListStationsQuery>) {
     },
   });
 
+  const { items: stations, total } = extractList<Station>(stationsQuery.data);
+
   return {
-    stations: (stationsQuery.data?.items as Station[] | undefined) ?? [],
-    total: stationsQuery.data?.total,
+    stations,
+    total: stationsQuery.data?.total ?? total,
     isLoading: stationsQuery.isLoading,
     isFetching: stationsQuery.isFetching,
     error: stationsQuery.error,
@@ -90,9 +108,11 @@ export function useDams(query?: Partial<ListDamsQuery>) {
     },
   });
 
+  const { items: dams, total } = extractList<Dam>(damsQuery.data);
+
   return {
-    dams: (damsQuery.data?.items as Dam[] | undefined) ?? [],
-    total: damsQuery.data?.total,
+    dams,
+    total: damsQuery.data?.total ?? total,
     isLoading: damsQuery.isLoading,
     isFetching: damsQuery.isFetching,
     error: damsQuery.error,
@@ -125,9 +145,11 @@ export function useDamInspections(query?: ListDamInspectionsQuery) {
     },
   });
 
+  const { items: inspections, total } = extractList<DamSafetyInspection>(inspectionsQuery.data);
+
   return {
-    inspections: (inspectionsQuery.data?.items as DamSafetyInspection[] | undefined) ?? [],
-    total: inspectionsQuery.data?.total,
+    inspections,
+    total: inspectionsQuery.data?.total ?? total,
     isLoading: inspectionsQuery.isLoading,
     isFetching: inspectionsQuery.isFetching,
     error: inspectionsQuery.error,
