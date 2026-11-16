@@ -28,7 +28,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.91.0",
-    "react-i18next": "^17.1.11"
+    "react-i18next": "^18.0.1"
   },
   "devDependencies": {
     "@idmis/config": "workspace:*",
