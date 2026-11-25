@@ -9,7 +9,7 @@ describe('App Shell & Routing Foundations', () => {
     const scheme = defaultScopes.find((s) => s.type === 'scheme');
     expect(national).toBeDefined();
     expect(scheme).toBeDefined();
-    expect(national?.name).toContain('National');
+    expect(national?.name).toBe('Nationwide');
     expect(scheme?.name).toContain('Kano River');
   });
 
