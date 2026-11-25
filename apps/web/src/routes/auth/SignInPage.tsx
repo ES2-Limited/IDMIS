@@ -83,7 +83,7 @@ export function SignInPage() {
             ID
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            TRIMING <span className="text-teal-400 font-bold">IDMIS 2.0</span>
+            SPIN <span className="text-teal-400 font-bold">IDMIS 2.0</span>
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-xs mx-auto">
             {tCommon('brand.subtitle')}

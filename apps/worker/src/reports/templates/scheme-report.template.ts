@@ -156,7 +156,7 @@ export function renderSchemeReportHtml(data: SchemeReportData): string {
 <body>
   <div class="header">
     <h1>${escapeHtml(data.schemeName)} (${escapeHtml(data.schemeCode)})</h1>
-    <div class="subtitle">State: ${escapeHtml(data.stateName)} | TRIMING IDMIS 2.0 Official Scheme Report</div>
+    <div class="subtitle">State: ${escapeHtml(data.stateName)} | SPIN IDMIS 2.0 Official Scheme Report</div>
   </div>
 
   <div class="meta-bar">
@@ -209,7 +209,7 @@ export function renderSchemeReportHtml(data: SchemeReportData): string {
   </div>
 
   <div class="footer">
-    Federal Ministry of Water Resources and Sanitation — TRIMING Project IDMIS 2.0 &bull; Confidential &bull; Generated for Authorized Personnel Only
+    Federal Ministry of Water Resources and Sanitation — SPIN Project IDMIS 2.0 &bull; Confidential &bull; Generated for Authorized Personnel Only
   </div>
 </body>
 </html>`;

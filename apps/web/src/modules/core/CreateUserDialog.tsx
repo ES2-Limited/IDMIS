@@ -141,7 +141,7 @@ export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
-                placeholder="e.g. amina.bello@triming.gov.ng"
+                placeholder="e.g. amina.bello@spin.gov.ng"
                 className="h-10 text-xs"
               />
             </div>

@@ -2,7 +2,7 @@
 
 ## Overview
 
-In TRIMING IDMIS 2.0 (BLIS), whether a dam safety inspection meets national and international safety standards (`meets_standard`) is computed automatically by the system. Client-supplied values for `meets_standard` are ignored to guarantee integrity and enforce separation of duties.
+In SPIN IDMIS 2.0 (BLIS), whether a dam safety inspection meets national and international safety standards (`meets_standard`) is computed automatically by the system. Client-supplied values for `meets_standard` are ignored to guarantee integrity and enforce separation of duties.
 
 This document details the provisional business logic used to determine `meets_standard = true | false` pending formal client sign-off.
 

@@ -6,7 +6,7 @@ import { AccessTokenPayloadSchema, type AccessTokenPayload } from '@idmis/contra
 import { RedisService } from '../../platform/redis/redis.service';
 
 /**
- * SECURITY SPECIFICATION (TRIMING IDMIS 2.0 Auth):
+ * SECURITY SPECIFICATION (SPIN IDMIS 2.0 Auth):
  *
  * 1. Refresh tokens:
  *    - Must be at least 32 cryptographically random bytes (crypto.randomBytes(32)).

@@ -1,6 +1,6 @@
 # Staging Administration & Operations Runbook
 
-This runbook documents operational procedures for administering the TRIMING IDMIS platform on the Railway staging environment, including creating administrator accounts, resetting passwords, configuring multi-factor authentication (TOTP) enforcement, and executing reference geography seeding.
+This runbook documents operational procedures for administering the SPIN IDMIS platform on the Railway staging environment, including creating administrator accounts, resetting passwords, configuring multi-factor authentication (TOTP) enforcement, and executing reference geography seeding.
 
 ---
 
@@ -16,7 +16,7 @@ Ensure you have the Railway CLI installed and authenticated:
 # Verify authentication
 railway whoami
 
-# Link to the TRIMING IDMIS staging project
+# Link to the SPIN IDMIS staging project
 railway link
 ```
 
@@ -42,7 +42,7 @@ Run the command with the required identity variables and confirmation guard:
 
 ```bash
 CREATE_ADMIN_CONFIRM=yes \
-ADMIN_EMAIL="admin@triming.org" \
+ADMIN_EMAIL="admin@spin.org" \
 ADMIN_FULL_NAME="System Administrator" \
 node packages/db/dist/cli/create-admin.js
 ```
@@ -50,9 +50,9 @@ node packages/db/dist/cli/create-admin.js
 You will be prompted to enter and confirm the password interactively with hidden input:
 
 ```
-[create-admin] Enter password for admin@triming.org: ********
+[create-admin] Enter password for admin@spin.org: ********
 [create-admin] Confirm password: ********
-[create-admin] Success: Administrator admin@triming.org created with system_admin role.
+[create-admin] Success: Administrator admin@spin.org created with system_admin role.
 ```
 
 ### 2.2 Execution with Pre-Hashed Password
@@ -61,7 +61,7 @@ For non-interactive or automated workflows, generate an Argon2id password hash b
 
 ```bash
 CREATE_ADMIN_CONFIRM=yes \
-ADMIN_EMAIL="admin@triming.org" \
+ADMIN_EMAIL="admin@spin.org" \
 ADMIN_FULL_NAME="System Administrator" \
 ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=4$...' \
 node packages/db/dist/cli/create-admin.js
@@ -84,7 +84,7 @@ If an administrator's account exists but their password is lost or requires rota
 
 ```bash
 CREATE_ADMIN_CONFIRM=yes \
-ADMIN_EMAIL="admin@triming.org" \
+ADMIN_EMAIL="admin@spin.org" \
 ADMIN_FULL_NAME="System Administrator" \
 node packages/db/dist/cli/create-admin.js --reset-password
 ```

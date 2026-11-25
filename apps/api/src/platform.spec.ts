@@ -351,7 +351,7 @@ describe('API Platform Plumbing (BE-1.2)', () => {
 
       const doc = JSON.parse(response.body);
       expect(doc.openapi).toBe('3.1.0');
-      expect(doc.info.title).toBe('TRIMING IDMIS 2.0 API');
+      expect(doc.info.title).toBe('SPIN IDMIS 2.0 API');
       expect(doc.paths['/health']).toBeDefined();
       expect(doc.paths['/sample/echo']).toBeDefined();
       expect(doc.paths['/sample/conflict-test']).toBeDefined();

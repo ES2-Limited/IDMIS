@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 /**
  * Standard Design Flows & State Matrix (FE-5.3)
- * Every operational screen in TRIMING IDMIS must verify the 5 primary states:
+ * Every operational screen in SPIN IDMIS must verify the 5 primary states:
  * 1. Loading state (skeleton or spinner with aria-busy)
  * 2. Empty state (clear icon, prompt, and action button)
  * 3. Error state (actionable alert with retry callback)

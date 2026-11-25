@@ -486,7 +486,7 @@ describe('Authentication (BE-1.3)', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.secret).toBeDefined();
-      expect(body.otpauthUrl).toContain('otpauth://totp/TRIMING%20IDMIS:admin%40idmis.gov.ng');
+      expect(body.otpauthUrl).toContain('otpauth://totp/SPIN%20IDMIS:admin%40idmis.gov.ng');
       expect(body.recoveryCodes).toBeInstanceOf(Array);
       expect(body.recoveryCodes.length).toBe(10);
 

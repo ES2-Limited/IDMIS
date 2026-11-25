@@ -32,7 +32,7 @@ All errors return Problem Details JSON (`application/problem+json`):
 
 ```json
 {
-  "type": "https://idmis.triming.org/errors/conflict",
+  "type": "https://idmis.spin.org/errors/conflict",
   "title": "Conflict",
   "status": 409,
   "detail": "Version mismatch. Current version is 4.",

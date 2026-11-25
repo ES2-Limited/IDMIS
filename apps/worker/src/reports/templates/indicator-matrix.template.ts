@@ -188,7 +188,7 @@ export function renderIndicatorMatrixReportHtml(data: IndicatorMatrixReportData)
   </table>
 
   <div class="footer">
-    TRIMING IDMIS 2.0 &bull; Monitoring & Evaluation Directorate &bull; Confidential
+    SPIN IDMIS 2.0 &bull; Monitoring & Evaluation Directorate &bull; Confidential
   </div>
 </body>
 </html>`;

@@ -1,7 +1,7 @@
 import type { IndicatorSeedDefinition } from './me-indicators';
 
 /**
- * TRIMING Results Framework (version 2.0-provisional).
+ * SPIN Results Framework (version 2.0-provisional).
  * All indicator definitions here are provisional and loaded dynamically
  * so that targets and formulas can be updated as client specifications evolve.
  */

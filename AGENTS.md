@@ -1,8 +1,8 @@
-# TRIMING IDMIS 2.0 — Agent & Team Guide
+# SPIN IDMIS 2.0 — Agent & Team Guide
 
 ## What This Is
 
-TRIMING IDMIS 2.0 is a modular monolith system.
+SPIN IDMIS 2.0 is a modular monolith system.
 
 - **Modules**: `core`, `slis`, `me`, `blis` (`proc` planned later).
 - **Applications**:

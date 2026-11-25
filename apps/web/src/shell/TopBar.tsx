@@ -49,7 +49,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
           </span>
           <div className="flex flex-col">
             <span className="font-extrabold text-sm sm:text-base leading-tight tracking-tight text-slate-900">
-              TRIMING <span className="text-teal-700 font-bold">IDMIS</span>
+              SPIN <span className="text-teal-700 font-bold">IDMIS</span>
             </span>
             <span className="hidden sm:inline text-[10px] text-slate-400 font-medium leading-none">
               Federal Ministry of Water Resources

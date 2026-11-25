@@ -1,4 +1,4 @@
-# TRIMING IDMIS 2.0 — End-to-End Phase Verification & Implementation Plan
+# SPIN IDMIS 2.0 — End-to-End Phase Verification & Implementation Plan
 
 ES2 Limited · November 2026 · Antigravity & Engineering Team
 

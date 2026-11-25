@@ -42,7 +42,7 @@ export function SyncDrawer({ open, onOpenChange }: SyncDrawerProps) {
 
   const handleManualSync = async () => {
     setIsRefreshing(true);
-    info('Synchronization Initiated', 'Connecting to TRIMING central database...');
+    info('Synchronization Initiated', 'Connecting to SPIN central database...');
     try {
       await triggerSync();
       await loadPendingOps();
@@ -191,7 +191,7 @@ export function SyncDrawer({ open, onOpenChange }: SyncDrawerProps) {
         <div className="p-4 bg-white border-t border-slate-200 text-xs text-slate-500 flex items-center gap-2">
           <Layers className="h-4 w-4 text-teal-700 shrink-0" />
           <p className="text-[11px] leading-snug">
-            TRIMING Offline Protocol: Outbox mutations are replay-safe with optimistic concurrency
+            SPIN Offline Protocol: Outbox mutations are replay-safe with optimistic concurrency
             tokens.
           </p>
         </div>

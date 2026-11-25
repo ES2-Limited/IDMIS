@@ -121,7 +121,7 @@ export function WorkspaceDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              TRIMING Executive & Operations Dashboard
+              SPIN Executive & Operations Dashboard
             </h1>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
               <Sparkles className="h-3 w-3 text-teal-600" />
@@ -192,7 +192,7 @@ export function WorkspaceDashboard() {
             Active Scope: {currentScope.name}
           </div>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            {activeRole === 'national_programme' && 'TRIMING National Programme Overview'}
+            {activeRole === 'national_programme' && 'SPIN National Programme Overview'}
             {activeRole === 'state_coordinator' && `${currentScope.name} State Operations Desk`}
             {activeRole === 'scheme_officer' && `${currentScope.name} Scheme Monitoring Desk`}
             {activeRole === 'basin_hydrologist' && 'Basin Hydrology & Dam Safety Surveillance'}
@@ -452,7 +452,7 @@ export function WorkspaceDashboard() {
                 <div className="flex items-center gap-2">
                   <Building className="h-4 w-4 text-teal-700" />
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    TRIMING River Basin Development Authorities (RBDA) Performance
+                    SPIN River Basin Development Authorities (RBDA) Performance
                   </h3>
                 </div>
                 <Link

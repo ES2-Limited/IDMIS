@@ -22,7 +22,7 @@ describe('RequestContext schemas', () => {
   it('validates a full RequestContext with user and permissions', () => {
     const user = {
       id: '018f3a5e-0000-7000-8000-000000000001',
-      email: 'officer@triming.gov.ng',
+      email: 'officer@spin.gov.ng',
       fullName: 'Ibrahim Musa',
       scope: {
         isNational: false,
@@ -35,7 +35,7 @@ describe('RequestContext schemas', () => {
     };
 
     const parsedUser = RequestUserSchema.parse(user);
-    expect(parsedUser.email).toBe('officer@triming.gov.ng');
+    expect(parsedUser.email).toBe('officer@spin.gov.ng');
 
     const context = {
       requestId: 'req-018f3a5e-1111',

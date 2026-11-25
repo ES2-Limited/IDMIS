@@ -46,7 +46,7 @@ export class ImportTemplateService {
     const def = this.getDefinition(dataset);
     const handler = this.registry.get(dataset);
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'TRIMING IDMIS 2.0';
+    workbook.creator = 'SPIN IDMIS 2.0';
     workbook.created = new Date();
     workbook.description = JSON.stringify({ dataset, version: def.version });
     workbook.keywords = `templateVersion:${def.version};dataset:${dataset}`;

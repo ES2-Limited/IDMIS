@@ -1,12 +1,12 @@
-# TRIMING Results Framework 2.0 — Indicator Definitions
+# SPIN Results Framework 2.0 — Indicator Definitions
 
-This document details the 22 indicators defined in the provisional TRIMING Results Framework (version `2.0-provisional`). All indicator formulas, data sources, assumptions, and known legacy document discrepancies are recorded here for client review and final confirmation.
+This document details the 22 indicators defined in the provisional SPIN Results Framework (version `2.0-provisional`). All indicator formulas, data sources, assumptions, and known legacy document discrepancies are recorded here for client review and final confirmation.
 
 ---
 
 ## Results Framework Metadata
 
-- **Framework Name**: TRIMING Results Framework
+- **Framework Name**: SPIN Results Framework
 - **Version**: `2.0-provisional`
 - **Status**: Current (`is_current = true`)
 - **Reporting Frequency**: Quarterly (`quarterly`)

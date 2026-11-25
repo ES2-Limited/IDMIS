@@ -7,14 +7,14 @@ describe('i18n & Nigerian Locales (FE-1.7)', () => {
   });
 
   it('translates common brand, actions, and status keys', () => {
-    expect(i18n.t('brand.title', { ns: 'common' })).toBe('TRIMING IDMIS');
+    expect(i18n.t('brand.title', { ns: 'common' })).toBe('SPIN IDMIS');
     expect(i18n.t('actions.save', { ns: 'common' })).toBe('Save');
     expect(i18n.t('actions.undo', { ns: 'common' })).toBe('Undo Batch');
     expect(i18n.t('status.saved_on_device', { ns: 'common' })).toBe('Saved on Device');
   });
 
   it('translates auth namespace keys', () => {
-    expect(i18n.t('title', { ns: 'auth' })).toBe('Sign In to TRIMING IDMIS');
+    expect(i18n.t('title', { ns: 'auth' })).toBe('Sign In to SPIN IDMIS');
     expect(i18n.t('twoFactorTitle', { ns: 'auth' })).toBe('Two-Factor Authentication (TOTP)');
   });
 

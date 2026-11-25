@@ -15,7 +15,7 @@ Accepted
 
 ## Context & Problem Statement
 
-TRIMING IDMIS 2.0 encompasses multiple interdependent systems: a web application (`apps/web`), an API (`apps/api`), a background worker (`apps/worker`), and shared libraries for contracts, database schemas, and UI design tokens. We needed a repository strategy that guarantees single-source-of-truth contracts while enabling atomic commits and fast builds.
+SPIN IDMIS 2.0 encompasses multiple interdependent systems: a web application (`apps/web`), an API (`apps/api`), a background worker (`apps/worker`), and shared libraries for contracts, database schemas, and UI design tokens. We needed a repository strategy that guarantees single-source-of-truth contracts while enabling atomic commits and fast builds.
 
 ## Decision Drivers
 
