@@ -468,7 +468,7 @@ const meIndicatorsRoute = createRoute({
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
         <span>M&E Module</span>
         <span>/</span>
-        <span className="text-amber-800 font-bold">Results Framework & Indicators</span>
+        <span className="text-amber-800 font-bold">Results Framework and Indicators</span>
       </div>
       <IndicatorsListView />
     </div>

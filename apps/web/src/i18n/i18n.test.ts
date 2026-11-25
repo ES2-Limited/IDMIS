@@ -19,7 +19,7 @@ describe('i18n & Nigerian Locales (FE-1.7)', () => {
   });
 
   it('translates core administration namespace keys', () => {
-    expect(i18n.t('title', { ns: 'core' })).toBe('Core Administration & Identity');
+    expect(i18n.t('title', { ns: 'core' })).toBe('Core Administration and Identity');
     expect(i18n.t('tabs.imports', { ns: 'core' })).toBe('Batch Import Center');
   });
 

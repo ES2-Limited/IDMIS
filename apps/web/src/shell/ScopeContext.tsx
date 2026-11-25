@@ -17,7 +17,7 @@ export interface ScopeState {
 }
 
 export const defaultScopes: ScopeSelection[] = [
-  { type: 'national', id: 'national-all', name: 'National (All Nigeria)' },
+  { type: 'national', id: 'national-all', name: 'Nationwide' },
   {
     type: 'scheme',
     id: '018f3a5e-0020-7000-8000-000000000001',

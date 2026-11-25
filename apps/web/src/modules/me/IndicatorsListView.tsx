@@ -143,7 +143,7 @@ export function IndicatorsListView() {
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Results Framework & Indicators
+            Results Framework and Indicators
           </h2>
           <p className="text-xs text-slate-500">
             Project Development Objectives (PDOs) and Intermediate Results indicators with method

@@ -98,7 +98,7 @@ export function CoreHome() {
               <StatusChip status="approved">Security Verified</StatusChip>
             </div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">
-              Core Administration & Identity
+              Core Administration and Identity
             </h1>
             <p className="text-slate-200 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Manage system permissions, institutional hierarchies, Water User Associations (WUAs),

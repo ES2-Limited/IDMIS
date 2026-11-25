@@ -1,5 +1,5 @@
 {
-  "title": "Core Administration & Identity",
+  "title": "Core Administration and Identity",
   "description": "Manage system permissions, institutional hierarchies, Water User Associations (WUAs), and tabular spreadsheet batch imports.",
   "tabs": {
     "users": "Users & Roles",
