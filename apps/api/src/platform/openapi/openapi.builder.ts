@@ -2117,15 +2117,15 @@ export function buildOpenApiDocument(
     { name: 'health', description: 'Liveness and service readiness checks' },
     {
       name: 'slis',
-      description: 'Scheme Land Information System (farmers, plots, operations, sync)',
+      description: 'Scheme Level Information System (farmers, plots, operations, sync)',
     },
     {
       name: 'slis-reports',
-      description: 'Scheme Land Information System aggregated reports and materialized views',
+      description: 'Scheme Level Information System aggregated reports and materialized views',
     },
     {
       name: 'slis-exports',
-      description: 'Scheme Land Information System asynchronous tabular export processing',
+      description: 'Scheme Level Information System asynchronous tabular export processing',
     },
     {
       name: 'me',
@@ -2149,9 +2149,9 @@ export function buildOpenApiDocument(
   return {
     openapi: '3.1.0',
     info: {
-      title: 'TRIMING IDMIS 2.0 API',
+      title: 'SPIN IDMIS 2.0 API',
       version: '0.1.0',
-      description: 'TRIMING Irrigation Data Management Information System API',
+      description: 'SPIN Irrigation Data Management Information System API',
     },
     servers: [
       {

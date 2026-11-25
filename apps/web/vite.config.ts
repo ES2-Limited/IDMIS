@@ -50,10 +50,10 @@ export default defineConfig({
       },
       includeAssets: ['favicon.svg', 'icons/*.png', 'icons/*.svg'],
       manifest: {
-        name: 'TRIMING IDMIS 2.0',
+        name: 'SPIN IDMIS 2.0',
         short_name: 'IDMIS',
         description:
-          'Transforming Irrigation Management in Nigeria — Irrigation Management Information System',
+          'Sustainable Power and Irrigation for Nigeria — Irrigation Management Information System',
         theme_color: '#0f766e',
         background_color: '#0f172a',
         display: 'standalone',

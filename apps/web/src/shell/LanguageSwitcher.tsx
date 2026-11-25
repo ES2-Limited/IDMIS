@@ -92,7 +92,7 @@ export function LanguageSwitcher({ variant = 'light', className }: LanguageSwitc
           )}
         >
           <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 border-b border-slate-200/60 dark:border-slate-800 mb-1">
-            National Languages (TRIMING)
+            National Languages (SPIN)
           </div>
           {SUPPORTED_LANGUAGES.map((lang) => {
             const isSelected = lang.code === currentLangCode;

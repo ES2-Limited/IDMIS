@@ -99,7 +99,7 @@ export function FieldHomeView() {
           </Badge>
         </div>
 
-        <h2 className="text-xl font-extrabold tracking-tight">TRIMING Field Station</h2>
+        <h2 className="text-xl font-extrabold tracking-tight">SPIN Field Station</h2>
         <p className="text-xs text-slate-300 mt-1 leading-relaxed">
           Records created here autosave instantly to device storage and sync automatically once
           connectivity is restored.

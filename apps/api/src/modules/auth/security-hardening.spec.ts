@@ -338,7 +338,7 @@ describe('Security Hardening Specification (BE-5.4)', () => {
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       expect(body.secret).toBeDefined();
-      expect(body.otpauthUrl).toContain('TRIMING%20IDMIS');
+      expect(body.otpauthUrl).toContain('SPIN%20IDMIS');
       expect(body.recoveryCodes).toHaveLength(10);
 
       totpSecret = body.secret;

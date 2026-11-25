@@ -642,7 +642,7 @@ describe('Dashboard Endpoints Specification (BE-5.1)', () => {
     const frameworkId = crypto.randomUUID();
     await testDb.insert(resultsFramework).values({
       id: frameworkId,
-      name: 'TRIMING Results Framework',
+      name: 'SPIN Results Framework',
       version: '1.0',
       isCurrent: true,
       createdBy: SYSTEM_USER_ID,

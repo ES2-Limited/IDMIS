@@ -1,8 +1,8 @@
-TRIMING IDMIS 2.0 — Database Schema
+SPIN IDMIS 2.0 — Database Schema
 
 ES2 Limited · Oct 20, 2026 · @Saifur-Rahman Yusuf
 
-IDMIS 2.0 uses one PostgreSQL 16 database with PostGIS, split into one schema per module: core, slis, me and blis (and proc later). This doc defines every table, the conventions they share, and the reasons behind them. Definitions are written as SQL for precision; the source of truth in code is Drizzle in packages/db/schema/. The companion doc TRIMING IDMIS 2.0 — System Architecture shows how the database fits the rest of the system.
+IDMIS 2.0 uses one PostgreSQL 16 database with PostGIS, split into one schema per module: core, slis, me and blis (and proc later). This doc defines every table, the conventions they share, and the reasons behind them. Definitions are written as SQL for precision; the source of truth in code is Drizzle in packages/db/schema/. The companion doc SPIN IDMIS 2.0 — System Architecture shows how the database fits the rest of the system.
 
 1. Concepts and conventions
 

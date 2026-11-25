@@ -193,7 +193,7 @@ export function renderDamSafetySummaryReportHtml(data: DamSafetySummaryReportDat
   </table>
 
   <div class="footer">
-    TRIMING IDMIS 2.0 &bull; Basin and Land Information System (BLIS) &bull; Safety Directorate
+    SPIN IDMIS 2.0 &bull; Basin and Land Information System (BLIS) &bull; Safety Directorate
   </div>
 </body>
 </html>`;

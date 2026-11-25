@@ -267,7 +267,7 @@ export function FieldSurveyCaptureForm() {
         </h2>
         <p className="text-xs text-slate-500">
           The survey response for <span className="font-bold">{respondentName}</span> has been{' '}
-          {isOnline ? 'recorded on the TRIMING server' : 'queued in your device offline outbox'}.
+          {isOnline ? 'recorded on the SPIN server' : 'queued in your device offline outbox'}.
         </p>
 
         <div className="pt-2 flex flex-col gap-2">

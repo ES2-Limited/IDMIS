@@ -24,6 +24,6 @@
     <path d="M115 130 L115 260 C115 265, 125 265, 125 260 L125 130 Z" fill="#ffffff" />
     <circle cx="120" cy="275" r="8" fill="#5eead4" />
   </g>
-  <!-- Text TRIMING IDMIS -->
-  <text x="256" y="468" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="800" fill="#f0fdfa" letter-spacing="3" text-anchor="middle">TRIMING IDMIS</text>
+  <!-- Text SPIN IDMIS -->
+  <text x="256" y="468" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="800" fill="#f0fdfa" letter-spacing="3" text-anchor="middle">SPIN IDMIS</text>
 </svg>

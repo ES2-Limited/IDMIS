@@ -17,7 +17,7 @@ const COMMON_PASSWORDS = new Set([
   'systemadmin',
   'passcode123',
   'nigeria1234',
-  'triming1234',
+  'spin1234',
 ]);
 
 export function isCommonPassword(password: string): boolean {

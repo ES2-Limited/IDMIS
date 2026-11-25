@@ -1,6 +1,6 @@
-# TRIMING IDMIS 2.0 — Role-Based User Guide
+# SPIN IDMIS 2.0 — Role-Based User Guide
 
-This guide provides operational walkthroughs, workflows, and responsibilities for each persona operating on the TRIMING Irrigation Data Management Information System (IDMIS).
+This guide provides operational walkthroughs, workflows, and responsibilities for each persona operating on the SPIN Irrigation Data Management Information System (IDMIS).
 
 ---
 

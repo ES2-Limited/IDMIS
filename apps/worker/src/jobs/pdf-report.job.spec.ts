@@ -19,7 +19,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
       <!DOCTYPE html>
       <html>
         <body>
-          <h1>TRIMING IDMIS 2.0 Test Report</h1>
+          <h1>SPIN IDMIS 2.0 Test Report</h1>
           <p>Headline Number: 45,678 Farmers</p>
         </body>
       </html>
@@ -36,7 +36,7 @@ describe('PDF Report Generation Worker (BE-5.2)', () => {
     const result = await parser.getText();
     await parser.destroy();
 
-    expect(result.text).toContain('TRIMING IDMIS 2.0 Test Report');
+    expect(result.text).toContain('SPIN IDMIS 2.0 Test Report');
     expect(result.text).toContain('45,678 Farmers');
   }, 60000);
 

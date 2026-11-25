@@ -176,7 +176,7 @@ export function SideNav() {
       { label: 'Collector Profile (Me)', path: '/field/profile', icon: Users },
     ];
   } else {
-    moduleName = 'TRIMING IDMIS';
+    moduleName = 'SPIN IDMIS';
     navItems = [
       { label: 'Workspace Home', path: '/', icon: LayoutDashboard },
       { label: 'Core Admin', path: '/core', icon: Building },

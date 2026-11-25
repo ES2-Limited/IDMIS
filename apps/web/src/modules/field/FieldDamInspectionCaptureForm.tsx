@@ -236,7 +236,7 @@ export function FieldDamInspectionCaptureForm() {
         <p className="text-xs text-slate-500">
           Inspection record <span className="font-mono font-bold text-slate-700">{successId}</span>{' '}
           has been{' '}
-          {isOnline ? 'synced to the TRIMING backend' : 'committed to the device offline outbox'}.
+          {isOnline ? 'synced to the SPIN backend' : 'committed to the device offline outbox'}.
         </p>
 
         <div className="pt-2 flex flex-col gap-2">

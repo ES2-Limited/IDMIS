@@ -1,6 +1,6 @@
 # IDMIS 2.0 Performance Testing & Tuning (BE-5.3)
 
-This directory contains load testing scripts, configuration, and performance benchmarks for TRIMING IDMIS 2.0 with a dataset of **1,000,000 farmers and plots**.
+This directory contains load testing scripts, configuration, and performance benchmarks for SPIN IDMIS 2.0 with a dataset of **1,000,000 farmers and plots**.
 
 ---
 

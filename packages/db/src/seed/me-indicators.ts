@@ -80,7 +80,7 @@ export async function loadMeIndicators(
       .from(resultsFramework)
       .where(
         and(
-          eq(resultsFramework.name, 'TRIMING Results Framework'),
+          eq(resultsFramework.name, 'SPIN Results Framework'),
           eq(resultsFramework.version, '2.0-provisional'),
         ),
       )
@@ -93,7 +93,7 @@ export async function loadMeIndicators(
         .insert(resultsFramework)
         .values({
           id: defaultId,
-          name: 'TRIMING Results Framework',
+          name: 'SPIN Results Framework',
           version: '2.0-provisional',
           isCurrent: true,
           createdBy: SYSTEM_USER_ID,
