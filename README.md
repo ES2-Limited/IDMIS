@@ -1,6 +1,6 @@
-# TRIMING IDMIS 2.0 (`idmis`)
+# SPIN IDMIS 2.0 (`idmis`)
 
-A modular monorepo scaffolding for the TRIMING IDMIS 2.0 system.
+A modular monorepo scaffolding for the SPIN IDMIS 2.0 system.
 
 ## Prerequisites
 

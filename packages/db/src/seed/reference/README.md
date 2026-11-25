@@ -1,6 +1,6 @@
 # Public Geography Reference Data
 
-This directory contains standardized administrative reference data for Nigeria's States, Local Government Areas (LGAs), and Wards used by TRIMING IDMIS 2.0.
+This directory contains standardized administrative reference data for Nigeria's States, Local Government Areas (LGAs), and Wards used by SPIN IDMIS 2.0.
 
 ---
 
@@ -41,10 +41,10 @@ This directory contains standardized administrative reference data for Nigeria's
 
 2. **Ward Matching & Stable Identifier Assignment**:
    - GRID3 v3.0 operational wards were matched to COD-AB LGAs by state and LGA name.
-   - For TRIMING programme states (Gombe, Jigawa, Kano, Sokoto, Zamfara), naming discrepancies between GRID3 and COD-AB are explicitly resolved using `reference/lga-name-aliases.csv` (`grid3_lga_name,state_code,cod_ab_lga_pcode`), with no fuzzy matching.
-   - 5,691 wards successfully matched to COD-AB LGAs across 24 states (including 100% of wards across all 5 TRIMING programme states).
+   - For SPIN programme states (Gombe, Jigawa, Kano, Sokoto, Zamfara), naming discrepancies between GRID3 and COD-AB are explicitly resolved using `reference/lga-name-aliases.csv` (`grid3_lga_name,state_code,cod_ab_lga_pcode`), with no fuzzy matching.
+   - 5,691 wards successfully matched to COD-AB LGAs across 24 states (including 100% of wards across all 5 SPIN programme states).
    - Stable Ward Identifiers: Rather than generating alphabetical sequential codes that would shift upon ward additions or renames, each ward code uses GRID3's feature identifier from the v3.0 source (`OBJECTID`, documented as `fid` in the CIESIN/GRID3 Codebook). Format: `G3-<grid3_ward_id>` (e.g. `G3-1` to `G3-5872`). `lga_code` retains the official OCHA LGA P-code (e.g. `NG020001`).
-   - 181 wards in non-TRIMING states could not be matched automatically and are catalogued in `unmatched-wards.csv` without guessing.
+   - 181 wards in non-SPIN states could not be matched automatically and are catalogued in `unmatched-wards.csv` without guessing.
 
 3. **Frozen Snapshot Notice & Seed Safety Rules**:
    - The v3.0 extraction in `wards.json` is a **frozen baseline snapshot**. Because `OBJECTID` is software-generated in spatial exports, **do not re-extract from a newer GRID3 version without explicit code remapping and verification**; doing so could silently turn one ward into another.
@@ -57,43 +57,43 @@ This directory contains standardized administrative reference data for Nigeria's
 
 ## 3. Coverage Summary
 
-| State                     | LGAs Loaded | Wards Loaded | Wards Unmatched | Notes                       |
-| :------------------------ | :---------- | :----------- | :-------------- | :-------------------------- |
-| Abia                      | 17          | 220          | 30              |                             |
-| Adamawa                   | 21          | 226          | 0               |                             |
-| Akwa Ibom                 | 31          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Anambra                   | 21          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Bauchi                    | 20          | 323          | 0               |                             |
-| Bayelsa                   | 8           | 105          | 0               |                             |
-| Benue                     | 23          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Borno                     | 27          | 310          | 0               |                             |
-| Cross River               | 18          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Delta                     | 25          | 268          | 0               |                             |
-| Ebonyi                    | 13          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Edo                       | 18          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Ekiti                     | 16          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Enugu                     | 17          | 258          | 0               |                             |
-| Federal Capital Territory | 6           | 50           | 12              |                             |
-| Gombe                     | 11          | 114          | 0               | **TRIMING Programme State** |
-| Imo                       | 27          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Jigawa                    | 27          | 288          | 0               | **TRIMING Programme State** |
-| Kaduna                    | 23          | 234          | 21              |                             |
-| Kano                      | 44          | 484          | 0               | **TRIMING Programme State** |
-| Katsina                   | 34          | 361          | 0               |                             |
-| Kebbi                     | 21          | 225          | 0               |                             |
-| Kogi                      | 21          | 229          | 10              |                             |
-| Kwara                     | 16          | 193          | 0               |                             |
-| Lagos                     | 20          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Nasarawa                  | 13          | 133          | 14              |                             |
-| Niger                     | 25          | 264          | 11              |                             |
-| Ogun                      | 20          | 216          | 21              |                             |
-| Ondo                      | 18          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Osun                      | 30          | 290          | 42              |                             |
-| Oyo                       | 33          | 341          | 10              |                             |
-| Plateau                   | 17          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Rivers                    | 23          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Sokoto                    | 23          | 244          | 0               | **TRIMING Programme State** |
-| Taraba                    | 16          | 0            | 0               | No GRID3 v3.0 coverage      |
-| Yobe                      | 17          | 168          | 10              |                             |
-| Zamfara                   | 14          | 147          | 0               | **TRIMING Programme State** |
-| **Total**                 | **774**     | **5,691**    | **181**         |                             |
+| State                     | LGAs Loaded | Wards Loaded | Wards Unmatched | Notes                    |
+| :------------------------ | :---------- | :----------- | :-------------- | :----------------------- |
+| Abia                      | 17          | 220          | 30              |                          |
+| Adamawa                   | 21          | 226          | 0               |                          |
+| Akwa Ibom                 | 31          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Anambra                   | 21          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Bauchi                    | 20          | 323          | 0               |                          |
+| Bayelsa                   | 8           | 105          | 0               |                          |
+| Benue                     | 23          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Borno                     | 27          | 310          | 0               |                          |
+| Cross River               | 18          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Delta                     | 25          | 268          | 0               |                          |
+| Ebonyi                    | 13          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Edo                       | 18          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Ekiti                     | 16          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Enugu                     | 17          | 258          | 0               |                          |
+| Federal Capital Territory | 6           | 50           | 12              |                          |
+| Gombe                     | 11          | 114          | 0               | **SPIN Programme State** |
+| Imo                       | 27          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Jigawa                    | 27          | 288          | 0               | **SPIN Programme State** |
+| Kaduna                    | 23          | 234          | 21              |                          |
+| Kano                      | 44          | 484          | 0               | **SPIN Programme State** |
+| Katsina                   | 34          | 361          | 0               |                          |
+| Kebbi                     | 21          | 225          | 0               |                          |
+| Kogi                      | 21          | 229          | 10              |                          |
+| Kwara                     | 16          | 193          | 0               |                          |
+| Lagos                     | 20          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Nasarawa                  | 13          | 133          | 14              |                          |
+| Niger                     | 25          | 264          | 11              |                          |
+| Ogun                      | 20          | 216          | 21              |                          |
+| Ondo                      | 18          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Osun                      | 30          | 290          | 42              |                          |
+| Oyo                       | 33          | 341          | 10              |                          |
+| Plateau                   | 17          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Rivers                    | 23          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Sokoto                    | 23          | 244          | 0               | **SPIN Programme State** |
+| Taraba                    | 16          | 0            | 0               | No GRID3 v3.0 coverage   |
+| Yobe                      | 17          | 168          | 10              |                          |
+| Zamfara                   | 14          | 147          | 0               | **SPIN Programme State** |
+| **Total**                 | **774**     | **5,691**    | **181**         |                          |

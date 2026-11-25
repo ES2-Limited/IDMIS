@@ -132,8 +132,8 @@ export function PwaManager() {
               </span>
             </h4>
             <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-              A newer version of TRIMING IDMIS is available. Refresh when ready — your offline queue
-              is safely retained.
+              A newer version of SPIN IDMIS is available. Refresh when ready — your offline queue is
+              safely retained.
             </p>
             <div className="flex items-center gap-2 mt-3">
               <Button
@@ -177,7 +177,7 @@ export function PwaManager() {
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold flex items-center gap-1.5">
-              Install TRIMING IDMIS
+              Install SPIN IDMIS
               <ShieldCheck className="h-4 w-4 text-teal-600 dark:text-teal-400" />
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">

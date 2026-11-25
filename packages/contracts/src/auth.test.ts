@@ -35,7 +35,7 @@ describe('auth contracts', () => {
       const payloadWithExtras = {
         sub: '018f3a5e-0000-7000-8000-000000000001',
         sid: '018f3a5e-0000-7000-8000-000000000002',
-        email: 'admin@triming.gov.ng',
+        email: 'admin@spin.gov.ng',
         roles: ['system_admin'],
         isSystemAdmin: true,
       };
@@ -63,7 +63,7 @@ describe('auth contracts', () => {
   describe('SignInResponseSchema (Discriminated Union on status)', () => {
     const mockUser = {
       id: '018f3a5e-0000-7000-8000-000000000001',
-      email: 'admin@triming.gov.ng',
+      email: 'admin@spin.gov.ng',
       fullName: 'System Admin',
       phone: null,
       mustChangePassword: false,
@@ -88,19 +88,19 @@ describe('auth contracts', () => {
       expect(parsed.status).toBe('authenticated');
       if (parsed.status === 'authenticated') {
         expect(parsed.accessToken).toBe('jwt-access-token');
-        expect(parsed.user.email).toBe('admin@triming.gov.ng');
+        expect(parsed.user.email).toBe('admin@spin.gov.ng');
       }
     });
 
     it('validates SignInInputSchema', () => {
       const input = SignInInputSchema.parse({
-        email: 'user@triming.gov.ng',
+        email: 'user@spin.gov.ng',
         password: 'ValidPassword123!',
         installationId: '018f3a5e-0000-7000-8000-000000000001',
         deviceLabel: 'Pixel 8',
         platform: 'Android 14',
       });
-      expect(input.email).toBe('user@triming.gov.ng');
+      expect(input.email).toBe('user@spin.gov.ng');
       expect(input.installationId).toBe('018f3a5e-0000-7000-8000-000000000001');
     });
 
@@ -161,7 +161,7 @@ describe('auth contracts', () => {
       const recoveryCodes = Array.from({ length: 10 }, (_, i) => `recov-code-${i + 1}`);
       const response = TotpSetupResponseSchema.parse({
         secret: 'JBSWY3DPEHPK3PXP',
-        otpauthUrl: 'otpauth://totp/TRIMING:admin?secret=JBSWY3DPEHPK3PXP',
+        otpauthUrl: 'otpauth://totp/SPIN:admin?secret=JBSWY3DPEHPK3PXP',
         recoveryCodes,
       });
 
@@ -171,7 +171,7 @@ describe('auth contracts', () => {
       expect(() =>
         TotpSetupResponseSchema.parse({
           secret: 'JBSWY3DPEHPK3PXP',
-          otpauthUrl: 'otpauth://totp/TRIMING:admin',
+          otpauthUrl: 'otpauth://totp/SPIN:admin',
           recoveryCodes: ['single-code'],
         }),
       ).toThrow();
@@ -274,7 +274,7 @@ describe('auth contracts', () => {
     it('validates RefreshTokenResponse and SignOutResponse', () => {
       const mockUser = {
         id: '018f3a5e-0000-7000-8000-000000000001',
-        email: 'user@triming.gov.ng',
+        email: 'user@spin.gov.ng',
         fullName: 'Test User',
         phone: null,
         mustChangePassword: false,

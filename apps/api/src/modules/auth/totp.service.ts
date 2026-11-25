@@ -15,7 +15,7 @@ export class TotpService {
 
   generateOtpauthUrl(email: string, secret: string): string {
     return generateURI({
-      issuer: 'TRIMING IDMIS',
+      issuer: 'SPIN IDMIS',
       label: email,
       secret,
     });

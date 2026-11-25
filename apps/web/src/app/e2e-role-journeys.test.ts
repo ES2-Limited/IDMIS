@@ -15,7 +15,7 @@ import {
 /**
  * FE-5.4 End-to-End Role Journeys Suite
  *
- * Implements end-to-end user journeys for the 6 primary TRIMING personas:
+ * Implements end-to-end user journeys for the 6 primary SPIN personas:
  * 1. Collector: offline capture -> local store -> reconnect -> sync push
  * 2. Scheme Data Officer: review queue triage -> plot conflict mediation -> approval
  * 3. M&E Officer: quarterly indicator entry -> tolerance check -> quarterly sign-off
@@ -273,7 +273,7 @@ describe('FE-5.4: End-to-End Persona Journeys', () => {
     it('provisions new officer with RBAC role, binds scheme assignment scope, and audits action', () => {
       // 1. Admin creates user payload conforming to contracts
       const newUserPayload: CreateAppUserInput = {
-        email: 'scheme.officer.kris@triming.gov.ng',
+        email: 'scheme.officer.kris@spin.gov.ng',
         username: 'balarabe.sani',
         fullName: 'Balarabe Sani',
         phone: '+2348029876543',
@@ -288,7 +288,7 @@ describe('FE-5.4: End-to-End Persona Journeys', () => {
       };
 
       const parsedUser = CreateAppUserInputSchema.parse(newUserPayload);
-      expect(parsedUser.email).toBe('scheme.officer.kris@triming.gov.ng');
+      expect(parsedUser.email).toBe('scheme.officer.kris@spin.gov.ng');
       expect(parsedUser.fullName).toBe('Balarabe Sani');
       expect(parsedUser.firstAssignment?.module).toBe('slis');
 

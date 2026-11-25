@@ -1,8 +1,8 @@
-TRIMING IDMIS 2.0 — System Architecture
+SPIN IDMIS 2.0 — System Architecture
 
 ES2 Limited · Oct 20, 2026 · @Saifur-Rahman Yusuf
 
-IDMIS 2.0 is one codebase (a monorepo) that deploys as three services on Railway: web, api and worker. They share a PostgreSQL database and a Redis queue; files live in Cloudflare R2. This doc maps each part of the code to what runs, shows how requests, offline sync and imports move through the system, and explains the concepts and decisions behind it. The database is specified in the companion doc, TRIMING IDMIS 2.0 — Database Schema.
+IDMIS 2.0 is one codebase (a monorepo) that deploys as three services on Railway: web, api and worker. They share a PostgreSQL database and a Redis queue; files live in Cloudflare R2. This doc maps each part of the code to what runs, shows how requests, offline sync and imports move through the system, and explains the concepts and decisions behind it. The database is specified in the companion doc, SPIN IDMIS 2.0 — Database Schema.
 
 1. System at a glance
 

@@ -33,7 +33,7 @@ export function getSwaggerUiHtml(basePath = process.env.API_PUBLIC_BASE_PATH || 
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TRIMING IDMIS 2.0 API Docs</title>
+  <title>SPIN IDMIS 2.0 API Docs</title>
   <link rel="stylesheet" type="text/css" href="${publicPrefix}/docs/static/swagger-ui.css" />
   <link rel="stylesheet" type="text/css" href="${publicPrefix}/docs/static/index.css" />
   <link rel="icon" type="image/png" href="${publicPrefix}/docs/static/favicon-32x32.png" sizes="32x32" />

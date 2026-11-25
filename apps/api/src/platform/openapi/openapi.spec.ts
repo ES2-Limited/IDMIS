@@ -59,7 +59,7 @@ describe('OpenAPI & Swagger UI (FEAT-DOCS)', () => {
       const doc = buildOpenApiDocument('/');
 
       expect(doc.openapi).toMatch(/^3\./);
-      expect(doc.info.title).toBe('TRIMING IDMIS 2.0 API');
+      expect(doc.info.title).toBe('SPIN IDMIS 2.0 API');
       expect(doc.info.version).toBeDefined();
       expect(doc.servers).toEqual([{ url: '/', description: 'API base path' }]);
 
@@ -275,7 +275,7 @@ describe('OpenAPI & Swagger UI (FEAT-DOCS)', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toContain('text/html');
-      expect(response.body).toContain('<title>TRIMING IDMIS 2.0 API Docs</title>');
+      expect(response.body).toContain('<title>SPIN IDMIS 2.0 API Docs</title>');
       expect(response.body).toContain('/docs/static/swagger-ui.css');
       expect(response.body).toContain('/docs/static/swagger-ui-bundle.js');
       expect(response.body).toContain("url: '/docs/openapi.json'");

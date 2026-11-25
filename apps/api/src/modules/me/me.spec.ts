@@ -199,7 +199,7 @@ describe('M&E Values, Targets, Approval, Evidence & Imports (BE-3.2)', () => {
     // 6. Seed Results Framework and Indicators
     await testDb.insert(resultsFramework).values({
       id: FRAMEWORK_ID,
-      name: 'TRIMING Results Framework 2026',
+      name: 'SPIN Results Framework 2026',
       version: 'v1.0',
       isCurrent: true,
       createdBy: SYSTEM_USER_ID,

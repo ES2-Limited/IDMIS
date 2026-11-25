@@ -1,4 +1,4 @@
-# Contributing to TRIMING IDMIS 2.0
+# Contributing to SPIN IDMIS 2.0
 
 ## Branch Naming Convention
 

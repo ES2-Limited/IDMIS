@@ -76,7 +76,7 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
     // Create a base Results Framework for test suite
     await testDb.insert(resultsFramework).values({
       id: TEST_FRAMEWORK_ID,
-      name: 'TRIMING Results Framework Test',
+      name: 'SPIN Results Framework Test',
       version: 'test-1.0',
       isCurrent: false,
       createdBy: TEST_USER_ID,
@@ -507,7 +507,7 @@ describe('M&E Database Schema, Slot Rules, Grants, and Loader (BE-3.1)', () => {
         .from(resultsFramework)
         .where(eq(resultsFramework.isCurrent, true));
       expect(fw).toBeDefined();
-      expect(fw.name).toBe('TRIMING Results Framework');
+      expect(fw.name).toBe('SPIN Results Framework');
       expect(fw.version).toBe('2.0-provisional');
 
       const allRows = await testDb.select().from(indicator).where(eq(indicator.frameworkId, fw.id));

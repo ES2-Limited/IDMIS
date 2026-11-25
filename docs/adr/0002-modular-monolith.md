@@ -15,7 +15,7 @@ Accepted
 
 ## Context & Problem Statement
 
-IDMIS 2.0 covers distinct operational domains: Core Administration (`core`), Scheme Land Information System (`slis`), Monitoring & Evaluation (`me`), and Baseline Land Information System (`blis`), with Procurement (`proc`) planned later. We needed an architecture that isolates domain boundaries without the operational overhead of microservices.
+IDMIS 2.0 covers distinct operational domains: Core Administration (`core`), Scheme Level Information System (`slis`), Monitoring & Evaluation (`me`), and Baseline Land Information System (`blis`), with Procurement (`proc`) planned later. We needed an architecture that isolates domain boundaries without the operational overhead of microservices.
 
 ## Decision Drivers
 

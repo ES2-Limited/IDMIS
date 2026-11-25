@@ -16,7 +16,7 @@ export function NotFound() {
             ID
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-            TRIMING <span className="text-teal-400 font-bold">IDMIS 2.0</span>
+            SPIN <span className="text-teal-400 font-bold">IDMIS 2.0</span>
           </h1>
         </div>
 
@@ -55,7 +55,7 @@ export function NotFound() {
         </div>
 
         <p className="text-center text-[11px] text-slate-500 mt-6 font-medium">
-          Federal Ministry of Water Resources and Sanitation • TRIMING Project
+          Federal Ministry of Water Resources and Sanitation • SPIN Project
         </p>
       </div>
     </div>

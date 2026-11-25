@@ -163,7 +163,7 @@ export function SlisHome() {
               <StatusChip status="saved_on_device">Verified</StatusChip>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Scheme Land Information System (SLIS)
+              Scheme Level Information System (SLIS)
             </h1>
             <p className="text-emerald-100 text-xs sm:text-sm max-w-xl leading-relaxed font-medium">
               Supervise scheme farmers, land parcels, irrigation command areas, and water

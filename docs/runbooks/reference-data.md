@@ -10,7 +10,7 @@ The reference geography seed populates official Nigerian administrative boundari
 
 - **37 States / FCT**: Mapped from OCHA COD-AB Nigeria (`NG001`..`NG037`). Preserves existing UUIDs and 2-letter codes (`AB`..`ZA`).
 - **774 LGAs**: Extracted from OCHA COD-AB Nigeria with P-codes (`NG001001`..`NG037014`). Uses deterministic UUID v5.
-- **5,637 Wards**: Extracted from GRID3 NGA Operational Wards v3.0 for 24 covered states (including all 5 TRIMING programme states). Uses deterministic UUID v5.
+- **5,637 Wards**: Extracted from GRID3 NGA Operational Wards v3.0 for 24 covered states (including all 5 SPIN programme states). Uses deterministic UUID v5.
 
 ### Pre-Requisites & Safety Guarantees
 
@@ -79,7 +79,7 @@ SELECT 'core.ward', count(*) FROM core.ward;
 | `core.lga`   | 774         |
 | `core.ward`  | 5691        |
 
-#### 2. Spot Check TRIMING Programme States
+#### 2. Spot Check SPIN Programme States
 
 ```sql
 SELECT
@@ -111,7 +111,7 @@ ORDER BY s.code;
 
 ### Context
 
-GRID3 NGA Operational Wards v3.0 contains 181 wards (in non-TRIMING states) whose LGA names could not be matched automatically to official OCHA COD-AB LGA boundaries without guessing. These are catalogued in `packages/db/src/seed/reference/unmatched-wards.csv`.
+GRID3 NGA Operational Wards v3.0 contains 181 wards (in non-SPIN states) whose LGA names could not be matched automatically to official OCHA COD-AB LGA boundaries without guessing. These are catalogued in `packages/db/src/seed/reference/unmatched-wards.csv`.
 
 ### Import Procedure Once LGA Is Confirmed
 
