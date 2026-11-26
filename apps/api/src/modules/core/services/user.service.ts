@@ -197,7 +197,7 @@ export class UserService {
             phone: input.phone,
             passwordHash,
             isActive: input.isActive,
-            mustChangePassword: true, // 5. createUser sets must_change_password = true
+            mustChangePassword: false, // User can log in directly with provided credentials
             createdBy: actorUserId,
           },
           tx,

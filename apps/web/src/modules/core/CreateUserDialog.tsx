@@ -168,7 +168,7 @@ export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Temporary Password *</label>
+            <label className="text-xs font-bold text-slate-700">Initial Password *</label>
             <Input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -176,8 +176,7 @@ export function CreateUserDialog({ open, onOpenChange, onSubmitUser, isLoading }
               className="h-10 text-xs font-mono bg-slate-50"
             />
             <p className="text-[10px] text-slate-400">
-              User will be forced to change this password and register TOTP 2FA on their first
-              sign-in.
+              User can immediately sign in with this password.
             </p>
           </div>
 

@@ -412,7 +412,7 @@ describe('Core Admin APIs (BE-1.6)', () => {
       const data = JSON.parse(res.body);
       expect(data.email).toBe('newuser@idmis.gov.ng');
       expect(data.fullName).toBe('New Test User');
-      expect(data.mustChangePassword).toBe(true);
+      expect(data.mustChangePassword).toBe(false);
       expect(data.passwordHash).toBeUndefined(); // Never returned
       createdUserId = data.id;
 
@@ -527,7 +527,7 @@ describe('Core Admin APIs (BE-1.6)', () => {
       });
       expect(inScopeRes.statusCode).toBe(201);
       const createdData = JSON.parse(inScopeRes.body);
-      expect(createdData.mustChangePassword).toBe(true);
+      expect(createdData.mustChangePassword).toBe(false);
     });
 
     it('user visibility and isolation: state admin cannot see/edit/deactivate users outside their state or any admin (404)', async () => {
