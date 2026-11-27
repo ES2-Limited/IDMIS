@@ -135,10 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const refreshRes = await apiClient.refresh().catch(() => null);
           if (refreshRes) {
             setToken(refreshRes.accessToken);
+            const abilities = await apiClient.getAbilities().catch(() => null);
             if (!cancelled) {
-              setUser(refreshRes.user);
-              const abilities = await apiClient.getAbilities().catch(() => null);
               if (abilities) setPermissions(abilities.permissions);
+              setUser(refreshRes.user);
             }
             return;
           }
