@@ -27,7 +27,15 @@ interface NavItem {
   permission?: string | string[];
 }
 
-function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string }) {
+function NavEntry({
+  item,
+  currentPath,
+  onNavigate,
+}: {
+  item: NavItem;
+  currentPath: string;
+  onNavigate?: () => void;
+}) {
   const allowed = useCan(item.permission);
   if (!allowed) return null;
 
@@ -47,6 +55,7 @@ function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string })
   return (
     <Link
       to={item.path}
+      onClick={onNavigate}
       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all min-h-[40px] ${
         isActive
           ? 'bg-teal-50 text-teal-800 shadow-2xs font-bold'
@@ -62,41 +71,38 @@ function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string })
   );
 }
 
-export function SideNav() {
-  const routerState = useRouterState();
-  const currentPath = routerState.location.pathname;
+export type ActiveNavSection = 'core' | 'slis' | 'me' | 'blis' | 'field' | 'home';
 
+export function useActiveNavSection(currentPath: string): ActiveNavSection {
   const canCoreModule = useCan([...MODULE_PERMISSIONS.core]);
   const canSlisModule = useCan([...MODULE_PERMISSIONS.slis]);
   const canMeModule = useCan([...MODULE_PERMISSIONS.me]);
   const canBlisModule = useCan([...MODULE_PERMISSIONS.blis]);
   const canFieldModule = useCan([...MODULE_PERMISSIONS.field]);
 
-  // Determine active sidebar section from pathname, keeping users inside their
-  // own module sidebar when viewing a cross-module route (e.g. M&E -> /slis/reports).
-  let activeSection: 'core' | 'slis' | 'me' | 'blis' | 'field' | 'home' = 'home';
-  if (currentPath.startsWith('/core') && canCoreModule) {
-    activeSection = 'core';
-  } else if (currentPath.startsWith('/slis') && canSlisModule) {
-    activeSection = 'slis';
-  } else if (currentPath.startsWith('/me') && canMeModule) {
-    activeSection = 'me';
-  } else if (currentPath.startsWith('/blis') && canBlisModule) {
-    activeSection = 'blis';
-  } else if (currentPath.startsWith('/field') && canFieldModule) {
-    activeSection = 'field';
-  } else if (
+  if (currentPath.startsWith('/core') && canCoreModule) return 'core';
+  if (currentPath.startsWith('/slis') && canSlisModule) return 'slis';
+  if (currentPath.startsWith('/me') && canMeModule) return 'me';
+  if (currentPath.startsWith('/blis') && canBlisModule) return 'blis';
+  if (currentPath.startsWith('/field') && canFieldModule) return 'field';
+  if (
     (currentPath.startsWith('/slis/reports') || currentPath.startsWith('/field/capture/survey')) &&
     canMeModule
   ) {
-    activeSection = 'me';
-  } else if (currentPath.startsWith('/field/capture/dam-inspection') && canBlisModule) {
-    activeSection = 'blis';
-  } else if (currentPath.startsWith('/core/imports') && canSlisModule) {
-    activeSection = 'slis';
-  } else if (currentPath.startsWith('/core/imports') && canBlisModule) {
-    activeSection = 'blis';
+    return 'me';
   }
+  if (currentPath.startsWith('/field/capture/dam-inspection') && canBlisModule) {
+    return 'blis';
+  }
+  if (currentPath.startsWith('/core/imports') && canSlisModule) return 'slis';
+  if (currentPath.startsWith('/core/imports') && canBlisModule) return 'blis';
+  return 'home';
+}
+
+export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
+  const routerState = useRouterState();
+  const currentPath = routerState.location.pathname;
+  const activeSection = useActiveNavSection(currentPath);
 
   let moduleName: string;
   let navItems: NavItem[];
@@ -381,7 +387,7 @@ export function SideNav() {
 
       <nav aria-label="Module sub navigation" className="p-3 space-y-1.5 flex-1 overflow-y-auto">
         {navItems.map((item) => (
-          <NavEntry key={item.path} item={item} currentPath={currentPath} />
+          <NavEntry key={item.path} item={item} currentPath={currentPath} onNavigate={onNavigate} />
         ))}
       </nav>
 

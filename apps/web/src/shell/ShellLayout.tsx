@@ -28,8 +28,8 @@ function ShellLayoutInner() {
         {/* Mobile Navigation Sheet */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetContent side="left" className="p-0 w-72">
-            <div className="pt-6">
-              <SideNav />
+            <div className="pt-6 h-full">
+              <SideNav onNavigate={() => setMobileNavOpen(false)} />
             </div>
           </SheetContent>
         </Sheet>
@@ -40,8 +40,12 @@ function ShellLayoutInner() {
         </main>
       </div>
 
-      {/* Dynamic Bottom Navigation: Field Bar for Collectors, Standard BottomNav for Desk/Admin */}
-      {isFieldLayoutActive ? <FieldBottomBar /> : <BottomNav />}
+      {/* Dynamic Bottom Navigation: Field Bar for Collectors, Context-Aware BottomNav for Desk/Admin */}
+      {isFieldLayoutActive ? (
+        <FieldBottomBar />
+      ) : (
+        <BottomNav onOpenMore={() => setMobileNavOpen(true)} />
+      )}
 
       {/* PWA Prompt & SW Update Banner */}
       <PwaManager />
