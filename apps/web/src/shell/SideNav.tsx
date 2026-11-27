@@ -24,7 +24,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  permission?: string;
+  permission?: string | string[];
 }
 
 function NavEntry({ item, currentPath }: { item: NavItem; currentPath: string }) {
@@ -85,7 +85,7 @@ export function SideNav() {
         label: 'Data Imports',
         path: '/core/imports',
         icon: UploadCloud,
-        permission: 'core.import.read',
+        permission: 'core.import.run',
       },
       { label: 'Audit Logs', path: '/core/audit', icon: FileText, permission: 'core.audit.read' },
     ];
@@ -103,14 +103,19 @@ export function SideNav() {
         label: 'Plots & Command Areas',
         path: '/slis/plots',
         icon: MapPin,
-        permission: 'slis.farm.read',
+        permission: 'slis.plot.read',
       },
-      { label: 'Water Requests', path: '/slis/water', icon: Waves, permission: 'slis.water.read' },
+      {
+        label: 'Water Requests',
+        path: '/slis/water',
+        icon: Waves,
+        permission: 'slis.water_request.read',
+      },
       {
         label: 'Review & Conflicts',
         path: '/slis/review',
         icon: ShieldAlert,
-        permission: 'slis.import.read',
+        permission: 'slis.review.submit',
       },
     ];
   } else if (currentPath.startsWith('/me')) {
@@ -121,47 +126,72 @@ export function SideNav() {
         label: 'Results Framework',
         path: '/me/indicators',
         icon: Target,
-        permission: 'me.kpi.read',
+        permission: 'me.indicator.read',
       },
-      { label: 'Quarterly Entry', path: '/me/entry', icon: FileText, permission: 'me.kpi.read' },
+      {
+        label: 'Quarterly Entry',
+        path: '/me/entry',
+        icon: FileText,
+        permission: 'me.value.submit',
+      },
       {
         label: 'Indicator Matrix',
         path: '/me/matrix',
         icon: TrendingUp,
-        permission: 'me.kpi.read',
+        permission: 'me.indicator.read',
       },
-      { label: 'Surveys', path: '/me/surveys', icon: Database, permission: 'me.survey.read' },
-      { label: 'Scorecards', path: '/me/scorecards', icon: Award, permission: 'me.kpi.read' },
-      { label: 'Matching Grants', path: '/me/grants', icon: Banknote, permission: 'me.kpi.read' },
-      { label: 'Tech Adoption', path: '/me/adoption', icon: Sprout, permission: 'me.kpi.read' },
+      { label: 'Surveys', path: '/me/surveys', icon: Database, permission: 'me.survey.manage' },
+      {
+        label: 'Scorecards',
+        path: '/me/scorecards',
+        icon: Award,
+        permission: 'me.indicator.read',
+      },
+      {
+        label: 'Matching Grants',
+        path: '/me/grants',
+        icon: Banknote,
+        permission: 'me.indicator.read',
+      },
+      {
+        label: 'Tech Adoption',
+        path: '/me/adoption',
+        icon: Sprout,
+        permission: 'me.adoption.record',
+      },
     ];
   } else if (currentPath.startsWith('/blis')) {
     moduleName = 'BLIS Module';
     navItems = [
-      { label: 'Map Workspace', path: '/blis', icon: MapPin },
+      {
+        label: 'Map Workspace',
+        path: '/blis',
+        icon: MapPin,
+        permission: ['blis.map.read', 'blis.basin.read'],
+      },
       {
         label: 'Basins & Hydrology',
         path: '/blis/basins',
         icon: Compass,
-        permission: 'blis.irrigation.read',
+        permission: 'blis.basin.read',
       },
       {
         label: 'Dams & Reservoirs',
         path: '/blis/dams',
         icon: Waves,
-        permission: 'blis.irrigation.read',
+        permission: 'blis.basin.read',
       },
       {
         label: 'Hydromet Stations',
         path: '/blis/stations',
         icon: Database,
-        permission: 'blis.irrigation.read',
+        permission: 'blis.basin.read',
       },
       {
         label: 'Dam Inspections',
         path: '/blis/inspections',
         icon: ShieldAlert,
-        permission: 'blis.irrigation.read',
+        permission: ['blis.inspection.record', 'blis.inspection.approve'],
       },
     ];
   } else if (currentPath.startsWith('/field')) {
@@ -169,8 +199,18 @@ export function SideNav() {
     navItems = [
       { label: 'Field Station Home', path: '/field', icon: LayoutDashboard },
       { label: 'Fast Data Capture', path: '/field/capture', icon: MapPin },
-      { label: 'Register Farmer (Wizard)', path: '/field/capture/farmer', icon: Users },
-      { label: 'Map Plot Boundary (Walk)', path: '/field/capture/plot', icon: MapPin },
+      {
+        label: 'Register Farmer (Wizard)',
+        path: '/field/capture/farmer',
+        icon: Users,
+        permission: 'slis.farmer.create',
+      },
+      {
+        label: 'Map Plot Boundary (Walk)',
+        path: '/field/capture/plot',
+        icon: MapPin,
+        permission: 'slis.plot.manage',
+      },
       { label: 'My Cached Records', path: '/field/records', icon: FileText },
       { label: 'Sync Centre', path: '/field/sync', icon: Database },
       { label: 'Collector Profile (Me)', path: '/field/profile', icon: Users },
@@ -179,10 +219,35 @@ export function SideNav() {
     moduleName = 'SPIN IDMIS';
     navItems = [
       { label: 'Workspace Home', path: '/', icon: LayoutDashboard },
-      { label: 'Core Admin', path: '/core', icon: Building },
-      { label: 'SLIS (Land & Schemes)', path: '/slis', icon: MapPin },
-      { label: 'M&E (Indicators)', path: '/me', icon: TrendingUp },
-      { label: 'BLIS (Basin Land Info)', path: '/blis', icon: Waves },
+      {
+        label: 'Core Admin',
+        path: '/core',
+        icon: Building,
+        permission: [
+          'core.user.read',
+          'core.organisation.read',
+          'core.audit.read',
+          'core.import.run',
+        ],
+      },
+      {
+        label: 'SLIS (Land & Schemes)',
+        path: '/slis',
+        icon: MapPin,
+        permission: ['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read'],
+      },
+      {
+        label: 'M&E (Indicators)',
+        path: '/me',
+        icon: TrendingUp,
+        permission: ['me.indicator.read', 'me.survey.manage', 'me.value.submit'],
+      },
+      {
+        label: 'BLIS (Basin Land Info)',
+        path: '/blis',
+        icon: Waves,
+        permission: ['blis.basin.read', 'blis.map.read', 'blis.inspection.record'],
+      },
     ];
   }
 

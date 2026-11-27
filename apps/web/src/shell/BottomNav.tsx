@@ -1,21 +1,34 @@
 import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { LayoutDashboard, Sprout, TrendingUp, Building, MapPin } from 'lucide-react';
+import { LayoutDashboard, Sprout, TrendingUp, Building, MapPin, Waves } from 'lucide-react';
 import { useCan } from '../auth';
 
 export function BottomNav() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
-  const canSlis = useCan('slis.farmer.read');
-  const canMe = useCan('me.kpi.read');
-  const canCore = useCan('core.user.read');
+  const canSlis = useCan(['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read']);
+  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
+  const canBlis = useCan(['blis.basin.read', 'blis.map.read', 'blis.inspection.record']);
+  const canCore = useCan([
+    'core.user.read',
+    'core.organisation.read',
+    'core.audit.read',
+    'core.import.run',
+  ]);
+  const canField = useCan([
+    'slis.sync.push',
+    'slis.farmer.create',
+    'me.survey.respond',
+    'blis.inspection.record',
+  ]);
 
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },
     { label: 'SLIS', path: '/slis', icon: Sprout, show: canSlis },
-    { label: 'Field Hub', path: '/field', icon: MapPin },
+    { label: 'Field Hub', path: '/field', icon: MapPin, show: canField },
     { label: 'M&E', path: '/me', icon: TrendingUp, show: canMe },
+    { label: 'BLIS', path: '/blis', icon: Waves, show: canBlis },
     { label: 'Admin', path: '/core', icon: Building, show: canCore },
   ].filter((item) => item.show !== false);
 

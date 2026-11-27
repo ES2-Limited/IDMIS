@@ -5,7 +5,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { SyncDrawer } from './SyncDrawer';
 import { IconButton } from '@idmis/ui';
 import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
-import { useAuth } from '../auth';
+import { useAuth, useCan } from '../auth';
 import { useSync } from '../sync';
 
 interface TopBarProps {
@@ -19,13 +19,29 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   const { syncState, pendingOpsCount } = useSync();
   const [syncDrawerOpen, setSyncDrawerOpen] = React.useState(false);
 
+  const canCore = useCan([
+    'core.user.read',
+    'core.organisation.read',
+    'core.audit.read',
+    'core.import.run',
+  ]);
+  const canSlis = useCan(['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read']);
+  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
+  const canBlis = useCan(['blis.basin.read', 'blis.map.read', 'blis.inspection.record']);
+  const canField = useCan([
+    'slis.sync.push',
+    'slis.farmer.create',
+    'me.survey.respond',
+    'blis.inspection.record',
+  ]);
+
   const modules = [
-    { id: 'core', label: 'Core Admin', path: '/core' },
-    { id: 'slis', label: 'SLIS', path: '/slis' },
-    { id: 'me', label: 'M&E', path: '/me' },
-    { id: 'blis', label: 'BLIS', path: '/blis' },
-    { id: 'field', label: 'Field Station', path: '/field' },
-  ];
+    { id: 'core', label: 'Core Admin', path: '/core', show: canCore },
+    { id: 'slis', label: 'SLIS', path: '/slis', show: canSlis },
+    { id: 'me', label: 'M&E', path: '/me', show: canMe },
+    { id: 'blis', label: 'BLIS', path: '/blis', show: canBlis },
+    { id: 'field', label: 'Field Station', path: '/field', show: canField },
+  ].filter((m) => m.show);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-3.5 sm:px-6 shadow-xs">

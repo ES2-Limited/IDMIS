@@ -7,6 +7,7 @@ import { ErrorBoundaryView } from '../shell/ErrorBoundaryView';
 import { SignInPage } from '../routes/auth/SignInPage';
 import { UnauthorizedPage } from '../routes/auth/UnauthorizedPage';
 import { WorkspaceDashboard } from '../modules/dashboard/WorkspaceDashboard';
+import { PermissionGuard } from '../auth';
 
 // Lazy-loaded heavy modules for route-level code splitting & under 1.5MB initial payload
 function lazyRouteComponent<P extends object>(
@@ -308,21 +309,34 @@ const fieldProfileRoute = createRoute({
 const coreRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core',
-  component: CoreHome,
+  component: () => (
+    <PermissionGuard
+      permission={[
+        'core.user.read',
+        'core.organisation.read',
+        'core.audit.read',
+        'core.import.run',
+      ]}
+    >
+      <CoreHome />
+    </PermissionGuard>
+  ),
 });
 
 const coreUsersRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core/users',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>Core Administration</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Users & Roles</span>
+    <PermissionGuard permission="core.user.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>Core Administration</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Users & Roles</span>
+        </div>
+        <UserManagementView />
       </div>
-      <UserManagementView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -330,14 +344,16 @@ const coreOrganisationsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core/organisations',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>Core Administration</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Organisations & WUAs</span>
+    <PermissionGuard permission="core.organisation.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>Core Administration</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Organisations & WUAs</span>
+        </div>
+        <OrganisationsTreeView />
       </div>
-      <OrganisationsTreeView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -345,14 +361,16 @@ const coreImportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core/imports',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>Core Administration</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Batch Import Center</span>
+    <PermissionGuard permission="core.import.run">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>Core Administration</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Batch Import Center</span>
+        </div>
+        <ImportCenterView />
       </div>
-      <ImportCenterView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -360,14 +378,16 @@ const coreAuditRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core/audit',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>Core Administration</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Security Audit Trail</span>
+    <PermissionGuard permission="core.audit.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>Core Administration</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Security Audit Trail</span>
+        </div>
+        <AuditLogsView />
       </div>
-      <AuditLogsView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -375,21 +395,27 @@ const coreAuditRoute = createRoute({
 const slisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis',
-  component: SlisHome,
+  component: () => (
+    <PermissionGuard permission={['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read']}>
+      <SlisHome />
+    </PermissionGuard>
+  ),
 });
 
 const slisFarmersRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/farmers',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>SLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Farmers & Households</span>
+    <PermissionGuard permission="slis.farmer.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>SLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Farmers & Households</span>
+        </div>
+        <FarmersListView />
       </div>
-      <FarmersListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -397,14 +423,16 @@ const slisPlotsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/plots',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>SLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Plots & Command Areas</span>
+    <PermissionGuard permission="slis.plot.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>SLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Plots & Command Areas</span>
+        </div>
+        <PlotsMapView />
       </div>
-      <PlotsMapView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -412,14 +440,16 @@ const slisWaterRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/water',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>SLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Water Allocation Requests</span>
+    <PermissionGuard permission="slis.water_request.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>SLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Water Allocation Requests</span>
+        </div>
+        <WaterRequestsListView />
       </div>
-      <WaterRequestsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -427,14 +457,16 @@ const slisReviewRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/review',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>SLIS Module</span>
-        <span>/</span>
-        <span className="text-rose-700 font-bold">Review & Conflicts</span>
+    <PermissionGuard permission="slis.review.submit">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>SLIS Module</span>
+          <span>/</span>
+          <span className="text-rose-700 font-bold">Review & Conflicts</span>
+        </div>
+        <ReviewConflictsListView />
       </div>
-      <ReviewConflictsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -442,14 +474,16 @@ const slisReportsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/reports',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>SLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-700 font-bold">Operational Reports</span>
+    <PermissionGuard permission="slis.report.view">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>SLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-700 font-bold">Operational Reports</span>
+        </div>
+        <SlisReportsView />
       </div>
-      <SlisReportsView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -457,21 +491,27 @@ const slisReportsRoute = createRoute({
 const meRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me',
-  component: MeHome,
+  component: () => (
+    <PermissionGuard permission={['me.indicator.read', 'me.survey.manage', 'me.value.submit']}>
+      <MeHome />
+    </PermissionGuard>
+  ),
 });
 
 const meIndicatorsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/indicators',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-amber-800 font-bold">Results Framework and Indicators</span>
+    <PermissionGuard permission="me.indicator.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-amber-800 font-bold">Results Framework and Indicators</span>
+        </div>
+        <IndicatorsListView />
       </div>
-      <IndicatorsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -479,14 +519,16 @@ const meEntryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/entry',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Quarterly Monitoring Data Entry</span>
+    <PermissionGuard permission="me.value.submit">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Quarterly Monitoring Data Entry</span>
+        </div>
+        <QuarterlyDataEntryView />
       </div>
-      <QuarterlyDataEntryView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -494,14 +536,16 @@ const meMatrixRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/matrix',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-amber-800 font-bold">Performance Indicator Matrix</span>
+    <PermissionGuard permission="me.indicator.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-amber-800 font-bold">Performance Indicator Matrix</span>
+        </div>
+        <IndicatorMatrixView />
       </div>
-      <IndicatorMatrixView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -509,14 +553,16 @@ const meSurveysRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/surveys',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Surveys & Questionnaire Builder</span>
+    <PermissionGuard permission="me.survey.manage">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Surveys & Questionnaire Builder</span>
+        </div>
+        <SurveysManagementView />
       </div>
-      <SurveysManagementView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -524,14 +570,16 @@ const meScorecardsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/scorecards',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-amber-800 font-bold">Scheme Scorecards</span>
+    <PermissionGuard permission="me.indicator.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-amber-800 font-bold">Scheme Scorecards</span>
+        </div>
+        <ScorecardsListView />
       </div>
-      <ScorecardsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -539,14 +587,16 @@ const meGrantsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/grants',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Matching Grants</span>
+    <PermissionGuard permission="me.indicator.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Matching Grants</span>
+        </div>
+        <MatchingGrantsListView />
       </div>
-      <MatchingGrantsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -554,14 +604,16 @@ const meAdoptionRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/adoption',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>M&E Module</span>
-        <span>/</span>
-        <span className="text-lime-800 font-bold">Technology Adoption</span>
+    <PermissionGuard permission="me.adoption.record">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>M&E Module</span>
+          <span>/</span>
+          <span className="text-lime-800 font-bold">Technology Adoption</span>
+        </div>
+        <TechnologyAdoptionListView />
       </div>
-      <TechnologyAdoptionListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -569,21 +621,27 @@ const meAdoptionRoute = createRoute({
 const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis',
-  component: BlisMapWorkspaceView,
+  component: () => (
+    <PermissionGuard permission={['blis.map.read', 'blis.basin.read', 'blis.inspection.record']}>
+      <BlisMapWorkspaceView />
+    </PermissionGuard>
+  ),
 });
 
 const blisBasinsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis/basins',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>BLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Basin Catchments & Morphometry</span>
+    <PermissionGuard permission="blis.basin.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>BLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Basin Catchments & Morphometry</span>
+        </div>
+        <BasinsListView />
       </div>
-      <BasinsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -591,14 +649,16 @@ const blisDamsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis/dams',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>BLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Dams & Impoundment Reservoirs</span>
+    <PermissionGuard permission="blis.basin.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>BLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Dams & Impoundment Reservoirs</span>
+        </div>
+        <DamsListView />
       </div>
-      <DamsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -606,14 +666,16 @@ const blisStationsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis/stations',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>BLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Hydromet Telemetry Stations</span>
+    <PermissionGuard permission="blis.basin.read">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>BLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Hydromet Telemetry Stations</span>
+        </div>
+        <StationsListView />
       </div>
-      <StationsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 
@@ -621,14 +683,16 @@ const blisInspectionsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis/inspections',
   component: () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-        <span>BLIS Module</span>
-        <span>/</span>
-        <span className="text-teal-800 font-bold">Dam Safety Surveillance & Inspections</span>
+    <PermissionGuard permission={['blis.inspection.record', 'blis.inspection.approve']}>
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+          <span>BLIS Module</span>
+          <span>/</span>
+          <span className="text-teal-800 font-bold">Dam Safety Surveillance & Inspections</span>
+        </div>
+        <DamInspectionsListView />
       </div>
-      <DamInspectionsListView />
-    </div>
+    </PermissionGuard>
   ),
 });
 

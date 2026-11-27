@@ -49,7 +49,7 @@ export interface FarmerRecord {
 
 export function FarmersListView() {
   const { currentScope } = useScope();
-  const canViewUnmasked = useCan('slis.farmer.identity.read_unmasked');
+  const canViewUnmasked = useCan('slis.identity.view');
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [genderFilter, setGenderFilter] = React.useState('all');
