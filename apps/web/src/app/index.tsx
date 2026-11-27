@@ -536,7 +536,7 @@ const meEntryRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/entry',
   component: () => (
-    <PermissionGuard permission="me.value.submit">
+    <PermissionGuard permission={['me.value.submit', 'me.value.approve']}>
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
           <span>M&E Module</span>
@@ -621,7 +621,7 @@ const meAdoptionRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/me/adoption',
   component: () => (
-    <PermissionGuard permission="me.adoption.record">
+    <PermissionGuard permission={['me.adoption.record', 'me.indicator.read']}>
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
           <span>M&E Module</span>

@@ -117,6 +117,18 @@ export function SideNav() {
         icon: ShieldAlert,
         permission: 'slis.review.submit',
       },
+      {
+        label: 'Operational Reports',
+        path: '/slis/reports',
+        icon: FileText,
+        permission: 'slis.report.view',
+      },
+      {
+        label: 'Data Imports',
+        path: '/core/imports',
+        icon: UploadCloud,
+        permission: ['slis.import.run', 'core.import.run'],
+      },
     ];
   } else if (currentPath.startsWith('/me')) {
     moduleName = 'M&E Module';
@@ -132,7 +144,7 @@ export function SideNav() {
         label: 'Quarterly Entry',
         path: '/me/entry',
         icon: FileText,
-        permission: 'me.value.submit',
+        permission: ['me.value.submit', 'me.value.approve'],
       },
       {
         label: 'Indicator Matrix',
@@ -141,6 +153,12 @@ export function SideNav() {
         permission: 'me.indicator.read',
       },
       { label: 'Surveys', path: '/me/surveys', icon: Database, permission: 'me.survey.manage' },
+      {
+        label: 'Field Survey Capture',
+        path: '/field/capture/survey',
+        icon: MapPin,
+        permission: 'me.survey.respond',
+      },
       {
         label: 'Scorecards',
         path: '/me/scorecards',
@@ -157,7 +175,13 @@ export function SideNav() {
         label: 'Tech Adoption',
         path: '/me/adoption',
         icon: Sprout,
-        permission: 'me.adoption.record',
+        permission: ['me.adoption.record', 'me.indicator.read'],
+      },
+      {
+        label: 'SLIS Reports',
+        path: '/slis/reports',
+        icon: FileText,
+        permission: 'slis.report.view',
       },
     ];
   } else if (currentPath.startsWith('/blis')) {
@@ -193,6 +217,18 @@ export function SideNav() {
         icon: ShieldAlert,
         permission: ['blis.inspection.record', 'blis.inspection.approve'],
       },
+      {
+        label: 'Field Dam Inspection',
+        path: '/field/capture/dam-inspection',
+        icon: MapPin,
+        permission: 'blis.inspection.record',
+      },
+      {
+        label: 'Data Imports',
+        path: '/core/imports',
+        icon: UploadCloud,
+        permission: 'core.import.run',
+      },
     ];
   } else if (currentPath.startsWith('/field')) {
     moduleName = 'Field Collector Hub';
@@ -210,6 +246,42 @@ export function SideNav() {
         path: '/field/capture/plot',
         icon: MapPin,
         permission: 'slis.plot.manage',
+      },
+      {
+        label: 'Water Request',
+        path: '/field/capture/water',
+        icon: Waves,
+        permission: 'slis.water_request.create',
+      },
+      {
+        label: 'Fee Collection',
+        path: '/field/capture/fee',
+        icon: Banknote,
+        permission: 'slis.fee.record',
+      },
+      {
+        label: 'Training Attendance',
+        path: '/field/capture/training',
+        icon: Users,
+        permission: 'slis.training.manage',
+      },
+      {
+        label: 'Crop Production',
+        path: '/field/capture/crop',
+        icon: Sprout,
+        permission: 'slis.crop.manage',
+      },
+      {
+        label: 'Survey Capture',
+        path: '/field/capture/survey',
+        icon: Database,
+        permission: 'me.survey.respond',
+      },
+      {
+        label: 'Dam Inspection',
+        path: '/field/capture/dam-inspection',
+        icon: ShieldAlert,
+        permission: 'blis.inspection.record',
       },
       { label: 'My Cached Records', path: '/field/records', icon: FileText },
       { label: 'Sync Centre', path: '/field/sync', icon: Database },
