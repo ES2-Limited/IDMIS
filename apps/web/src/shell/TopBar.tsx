@@ -5,7 +5,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { SyncDrawer } from './SyncDrawer';
 import { IconButton } from '@idmis/ui';
 import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
-import { useAuth, useCan } from '../auth';
+import { useAuth, useCan, MODULE_PERMISSIONS } from '../auth';
 import { useSync } from '../sync';
 
 interface TopBarProps {
@@ -19,22 +19,11 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   const { syncState, pendingOpsCount } = useSync();
   const [syncDrawerOpen, setSyncDrawerOpen] = React.useState(false);
 
-  const canCore = useCan(['core.user.read', 'core.audit.read', 'core.import.run']);
-  const canSlis = useCan([
-    'slis.farmer.create',
-    'slis.farmer.update',
-    'slis.plot.manage',
-    'slis.water_request.read',
-    'slis.review.submit',
-  ]);
-  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
-  const canBlis = useCan([
-    'blis.basin.read',
-    'blis.dam.manage',
-    'blis.station.manage',
-    'blis.inspection.record',
-  ]);
-  const canField = useCan(['slis.sync.push', 'slis.farmer.create', 'blis.inspection.record']);
+  const canCore = useCan([...MODULE_PERMISSIONS.core]);
+  const canSlis = useCan([...MODULE_PERMISSIONS.slis]);
+  const canMe = useCan([...MODULE_PERMISSIONS.me]);
+  const canBlis = useCan([...MODULE_PERMISSIONS.blis]);
+  const canField = useCan([...MODULE_PERMISSIONS.field]);
 
   const modules = [
     { id: 'core', label: 'Core Admin', path: '/core', show: canCore },

@@ -1,28 +1,17 @@
 import * as React from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { LayoutDashboard, Sprout, TrendingUp, Building, MapPin, Waves } from 'lucide-react';
-import { useCan } from '../auth';
+import { useCan, MODULE_PERMISSIONS } from '../auth';
 
 export function BottomNav() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
-  const canSlis = useCan([
-    'slis.farmer.create',
-    'slis.farmer.update',
-    'slis.plot.manage',
-    'slis.water_request.read',
-    'slis.review.submit',
-  ]);
-  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
-  const canBlis = useCan([
-    'blis.basin.read',
-    'blis.dam.manage',
-    'blis.station.manage',
-    'blis.inspection.record',
-  ]);
-  const canCore = useCan(['core.user.read', 'core.audit.read', 'core.import.run']);
-  const canField = useCan(['slis.sync.push', 'slis.farmer.create', 'blis.inspection.record']);
+  const canSlis = useCan([...MODULE_PERMISSIONS.slis]);
+  const canMe = useCan([...MODULE_PERMISSIONS.me]);
+  const canBlis = useCan([...MODULE_PERMISSIONS.blis]);
+  const canCore = useCan([...MODULE_PERMISSIONS.core]);
+  const canField = useCan([...MODULE_PERMISSIONS.field]);
 
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },

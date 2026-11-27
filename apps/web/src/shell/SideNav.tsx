@@ -18,7 +18,7 @@ import {
   Compass,
   type LucideIcon,
 } from 'lucide-react';
-import { useCan } from '../auth';
+import { useCan, MODULE_PERMISSIONS } from '../auth';
 
 interface NavItem {
   label: string;
@@ -66,14 +66,50 @@ export function SideNav() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
-  // Determine active module from pathname
+  const canCoreModule = useCan([...MODULE_PERMISSIONS.core]);
+  const canSlisModule = useCan([...MODULE_PERMISSIONS.slis]);
+  const canMeModule = useCan([...MODULE_PERMISSIONS.me]);
+  const canBlisModule = useCan([...MODULE_PERMISSIONS.blis]);
+  const canFieldModule = useCan([...MODULE_PERMISSIONS.field]);
+
+  // Determine active sidebar section from pathname, keeping users inside their
+  // own module sidebar when viewing a cross-module route (e.g. M&E -> /slis/reports).
+  let activeSection: 'core' | 'slis' | 'me' | 'blis' | 'field' | 'home' = 'home';
+  if (currentPath.startsWith('/core') && canCoreModule) {
+    activeSection = 'core';
+  } else if (currentPath.startsWith('/slis') && canSlisModule) {
+    activeSection = 'slis';
+  } else if (currentPath.startsWith('/me') && canMeModule) {
+    activeSection = 'me';
+  } else if (currentPath.startsWith('/blis') && canBlisModule) {
+    activeSection = 'blis';
+  } else if (currentPath.startsWith('/field') && canFieldModule) {
+    activeSection = 'field';
+  } else if (
+    (currentPath.startsWith('/slis/reports') || currentPath.startsWith('/field/capture/survey')) &&
+    canMeModule
+  ) {
+    activeSection = 'me';
+  } else if (currentPath.startsWith('/field/capture/dam-inspection') && canBlisModule) {
+    activeSection = 'blis';
+  } else if (currentPath.startsWith('/core/imports') && canSlisModule) {
+    activeSection = 'slis';
+  } else if (currentPath.startsWith('/core/imports') && canBlisModule) {
+    activeSection = 'blis';
+  }
+
   let moduleName: string;
   let navItems: NavItem[];
 
-  if (currentPath.startsWith('/core')) {
+  if (activeSection === 'core') {
     moduleName = 'Core Administration';
     navItems = [
-      { label: 'Overview', path: '/core', icon: LayoutDashboard },
+      {
+        label: 'Overview',
+        path: '/core',
+        icon: LayoutDashboard,
+        permission: [...MODULE_PERMISSIONS.core],
+      },
       { label: 'Users & Roles', path: '/core/users', icon: Users, permission: 'core.user.read' },
       {
         label: 'Organisations & WUAs',
@@ -89,21 +125,26 @@ export function SideNav() {
       },
       { label: 'Audit Logs', path: '/core/audit', icon: FileText, permission: 'core.audit.read' },
     ];
-  } else if (currentPath.startsWith('/slis')) {
+  } else if (activeSection === 'slis') {
     moduleName = 'SLIS Module';
     navItems = [
-      { label: 'Dashboard', path: '/slis', icon: LayoutDashboard },
+      {
+        label: 'Dashboard',
+        path: '/slis',
+        icon: LayoutDashboard,
+        permission: [...MODULE_PERMISSIONS.slis],
+      },
       {
         label: 'Farmers & Households',
         path: '/slis/farmers',
         icon: Users,
-        permission: 'slis.farmer.read',
+        permission: [...MODULE_PERMISSIONS.slis],
       },
       {
         label: 'Plots & Command Areas',
         path: '/slis/plots',
         icon: MapPin,
-        permission: 'slis.plot.read',
+        permission: [...MODULE_PERMISSIONS.slis],
       },
       {
         label: 'Water Requests',
@@ -130,7 +171,7 @@ export function SideNav() {
         permission: ['slis.import.run', 'core.import.run'],
       },
     ];
-  } else if (currentPath.startsWith('/me')) {
+  } else if (activeSection === 'me') {
     moduleName = 'M&E Module';
     navItems = [
       { label: 'Overview', path: '/me', icon: LayoutDashboard },
@@ -184,7 +225,7 @@ export function SideNav() {
         permission: 'slis.report.view',
       },
     ];
-  } else if (currentPath.startsWith('/blis')) {
+  } else if (activeSection === 'blis') {
     moduleName = 'BLIS Module';
     navItems = [
       {
@@ -230,7 +271,7 @@ export function SideNav() {
         permission: 'core.import.run',
       },
     ];
-  } else if (currentPath.startsWith('/field')) {
+  } else if (activeSection === 'field') {
     moduleName = 'Field Collector Hub';
     navItems = [
       { label: 'Field Station Home', path: '/field', icon: LayoutDashboard },
