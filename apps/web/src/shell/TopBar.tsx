@@ -4,15 +4,11 @@ import { ScopePicker } from './ScopePicker';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SyncDrawer } from './SyncDrawer';
 import { IconButton } from '@idmis/ui';
-import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
+import { Bell, User, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth, useCan, MODULE_PERMISSIONS } from '../auth';
 import { useSync } from '../sync';
 
-interface TopBarProps {
-  onToggleSidebar?: () => void;
-}
-
-export function TopBar({ onToggleSidebar }: TopBarProps) {
+export function TopBar() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
   const { user, signOut } = useAuth();
@@ -36,16 +32,6 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-3.5 sm:px-6 shadow-xs">
       <div className="flex items-center gap-2.5 sm:gap-4 md:gap-6">
-        <IconButton
-          variant="ghost"
-          size="sm"
-          aria-label="Toggle navigation menu"
-          className="inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
-          onClick={onToggleSidebar}
-        >
-          <Menu className="h-5 w-5" />
-        </IconButton>
-
         <Link
           to="/"
           className="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight cursor-pointer"
