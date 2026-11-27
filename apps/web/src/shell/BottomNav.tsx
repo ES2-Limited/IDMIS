@@ -7,21 +7,22 @@ export function BottomNav() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
-  const canSlis = useCan(['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read']);
-  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
-  const canBlis = useCan(['blis.basin.read', 'blis.map.read', 'blis.inspection.record']);
-  const canCore = useCan([
-    'core.user.read',
-    'core.organisation.read',
-    'core.audit.read',
-    'core.import.run',
-  ]);
-  const canField = useCan([
-    'slis.sync.push',
+  const canSlis = useCan([
     'slis.farmer.create',
-    'me.survey.respond',
+    'slis.farmer.update',
+    'slis.plot.manage',
+    'slis.water_request.read',
+    'slis.review.submit',
+  ]);
+  const canMe = useCan(['me.indicator.read', 'me.survey.manage', 'me.value.submit']);
+  const canBlis = useCan([
+    'blis.basin.read',
+    'blis.dam.manage',
+    'blis.station.manage',
     'blis.inspection.record',
   ]);
+  const canCore = useCan(['core.user.read', 'core.audit.read', 'core.import.run']);
+  const canField = useCan(['slis.sync.push', 'slis.farmer.create', 'blis.inspection.record']);
 
   const navItems = [
     { label: 'Overview', path: '/', icon: LayoutDashboard, exact: true },

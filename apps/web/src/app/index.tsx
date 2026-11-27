@@ -310,14 +310,7 @@ const coreRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/core',
   component: () => (
-    <PermissionGuard
-      permission={[
-        'core.user.read',
-        'core.organisation.read',
-        'core.audit.read',
-        'core.import.run',
-      ]}
-    >
+    <PermissionGuard permission={['core.user.read', 'core.audit.read', 'core.import.run']}>
       <CoreHome />
     </PermissionGuard>
   ),
@@ -396,7 +389,15 @@ const slisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis',
   component: () => (
-    <PermissionGuard permission={['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read']}>
+    <PermissionGuard
+      permission={[
+        'slis.farmer.create',
+        'slis.farmer.update',
+        'slis.plot.manage',
+        'slis.water_request.read',
+        'slis.review.submit',
+      ]}
+    >
       <SlisHome />
     </PermissionGuard>
   ),
@@ -406,7 +407,15 @@ const slisFarmersRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/farmers',
   component: () => (
-    <PermissionGuard permission="slis.farmer.read">
+    <PermissionGuard
+      permission={[
+        'slis.farmer.create',
+        'slis.farmer.update',
+        'slis.plot.manage',
+        'slis.water_request.read',
+        'slis.review.submit',
+      ]}
+    >
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
           <span>SLIS Module</span>
@@ -423,7 +432,15 @@ const slisPlotsRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/slis/plots',
   component: () => (
-    <PermissionGuard permission="slis.plot.read">
+    <PermissionGuard
+      permission={[
+        'slis.farmer.create',
+        'slis.farmer.update',
+        'slis.plot.manage',
+        'slis.water_request.read',
+        'slis.review.submit',
+      ]}
+    >
       <div className="space-y-6">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
           <span>SLIS Module</span>
@@ -622,7 +639,14 @@ const blisRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/blis',
   component: () => (
-    <PermissionGuard permission={['blis.map.read', 'blis.basin.read', 'blis.inspection.record']}>
+    <PermissionGuard
+      permission={[
+        'blis.basin.read',
+        'blis.dam.manage',
+        'blis.station.manage',
+        'blis.inspection.record',
+      ]}
+    >
       <BlisMapWorkspaceView />
     </PermissionGuard>
   ),

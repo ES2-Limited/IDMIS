@@ -223,18 +223,19 @@ export function SideNav() {
         label: 'Core Admin',
         path: '/core',
         icon: Building,
-        permission: [
-          'core.user.read',
-          'core.organisation.read',
-          'core.audit.read',
-          'core.import.run',
-        ],
+        permission: ['core.user.read', 'core.audit.read', 'core.import.run'],
       },
       {
         label: 'SLIS (Land & Schemes)',
         path: '/slis',
         icon: MapPin,
-        permission: ['slis.farmer.read', 'slis.plot.read', 'slis.water_request.read'],
+        permission: [
+          'slis.farmer.create',
+          'slis.farmer.update',
+          'slis.plot.manage',
+          'slis.water_request.read',
+          'slis.review.submit',
+        ],
       },
       {
         label: 'M&E (Indicators)',
@@ -246,7 +247,12 @@ export function SideNav() {
         label: 'BLIS (Basin Land Info)',
         path: '/blis',
         icon: Waves,
-        permission: ['blis.basin.read', 'blis.map.read', 'blis.inspection.record'],
+        permission: [
+          'blis.basin.read',
+          'blis.dam.manage',
+          'blis.station.manage',
+          'blis.inspection.record',
+        ],
       },
     ];
   }
