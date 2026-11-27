@@ -1,13 +1,19 @@
 import * as React from 'react';
 import { QueryClient } from '@tanstack/react-query';
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Navigate,
+  Outlet,
+} from '@tanstack/react-router';
 import { ShellLayout } from '../shell/ShellLayout';
 import { NotFound } from '../shell/NotFound';
 import { ErrorBoundaryView } from '../shell/ErrorBoundaryView';
 import { SignInPage } from '../routes/auth/SignInPage';
 import { UnauthorizedPage } from '../routes/auth/UnauthorizedPage';
 import { WorkspaceDashboard } from '../modules/dashboard/WorkspaceDashboard';
-import { PermissionGuard } from '../auth';
+import { PermissionGuard, useCan, MODULE_PERMISSIONS } from '../auth';
 
 // Lazy-loaded heavy modules for route-level code splitting & under 1.5MB initial payload
 function lazyRouteComponent<P extends object>(
@@ -219,11 +225,32 @@ const appShellRoute = createRoute({
   component: ShellLayout,
 });
 
-// Workspace Home Dashboard (Desktop Admin / Scheme Officer Overview)
+function RoleHomeView() {
+  const canCore = useCan([...MODULE_PERMISSIONS.core]);
+  const canSlis = useCan([...MODULE_PERMISSIONS.slis]);
+  const canMe = useCan([...MODULE_PERMISSIONS.me]);
+  const canBlis = useCan([...MODULE_PERMISSIONS.blis]);
+  const canField = useCan([...MODULE_PERMISSIONS.field]);
+
+  const accessibleModules: Array<'/core' | '/slis' | '/me' | '/blis' | '/field'> = [];
+  if (canCore) accessibleModules.push('/core');
+  if (canSlis) accessibleModules.push('/slis');
+  if (canMe) accessibleModules.push('/me');
+  if (canBlis) accessibleModules.push('/blis');
+  if (canField) accessibleModules.push('/field');
+
+  if (accessibleModules.length === 1) {
+    return <Navigate to={accessibleModules[0]} replace />;
+  }
+
+  return <WorkspaceDashboard />;
+}
+
+// Workspace Home Dashboard (Desktop Admin / Multi-module Overview)
 const indexRoute = createRoute({
   getParentRoute: () => appShellRoute,
   path: '/',
-  component: WorkspaceDashboard,
+  component: RoleHomeView,
 });
 
 // Dedicated Field Station Home route

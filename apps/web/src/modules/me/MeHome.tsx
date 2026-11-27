@@ -1,7 +1,21 @@
-import { Table, ClipboardList, Target, ArrowUpRight, TrendingUp, BarChart3 } from 'lucide-react';
+import {
+  Table,
+  ClipboardList,
+  Target,
+  ArrowUpRight,
+  TrendingUp,
+  BarChart3,
+  FileText,
+  Award,
+  Banknote,
+  Sprout,
+  MapPin,
+} from 'lucide-react';
 import { Card, StatusChip, Button } from '@idmis/ui';
 import { Link } from '@tanstack/react-router';
 import { useScope } from '../../shell/ScopeContext';
+import { Can } from '../../auth';
+import { useProgrammeDashboard, useStateDashboard, useSchemeDashboard } from '../dashboard/hooks';
 import { useIndicators, useIndicatorMatrix } from './hooks';
 
 export function MeHome() {
@@ -17,6 +31,27 @@ export function MeHome() {
     scopeId:
       currentScope.type === 'state' || currentScope.type === 'scheme' ? currentScope.id : undefined,
   });
+
+  const isStateScope = currentScope.type === 'state' && currentScope.id.includes('-');
+  const isSchemeScope = currentScope.type === 'scheme' && currentScope.id.includes('-');
+  const programmeQuery = useProgrammeDashboard();
+  const stateQuery = useStateDashboard(isStateScope ? currentScope.id : undefined);
+  const schemeQuery = useSchemeDashboard(isSchemeScope ? currentScope.id : undefined);
+
+  const activeDashboard =
+    currentScope.type === 'state'
+      ? stateQuery.data
+      : currentScope.type === 'scheme'
+        ? schemeQuery.data
+        : programmeQuery.data;
+
+  const totalFarmers = activeDashboard?.farmers?.total ?? 0;
+  const totalAreaHa = activeDashboard?.area?.totalHa
+    ? Math.round(parseFloat(activeDashboard.area.totalHa))
+    : 0;
+  const feeRate = activeDashboard?.feeRecovery?.rate
+    ? parseFloat(activeDashboard.feeRecovery.rate)
+    : 0;
 
   const totalIndicators = indicators.length;
   const pdoCount = indicators.filter((i) => i.level === 'pdo').length;
@@ -86,15 +121,23 @@ export function MeHome() {
     {
       label: 'Active Indicators',
       value: `${totalIndicators} Metrics`,
-      sub: `${pdoCount} PDO tracked`,
+      sub: `${pdoCount} PDO · ${matrixCount} matrix rows`,
     },
-    { label: 'Matrix Measurements', value: `${matrixCount} Rows`, sub: 'Active period' },
     {
-      label: 'Active Scope',
-      value: currentScope.name || 'National',
-      sub: currentScope.type.toUpperCase(),
+      label: 'Registered Farmers',
+      value: totalFarmers.toLocaleString(),
+      sub: currentScope.name || 'National',
     },
-    { label: 'Data Source', value: 'Live Postgres', sub: 'Sync triggers active' },
+    {
+      label: 'Irrigated Area',
+      value: `${totalAreaHa.toLocaleString()} Ha`,
+      sub: 'Command area',
+    },
+    {
+      label: 'Fee Recovery Rate',
+      value: `${feeRate.toFixed(1)}%`,
+      sub: 'Programme telemetry',
+    },
   ];
 
   return (
@@ -223,6 +266,73 @@ export function MeHome() {
             </Card>
           );
         })}
+      </div>
+
+      {/* Additional M&E & Cross-Module Operations */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <Can permission="me.survey.respond">
+          <Link to="/field/capture/survey" className="block">
+            <Card className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-amber-300 hover:shadow-sm transition-all h-full flex flex-col justify-between">
+              <div className="flex items-center gap-2.5 text-amber-700 font-bold text-xs">
+                <MapPin className="h-4 w-4 shrink-0" />
+                <span>Field Survey Capture</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5">
+                Offline-capable beneficiary survey intake form
+              </p>
+            </Card>
+          </Link>
+        </Can>
+
+        <Can permission="slis.report.view">
+          <Link to="/slis/reports" className="block">
+            <Card className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-teal-300 hover:shadow-sm transition-all h-full flex flex-col justify-between">
+              <div className="flex items-center gap-2.5 text-teal-700 font-bold text-xs">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span>SLIS Reports</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5">
+                Scheme land, water & fee recovery summaries
+              </p>
+            </Card>
+          </Link>
+        </Can>
+
+        <Link to="/me/scorecards" className="block">
+          <Card className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-amber-300 hover:shadow-sm transition-all h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 text-amber-700 font-bold text-xs">
+              <Award className="h-4 w-4 shrink-0" />
+              <span>Scheme Scorecards</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              Quarterly scheme performance ratings
+            </p>
+          </Card>
+        </Link>
+
+        <Link to="/me/grants" className="block">
+          <Card className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-teal-300 hover:shadow-sm transition-all h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 text-teal-700 font-bold text-xs">
+              <Banknote className="h-4 w-4 shrink-0" />
+              <span>Matching Grants</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              Grant disbursements & WUA co-financing
+            </p>
+          </Card>
+        </Link>
+
+        <Link to="/me/adoption" className="block">
+          <Card className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-lime-300 hover:shadow-sm transition-all h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 text-lime-700 font-bold text-xs">
+              <Sprout className="h-4 w-4 shrink-0" />
+              <span>Tech Adoption</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              Climate-smart & irrigation technology uptake
+            </p>
+          </Card>
+        </Link>
       </div>
     </div>
   );
