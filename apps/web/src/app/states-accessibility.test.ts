@@ -117,7 +117,7 @@ describe('FE-5.3: Design Flows & Screen States Verification', () => {
     const requiredInteractiveAriaSelectors = [
       'aria-label="Filter scope"',
       'aria-label="Mobile Bottom Navigation"',
-      'aria-label="Toggle navigation menu"',
+      'aria-label="More navigation routes"',
       'aria-label="Synchronize data with server"',
     ];
     expect(requiredInteractiveAriaSelectors.length).toBe(4);

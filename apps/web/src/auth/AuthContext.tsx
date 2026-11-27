@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import type {
   AuthMeResponse,
   SignInInput,
@@ -62,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   });
+  const tokenRef = useRef<string | null>(token);
 
   const [user, setUser] = useState<AuthMeResponse | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -69,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const setToken = useCallback((newToken: string | null) => {
+    tokenRef.current = newToken;
     setTokenState(newToken);
     if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
       if (newToken) {
@@ -81,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const apiClient = useMemo(() => {
     return getApiClient({
-      getAccessToken: () => token,
+      getAccessToken: () => tokenRef.current,
       setAccessToken: setToken,
       onUnauthorized: () => {
         setUser(null);
@@ -89,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(null);
       },
     });
-  }, [token, setToken]);
+  }, [setToken]);
 
   // Load session on startup
   useEffect(() => {
@@ -125,10 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const refreshRes = await apiClient.refresh().catch(() => null);
           if (refreshRes) {
             setToken(refreshRes.accessToken);
+            const abilities = await apiClient.getAbilities().catch(() => null);
             if (!cancelled) {
-              setUser(refreshRes.user);
-              const abilities = await apiClient.getAbilities().catch(() => null);
               if (abilities) setPermissions(abilities.permissions);
+              setUser(refreshRes.user);
             }
             return;
           }
@@ -192,10 +202,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await apiClient.signIn(input);
       if (res.status === 'authenticated') {
         setToken(res.accessToken);
-        setUser(res.user);
-        setIsLoading(false);
         const abilities = await apiClient.getAbilities().catch(() => null);
         if (abilities) setPermissions(abilities.permissions);
+        setUser(res.user);
+        setIsLoading(false);
       }
       return res;
     },
@@ -224,9 +234,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await apiClient.verifyTotp(input);
       if (res.status === 'authenticated') {
         setToken(res.accessToken);
-        setUser(res.user);
         const abilities = await apiClient.getAbilities().catch(() => null);
         if (abilities) setPermissions(abilities.permissions);
+        setUser(res.user);
       }
       return res;
     },

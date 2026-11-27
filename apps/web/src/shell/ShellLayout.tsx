@@ -7,17 +7,16 @@ import { FieldBottomBar } from './FieldBottomBar';
 import { FieldModeProvider, useFieldMode } from './FieldModeContext';
 import { ScopeProvider } from './ScopeContext';
 import { SyncProvider } from '../sync';
-import { Sheet, SheetContent, Spinner } from '@idmis/ui';
+import { Spinner } from '@idmis/ui';
 import { useAuth } from '../auth';
 import { PwaManager } from '../pwa';
 
 function ShellLayoutInner() {
-  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const { isFieldLayoutActive } = useFieldMode();
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden">
-      <TopBar onToggleSidebar={() => setMobileNavOpen((prev) => !prev)} />
+      <TopBar />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Fixed Sidebar */}
@@ -25,22 +24,13 @@ function ShellLayoutInner() {
           <SideNav />
         </div>
 
-        {/* Mobile Navigation Sheet */}
-        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetContent side="left" className="p-0 w-72">
-            <div className="pt-6">
-              <SideNav />
-            </div>
-          </SheetContent>
-        </Sheet>
-
         {/* Main Content Area (Scrolls Independently) */}
         <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full pb-20 md:pb-8">
           <Outlet />
         </main>
       </div>
 
-      {/* Dynamic Bottom Navigation: Field Bar for Collectors, Standard BottomNav for Desk/Admin */}
+      {/* Dynamic Bottom Navigation: Field Bar for Collectors, Context-Aware BottomNav + Slider for Desk/Admin */}
       {isFieldLayoutActive ? <FieldBottomBar /> : <BottomNav />}
 
       {/* PWA Prompt & SW Update Banner */}

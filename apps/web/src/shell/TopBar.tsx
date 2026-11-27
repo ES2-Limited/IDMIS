@@ -4,52 +4,45 @@ import { ScopePicker } from './ScopePicker';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SyncDrawer } from './SyncDrawer';
 import { IconButton } from '@idmis/ui';
-import { Bell, User, Menu, LogOut, RefreshCw } from 'lucide-react';
-import { useAuth } from '../auth';
+import { Bell, User, LogOut, RefreshCw } from 'lucide-react';
+import { useAuth, useCan, MODULE_PERMISSIONS } from '../auth';
 import { useSync } from '../sync';
 
-interface TopBarProps {
-  onToggleSidebar?: () => void;
-}
-
-export function TopBar({ onToggleSidebar }: TopBarProps) {
+export function TopBar() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
   const { user, signOut } = useAuth();
   const { syncState, pendingOpsCount } = useSync();
   const [syncDrawerOpen, setSyncDrawerOpen] = React.useState(false);
 
+  const canCore = useCan([...MODULE_PERMISSIONS.core]);
+  const canSlis = useCan([...MODULE_PERMISSIONS.slis]);
+  const canMe = useCan([...MODULE_PERMISSIONS.me]);
+  const canBlis = useCan([...MODULE_PERMISSIONS.blis]);
+  const canField = useCan([...MODULE_PERMISSIONS.field]);
+
   const modules = [
-    { id: 'core', label: 'Core Admin', path: '/core' },
-    { id: 'slis', label: 'SLIS', path: '/slis' },
-    { id: 'me', label: 'M&E', path: '/me' },
-    { id: 'blis', label: 'BLIS', path: '/blis' },
-    { id: 'field', label: 'Field Station', path: '/field' },
-  ];
+    { id: 'core', label: 'Core Admin', path: '/core', show: canCore },
+    { id: 'slis', label: 'SLIS', path: '/slis', show: canSlis },
+    { id: 'me', label: 'M&E', path: '/me', show: canMe },
+    { id: 'blis', label: 'BLIS', path: '/blis', show: canBlis },
+    { id: 'field', label: 'Field Station', path: '/field', show: canField },
+  ].filter((m) => m.show);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-3.5 sm:px-6 shadow-xs">
-      <div className="flex items-center gap-2.5 sm:gap-4 md:gap-6">
-        <IconButton
-          variant="ghost"
-          size="sm"
-          aria-label="Toggle navigation menu"
-          className="inline-flex md:hidden text-slate-600 hover:text-slate-900 cursor-pointer"
-          onClick={onToggleSidebar}
-        >
-          <Menu className="h-5 w-5" />
-        </IconButton>
-
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-2.5 sm:px-6 shadow-xs overflow-x-clip">
+      <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 shrink">
         <Link
           to="/"
-          className="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight cursor-pointer"
+          className="flex items-center gap-2 sm:gap-2.5 font-bold text-slate-900 tracking-tight cursor-pointer min-w-0"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-900 text-white font-black text-sm shadow-sm ring-1 ring-teal-800/20">
+          <span className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-900 text-white font-black text-xs sm:text-sm shadow-sm ring-1 ring-teal-800/20">
             ID
           </span>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-sm sm:text-base leading-tight tracking-tight text-slate-900">
-              SPIN <span className="text-teal-700 font-bold">IDMIS</span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-extrabold text-xs sm:text-base leading-tight tracking-tight text-slate-900 truncate">
+              <span className="hidden sm:inline">SPIN </span>
+              <span className="text-teal-700 font-bold">IDMIS</span>
             </span>
             <span className="hidden sm:inline text-[10px] text-slate-400 font-medium leading-none">
               Federal Ministry of Water Resources
@@ -82,14 +75,14 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-1.5 sm:gap-2.5">
+      <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
         {/* Offline Sync Status & Manual Trigger */}
         <button
           type="button"
           onClick={() => setSyncDrawerOpen(true)}
           aria-label="Open synchronization drawer"
           title={`Sync status: ${syncState}. Pending mutations: ${pendingOpsCount}. Click to open details.`}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer shrink-0 ${
             syncState === 'error'
               ? 'border-red-300 bg-red-50 text-red-800 shadow-2xs font-bold'
               : syncState === 'pushing' || syncState === 'pulling'
@@ -122,12 +115,12 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         </button>
 
         {/* Scope Picker (Scheme / National) */}
-        <div>
+        <div className="max-w-[115px] sm:max-w-none overflow-hidden">
           <ScopePicker />
         </div>
 
         {/* National Language Switcher */}
-        <div>
+        <div className="shrink-0">
           <LanguageSwitcher />
         </div>
 
@@ -142,8 +135,8 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         </IconButton>
 
         {/* Profile menu */}
-        <div className="flex items-center gap-2 border-l border-slate-200/80 pl-2 sm:pl-3">
-          <div className="h-8 w-8 rounded-full bg-teal-100/70 border border-teal-200 text-teal-800 flex items-center justify-center font-bold text-xs shadow-2xs">
+        <div className="flex items-center gap-1.5 sm:gap-2 border-l border-slate-200/80 pl-1.5 sm:pl-3 shrink-0">
+          <div className="hidden sm:flex h-8 w-8 rounded-full bg-teal-100/70 border border-teal-200 text-teal-800 items-center justify-center font-bold text-xs shadow-2xs">
             {user?.fullName ? (
               user.fullName.charAt(0)
             ) : (
