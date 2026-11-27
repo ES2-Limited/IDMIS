@@ -42,9 +42,7 @@ function BottomTabLink({ tab, currentPath }: { tab: BottomTab; currentPath: stri
     <Link
       to={tab.path}
       className={`flex flex-col items-center justify-center min-w-[52px] min-h-[48px] py-1 px-2 rounded-xl transition-all ${
-        isActive
-          ? 'text-teal-800 font-bold'
-          : 'text-slate-600 hover:text-slate-950 font-semibold'
+        isActive ? 'text-teal-800 font-bold' : 'text-slate-600 hover:text-slate-950 font-semibold'
       }`}
     >
       <div
@@ -117,7 +115,12 @@ export function BottomNav() {
   if (activeSection === 'me') {
     tabs = [
       { label: 'Home', path: '/me', icon: LayoutDashboard, exact: true },
-      { label: 'Indicators', path: '/me/indicators', icon: Target, permission: 'me.indicator.read' },
+      {
+        label: 'Indicators',
+        path: '/me/indicators',
+        icon: Target,
+        permission: 'me.indicator.read',
+      },
       {
         label: 'Entry',
         path: '/me/entry',
@@ -179,8 +182,8 @@ export function BottomNav() {
   const { moduleName, navItems } = getModuleNavConfig(activeSection);
   const primaryPaths = new Set(tabs.map((t) => t.path));
   const remainingItems = navItems.filter((item) => !primaryPaths.has(item.path));
-  const isMoreRouteActive = remainingItems.some((item) =>
-    currentPath === item.path || currentPath.startsWith(`${item.path}/`),
+  const isMoreRouteActive = remainingItems.some(
+    (item) => currentPath === item.path || currentPath.startsWith(`${item.path}/`),
   );
 
   return (
@@ -206,7 +209,9 @@ export function BottomNav() {
             >
               <div
                 className={`p-1 rounded-lg transition-all ${
-                  moreOpen || isMoreRouteActive ? 'bg-teal-50 text-teal-800 scale-105' : 'text-slate-600'
+                  moreOpen || isMoreRouteActive
+                    ? 'bg-teal-50 text-teal-800 scale-105'
+                    : 'text-slate-600'
                 }`}
               >
                 <MoreHorizontal className="h-5 w-5" />

@@ -7,11 +7,7 @@ import { permissions } from '@idmis/contracts';
  * excluded so cross-module lookups do not unlock other modules.
  */
 export const MODULE_PERMISSIONS = {
-  core: [
-    permissions.CORE_USER_READ,
-    permissions.CORE_AUDIT_READ,
-    permissions.CORE_IMPORT_RUN,
-  ],
+  core: [permissions.CORE_USER_READ, permissions.CORE_AUDIT_READ, permissions.CORE_IMPORT_RUN],
   slis: [
     permissions.SLIS_FARMER_CREATE,
     permissions.SLIS_FARMER_UPDATE,
@@ -19,11 +15,7 @@ export const MODULE_PERMISSIONS = {
     permissions.SLIS_WATER_REQUEST_READ,
     permissions.SLIS_REVIEW_SUBMIT,
   ],
-  me: [
-    permissions.ME_INDICATOR_READ,
-    permissions.ME_SURVEY_MANAGE,
-    permissions.ME_VALUE_SUBMIT,
-  ],
+  me: [permissions.ME_INDICATOR_READ, permissions.ME_SURVEY_MANAGE, permissions.ME_VALUE_SUBMIT],
   blis: [
     permissions.BLIS_BASIN_READ,
     permissions.BLIS_DAM_MANAGE,
